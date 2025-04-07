@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import { UserButton, useClerk } from '@clerk/nextjs'
 import { useAppContext } from '@/context/AppContext'
+import Link from 'next/link'
 
 const Navbar = () => {
   const { user } = useAppContext()
@@ -18,9 +19,10 @@ const Navbar = () => {
   }
 
   // Handle click to open sign-in modal
-  const handleSignInClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    openSignIn()  // No need to pass event or props here
+  const handleSignInClick = () => {
+    openSignIn();
   }
+  
 
   // Always provide a valid handler, even if it's a no-op (empty function)
   const onClickHandler = user ? () => {} : handleSignInClick;
@@ -109,10 +111,10 @@ const Navbar = () => {
             <button onClick={toggleSidebar} className="self-end text-gray-300 hover:text-[#d7325a]">
               <X size={24} />
             </button>
-            <a href="/" className="text-gray-300 hover:text-[#d7325a]">Home</a>
-            <a href="/about" className="text-gray-300 hover:text-[#d7325a]">About Us</a>
-            <a href="/blog" className="text-gray-300 hover:text-[#d7325a]">Blog</a>
-            <a href="/contact" className="text-gray-300 hover:text-[#d7325a]">Contact Us</a>
+            <Link href="/" className="text-gray-300 hover:text-[#d7325a]">Home</Link>
+            <Link href="/about" className="text-gray-300 hover:text-[#d7325a]">About Us</Link>
+            <Link href="/blog" className="text-gray-300 hover:text-[#d7325a]">Blog</Link>
+            <Link href="/contact" className="text-gray-300 hover:text-[#d7325a]">Contact Us</Link>
             <div onClick={onClickHandler}>
               <button className="flex items-center gap-3 bg-[#EF3866] hover:bg-[#d7325a] text-white font-semibold px-5 py-2 rounded-full transition-all text-sm md:text-base">
                 {user ? (
