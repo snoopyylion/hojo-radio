@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
+import { AppContextProvider } from "@/context/AppContext";
 
 
 const inter = Inter({
@@ -32,6 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
+      <AppContextProvider>
       <html lang="en">
         <body
           className={`${geistSans.variable} ${geistMono.variable} ${inter.className} antialiased`}
@@ -39,6 +41,7 @@ export default function RootLayout({
           {children}
         </body>
       </html>
+      </AppContextProvider>
     </ClerkProvider>
   );
 }

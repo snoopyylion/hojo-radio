@@ -17,9 +17,9 @@ const LinkButton: React.FC<LinkButtonProps> = ({ title, href }) => {
         <Image
           src="/icons/arrow-circle-right.png"
           alt="arrow"
-          width={20}
-          height={20}
-          className="w-4 h-4 md:w-5 md:h-5"
+          width={40}
+          height={40}
+          className="w-6 h-6 md:w-8 md:h-8"
         />
       </button>
     </Link>
