@@ -2,7 +2,7 @@
 import Image from 'next/image'
 import React, { useEffect, useState } from 'react'
 import { Menu, X } from 'lucide-react'
-import { SignedIn, SignedOut, UserButton, useClerk } from '@clerk/nextjs'
+import { UserButton, useClerk } from '@clerk/nextjs'
 import { useAppContext } from '@/context/AppContext'
 
 const Navbar = () => {
