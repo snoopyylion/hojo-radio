@@ -24,7 +24,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const wh = new Webhook(signingSecret);
 
-  const headerPayload = headers();
+  // ✅ Await the headers() call
+  const headerPayload = await headers();
   const svixHeaders: WebhookRequiredHeaders = {
     "svix-id": headerPayload.get("svix-id") || "",
     "svix-timestamp": headerPayload.get("svix-timestamp") || "",
