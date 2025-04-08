@@ -10,8 +10,10 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.13.0",
+    "@xata.io/client": "^0.30.1",
     "axios": "^1.8.4",
     "lucide-react": "^0.487.0",
+    "micro": "^10.0.1",
     "mongoose": "^8.13.2",
     "next": "15.2.4",
     "prismjs": "^1.30.0",

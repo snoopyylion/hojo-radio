@@ -1,79 +1,46 @@
-import { Webhook, WebhookRequiredHeaders } from "svix";
-import connectDB from "@/config/db";
-import User from "@/models/User";
-import { headers } from "next/headers";
-import { NextRequest, NextResponse } from "next/server";
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { Webhook } from 'svix';
+import { buffer } from 'micro';
+import { getXataClient } from '@/src/xata';
 
-interface SvixUserEventData {
-  id: string;
-  email_addresses: { email_address: string }[];
-  first_name: string;
-  last_name: string;
-  image_url: string;
-  public_metadata?: {
-    role?: string;
-  };
-}
+const xata = getXataClient();
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
-  const signingSecret = process.env.SIGNING_SECRET;
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
-  if (!signingSecret) {
-    return NextResponse.json({ error: "Missing SIGNING_SECRET" }, { status: 500 });
-  }
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const payload = (await buffer(req)).toString();
 
-  const wh = new Webhook(signingSecret);
-
-  // ✅ Await the headers() call
-  const headerPayload = await headers();
-  const svixHeaders: WebhookRequiredHeaders = {
-    "svix-id": headerPayload.get("svix-id") || "",
-    "svix-timestamp": headerPayload.get("svix-timestamp") || "",
-    "svix-signature": headerPayload.get("svix-signature") || "",
+  const headers = {
+    'svix-id': req.headers['svix-id'] as string,
+    'svix-timestamp': req.headers['svix-timestamp'] as string,
+    'svix-signature': req.headers['svix-signature'] as string,
   };
 
-  const payload = await req.json();
-  const body = JSON.stringify(payload);
-
-  let event: { data: SvixUserEventData; type: string };
+  const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET || '');
+  let evt: any;
 
   try {
-    event = wh.verify(body, svixHeaders) as typeof event;
+    evt = wh.verify(payload, headers);
   } catch (err) {
-    console.error("Webhook verification failed:", err);
-    return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
+    return res.status(400).json({ error: 'Webhook verification failed' });
   }
 
-  const { data, type } = event;
+  const { id, email_addresses } = evt.data;
 
-  const userData = {
-    _id: data.id,
-    email: data.email_addresses[0]?.email_address,
-    name: `${data.first_name} ${data.last_name}`,
-    image: data.image_url,
-    role: data.public_metadata?.role || "user",
-  };
+  if (evt.type === 'user.created') {
+    const email = email_addresses?.[0]?.email_address || '';
 
-  await connectDB();
-
-  try {
-    switch (type) {
-      case "user.created":
-        await User.create(userData);
-        break;
-      case "user.updated":
-        await User.findByIdAndUpdate(data.id, userData);
-        break;
-      case "user.deleted":
-        await User.findByIdAndDelete(data.id);
-        break;
-      default:
-        console.warn("Unhandled event type:", type);
-    }
-
-    return NextResponse.json({ message: "Event received" });
-  } catch (error) {
-    console.error("Error handling event:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    // Save to Xata with default role
+    await xata.db.users.create({
+      clerkId: id,
+      email,
+      role: 'viewer',
+    });
   }
+
+  res.status(200).json({ success: true });
 }
