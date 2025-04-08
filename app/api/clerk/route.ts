@@ -1,32 +1,35 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextRequest } from 'next/server';
 import { Webhook } from 'svix';
-import { buffer } from 'micro';
+import { headers } from 'next/headers';
 import { getXataClient } from '@/src/xata';
 
 const xata = getXataClient();
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+interface ClerkEvent {
+  data: {
+    id: string;
+    email_addresses: { email_address: string }[];
+  };
+  type: 'user.created' | 'user.updated' | 'user.deleted';
+}
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const payload = (await buffer(req)).toString();
+export async function POST(req: NextRequest) {
+  const payload = await req.text();
 
-  const headers = {
-    'svix-id': req.headers['svix-id'] as string,
-    'svix-timestamp': req.headers['svix-timestamp'] as string,
-    'svix-signature': req.headers['svix-signature'] as string,
+  const headerPayload = await headers();
+  const svixHeaders = {
+    'svix-id': headerPayload.get('svix-id') ?? '',
+    'svix-timestamp': headerPayload.get('svix-timestamp') ?? '',
+    'svix-signature': headerPayload.get('svix-signature') ?? '',
   };
 
   const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET || '');
-  let evt: any;
+  let evt: ClerkEvent;
 
   try {
-    evt = wh.verify(payload, headers);
-  } catch (err) {
-    return res.status(400).json({ error: 'Webhook verification failed' });
+    evt = wh.verify(payload, svixHeaders) as ClerkEvent;
+  } catch {
+    return new Response('Webhook verification failed', { status: 400 });
   }
 
   const { id, email_addresses } = evt.data;
@@ -34,7 +37,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (evt.type === 'user.created') {
     const email = email_addresses?.[0]?.email_address || '';
 
-    // Save to Xata with default role
     await xata.db.users.create({
       clerkId: id,
       email,
@@ -42,5 +44,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 
-  res.status(200).json({ success: true });
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
