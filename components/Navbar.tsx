@@ -73,12 +73,12 @@ const Navbar = () => {
             <button className="flex items-center gap-4 bg-[#EF3866] hover:bg-[#d7325a] text-white px-6 py-4 rounded-full transition-all text-xl">
               {user ? (
                 <>
-                  <span className="text-xl">Account</span> {/* More professional word */}
+                  <span className="text-lg">Account</span> {/* More professional word */}
                   <UserButton />
                 </>
               ) : (
                 <>
-                  <span className="text-xl">Sign Up</span>
+                  <span className="text-lg">Sign Up</span>
                   <Image
                     src="/icons/arrow-circle-right.png"
                     alt="arrow"
@@ -119,12 +119,12 @@ const Navbar = () => {
               <button className="flex items-center gap-3 bg-[#EF3866] hover:bg-[#d7325a] text-white font-semibold px-5 py-2 rounded-full transition-all text-sm md:text-base">
                 {user ? (
                   <>
-                    <span className="text-lg font-medium">Account</span>
+                    <span className="text-lg">Account</span>
                     <UserButton />
                   </>
                 ) : (
                   <>
-                    <span className="text-lg font-medium">Sign Up</span>
+                    <span className="text-lg">Sign Up</span>
                     <Image
                       src="/icons/arrow-circle-right.png"
                       alt="arrow"

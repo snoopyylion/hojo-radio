@@ -7,14 +7,16 @@ const Hero = () => {
     <section className="w-full h-screen py-16 bg-white">
       <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between">
         {/* Hero Left */}
-        <div className="hero-left md:w-1/2 w-[90dvw] pr-4 md:pr-8">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 leading-tight">
-            Empowering <span className="text-[#EF3866]">Informed <br />Decisions</span> with Reliable News
+        <div className="hero-left md:w-1/2 w-full text-center md:text-left">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 leading-snug">
+            Empowering <span className="text-[#EF3866]">Informed <br className="hidden sm:block"/>Decisions</span> with Reliable News
           </h1>
-          <p className="text-base sm:text-lg md:text-xl text-gray-700 mb-8">
+          <p className="text-sm sm:text-base md:text-lg text-gray-700 mb-8 max-w-[600px] mx-auto md:mx-0">
             Hojo fights misinformation head-on, equipping you with cutting-edge AI tools to verify the news you consume. Search for articles and instantly access real-time accuracy checks, ensuring you only engage with credible information that matters to you.
           </p>
-          <LinkButton title="Verify News" href="/" />
+          <div className="flex justify-center md:justify-start">
+            <LinkButton title="Verify News" href="/" />
+          </div>
         </div>
 
         {/* Hero Right */}
