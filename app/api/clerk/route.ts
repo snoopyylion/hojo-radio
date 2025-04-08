@@ -13,19 +13,6 @@ interface ClerkEvent {
   type: 'user.created' | 'user.updated' | 'user.deleted';
 }
 
-/*************  ✨ Windsurf Command ⭐  *************/
-/**
- * Handles incoming Clerk webhooks.
- *
- * Currently, only the 'user.created' event is handled, which creates a
- * new user in the Xata database with the Clerk-provided ID and email
- * address.
- *
- * Other events are ignored.
- *
- * @param req - The incoming NextRequest object.
- */
-/*******  d5100b1b-af53-4b21-8f4d-c44d4e557fbc  *******/
 export async function POST(req: NextRequest) {
   const payload = await req.text();
 
