@@ -123,8 +123,9 @@ const DatabaseClient = buildClient();
 
 const defaultOptions = {
   apiKey: process.env.XATA_API_KEY,
-  branch: process.env.XATA_BRANCH,
+  databaseURL: `https://Tifase-Oluwaseyi-s-workspace-r6r3cj.us-east-1.xata.sh/db/hojo-app:${process.env.XATA_BRANCH}`,
 };
+
 
 
 
