@@ -123,8 +123,10 @@ const DatabaseClient = buildClient();
 
 const defaultOptions = {
   apiKey: process.env.XATA_API_KEY,
-  databaseURL: `https://Tifase-Oluwaseyi-s-workspace-r6r3cj.us-east-1.xata.sh/db/hojo-app:${process.env.XATA_BRANCH}`,
+  branch: process.env.XATA_BRANCH, // ✅ Required!
+  databaseURL: `https://Tifase-Oluwaseyi-s-workspace-r6r3cj.us-east-1.xata.sh/db/hojo-app:${process.env.XATA_BRANCH}`, // ✅ Use dynamic branch
 };
+
 
 
 
