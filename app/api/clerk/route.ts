@@ -48,6 +48,7 @@ interface EmailAddress {
   
     console.log('XATA_BRANCH:', process.env.XATA_BRANCH);
 
+
     const headerPayload = await headers();
     const svixHeaders = {
       "svix-id": headerPayload.get("svix-id") ?? "",
@@ -63,11 +64,16 @@ interface EmailAddress {
     try {
       evt = wh.verify(payload, svixHeaders) as WebhookEvent;
     } catch (err) {
-      console.error(err);
+      console.error("Webhook signature verification failed:", err);
+      console.log("Payload:", payload);
+      console.log("Headers:", svixHeaders);
       return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
     }
   
     const { type } = evt;
+    console.log("Webhook event received:", type);
+    console.log("Webhook data:", evt.data);
+
   
     try {
       switch (type) {
