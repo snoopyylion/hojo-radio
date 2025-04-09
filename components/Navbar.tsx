@@ -12,20 +12,19 @@ const Navbar = () => {
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
-  const { openSignIn } = useClerk()
+  const { openSignIn } = useClerk();
 
   const toggleSidebar = () => {
     setIsOpen(!isOpen)
   }
 
   // Handle click to open sign-in modal
-  const handleSignInClick = () => {
-    openSignIn();
-  }
+  const handleClick = () => {
+    if (!user) {
+      openSignIn();
+    }
+  };
   
-
-  // Always provide a valid handler, even if it's a no-op (empty function)
-  const onClickHandler = user ? () => {} : handleSignInClick;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -69,7 +68,7 @@ const Navbar = () => {
 
         {/* Sign Up / User Button */}
         <div className="hidden md:block">
-        <div onClick={onClickHandler}>
+        <div onClick={handleClick}>
             <button className="flex items-center gap-4 bg-[#EF3866] hover:bg-[#d7325a] text-white px-6 py-4 rounded-full transition-all text-xl">
               {user ? (
                 <>
@@ -115,7 +114,7 @@ const Navbar = () => {
             <Link href="/about" className="text-gray-300 hover:text-[#d7325a]">About Us</Link>
             <Link href="/blog" className="text-gray-300 hover:text-[#d7325a]">Blog</Link>
             <Link href="/contact" className="text-gray-300 hover:text-[#d7325a]">Contact Us</Link>
-            <div onClick={onClickHandler} className='flex-end'>
+            <div onClick={handleClick} className='flex mt-96'>
               <button className="flex items-center gap-3 bg-[#EF3866] hover:bg-[#d7325a] text-white font-semibold px-5 py-2 rounded-full transition-all text-sm md:text-base">
                 {user ? (
                   <>
