@@ -1,0 +1,18 @@
+{
+  "done": true,
+  "migration": {
+    "name": "mig_cvr2od5fchh2dtob8hd0",
+    "operations": [
+      {
+        "drop_table": {
+          "name": "users"
+        }
+      }
+    ]
+  },
+  "migrationType": "pgroll",
+  "name": "mig_cvr2od5fchh2dtob8hd0",
+  "parent": "mig_cvr2o8t1cltn5mtpottg",
+  "schema": "public",
+  "startedAt": "2025-04-09T08:13:40.897898Z"
+}

@@ -1,0 +1,25 @@
+{
+  "done": true,
+  "migration": {
+    "name": "mig_cvq6tqno1tkgc98jha20",
+    "operations": [
+      {
+        "add_column": {
+          "table": "users",
+          "column": {
+            "name": "email",
+            "type": "text[]",
+            "unique": true,
+            "comment": "",
+            "nullable": true
+          }
+        }
+      }
+    ]
+  },
+  "migrationType": "pgroll",
+  "name": "mig_cvq6tqno1tkgc98jha20",
+  "parent": "mig_cvq6qa51cltn5mtpomkg",
+  "schema": "public",
+  "startedAt": "2025-04-08T00:33:46.57268Z"
+}

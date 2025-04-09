@@ -1,0 +1,25 @@
+{
+  "done": true,
+  "migration": {
+    "name": "mig_cvr2pit1cltn5mtpotug",
+    "operations": [
+      {
+        "add_column": {
+          "table": "users",
+          "column": {
+            "name": "clerkId",
+            "type": "text",
+            "unique": true,
+            "comment": "",
+            "nullable": true
+          }
+        }
+      }
+    ]
+  },
+  "migrationType": "pgroll",
+  "name": "mig_cvr2pit1cltn5mtpotug",
+  "parent": "mig_cvr2on5fchh2dtob8he0",
+  "schema": "public",
+  "startedAt": "2025-04-09T08:16:12.184737Z"
+}
