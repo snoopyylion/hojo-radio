@@ -46,6 +46,8 @@ interface EmailAddress {
       return NextResponse.json({ error: "Missing SIGNING_SECRET" }, { status: 400 });
     }
   
+    console.log('XATA_BRANCH:', process.env.XATA_BRANCH);
+
     const headerPayload = await headers();
     const svixHeaders = {
       "svix-id": headerPayload.get("svix-id") ?? "",
