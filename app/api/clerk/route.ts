@@ -61,6 +61,7 @@ interface EmailAddress {
     try {
       evt = wh.verify(payload, svixHeaders) as WebhookEvent;
     } catch (err) {
+      console.error(err);
       return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
     }
   
