@@ -5,6 +5,17 @@ import { headers as nextHeaders } from "next/headers";
 
 const xata = new XataClient();
 
+interface ClerkEvent {
+  type: string;
+  data: {
+    id: string;
+    first_name?: string;
+    last_name?: string;
+    email_addresses?: { email_address: string }[];
+    profile_image_url?: string;
+  };
+}
+
 export async function POST(req: Request) {
   const body = await req.text();
   const headerPayload = await nextHeaders();
@@ -17,12 +28,9 @@ export async function POST(req: Request) {
 
   try {
     const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET || "");
-    const evt = wh.verify(body, svixHeaders);
+    const evt = wh.verify(body, svixHeaders) as ClerkEvent;
 
-    const { type, data } = evt as {
-      type: string;
-      data: any;
-    };
+    const { type, data } = evt;
 
     console.log("✅ Clerk event received:", type);
 
@@ -69,8 +77,9 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ message: "Unhandled event" });
-  } catch (err: any) {
-    console.error("❌ Webhook verification error:", err.message || err);
-    return NextResponse.json({ error: err.message || "Webhook verification failed" }, { status: 400 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Webhook verification failed";
+    console.error("❌ Webhook verification error:", message);
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }
