@@ -1,18 +1,24 @@
 import { Webhook } from "svix";
 import { NextResponse } from "next/server";
+import { headers as nextHeaders } from "next/headers";
 import { XataClient } from "../../../../src/xata";
 
 const xata = new XataClient();
 
 export async function POST(req: Request) {
   const body = await req.text();
-  const headers = Object.fromEntries(req.headers.entries());
+  const headerPayload = await nextHeaders();
+
+  const svixHeaders = {
+    "svix-id": headerPayload.get("svix-id") || "",
+    "svix-timestamp": headerPayload.get("svix-timestamp") || "",
+    "svix-signature": headerPayload.get("svix-signature") || "",
+  };
 
   try {
     const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET || "");
-    const evt = wh.verify(body, headers);
+    const evt = wh.verify(body, svixHeaders);
 
-    // Safely assert Clerk event
     const event = evt as {
       type: string;
       data: {
@@ -33,7 +39,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ message: "Missing required user data" }, { status: 400 });
       }
 
-      // Check for existing user to avoid duplicates
       const existingUser = await xata.db.users.filter({ clerkId: id }).getFirst();
       if (existingUser) {
         console.log("User already exists:", existingUser);
@@ -43,7 +48,6 @@ export async function POST(req: Request) {
       const name = [first_name, last_name].filter(Boolean).join(" ") || "Unnamed";
       const image = profile_image_url ?? null;
 
-      // Create user in Xata
       const newUser = await xata.db.users.create({
         clerkId: id,
         email,
@@ -57,10 +61,9 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ message: "Unhandled event" });
-} catch (err: unknown) {
+  } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Webhook verification failed";
     console.error("Webhook error:", errorMessage);
     return NextResponse.json({ error: errorMessage }, { status: 400 });
   }
-  
 }
