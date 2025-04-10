@@ -121,10 +121,12 @@ export type DatabaseSchema = {
 
 const DatabaseClient = buildClient();
 
+
 const defaultOptions = {
-  databaseURL:
-    "https://Tifase-Oluwaseyi-s-workspace-r6r3cj.us-east-1.xata.sh/db/hojo-app:main",
+  databaseURL: process.env.XATA_DATABASE_URL || "",
+  apiKey: process.env.XATA_API_KEY || "",
 };
+
 
 export class XataClient extends DatabaseClient<DatabaseSchema> {
   constructor(options?: BaseClientOptions) {

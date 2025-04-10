@@ -1,44 +1,67 @@
 import { Webhook } from "svix";
-import { XataClient } from "../../../../src/xata";
 import { NextResponse } from "next/server";
+import { XataClient } from "../../../../src/xata";
 
 const xata = new XataClient();
 
-type ClerkUserCreatedEvent = {
-  type: "user.created";
-  data: {
-    id: string;
-    email_addresses: { email_address: string }[];
-    first_name: string;
-    last_name: string;
-    image_url: string;
-  };
-};
-
 export async function POST(req: Request) {
-  const payload = await req.text();
+  const body = await req.text();
   const headers = Object.fromEntries(req.headers.entries());
 
   try {
     const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET || "");
-    const evt = wh.verify(payload, headers) as ClerkUserCreatedEvent;
+    const evt = wh.verify(body, headers);
 
-    if (evt.type === "user.created") {
-      const { id, email_addresses, first_name, last_name, image_url } = evt.data;
+    // Safely assert Clerk event
+    const event = evt as {
+      type: string;
+      data: {
+        id: string;
+        first_name?: string;
+        last_name?: string;
+        email_addresses: { email_address: string }[];
+        profile_image_url?: string;
+      };
+    };
+
+    if (event.type === "user.created") {
+      const { id, first_name, last_name, email_addresses, profile_image_url } = event.data;
       const email = email_addresses?.[0]?.email_address;
 
-      await xata.db.users.create({
+      if (!id || !email) {
+        console.warn("Missing Clerk ID or email — cannot create user.");
+        return NextResponse.json({ message: "Missing required user data" }, { status: 400 });
+      }
+
+      // Check for existing user to avoid duplicates
+      const existingUser = await xata.db.users.filter({ clerkId: id }).getFirst();
+      if (existingUser) {
+        console.log("User already exists:", existingUser);
+        return NextResponse.json({ message: "User already exists" });
+      }
+
+      const name = [first_name, last_name].filter(Boolean).join(" ") || "Unnamed";
+      const image = profile_image_url ?? null;
+
+      // Create user in Xata
+      const newUser = await xata.db.users.create({
         clerkId: id,
         email,
-        name: `${first_name} ${last_name}`,
-        image: image_url,
+        name,
+        image,
         role: "user",
       });
+
+      console.log("Created user in Xata:", newUser);
+      return NextResponse.json({ status: "ok", user: newUser });
     }
 
-    return NextResponse.json({ status: "ok" });
-  } catch (err) {
-    console.error("Webhook verification failed:", err);
-    return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
+    return NextResponse.json({ message: "Unhandled event" });
+  } catch (err: any) {
+    console.error("Webhook error:", err.message || err);
+    return NextResponse.json(
+      { error: err.message || "Webhook verification failed" },
+      { status: 400 }
+    );
   }
 }
