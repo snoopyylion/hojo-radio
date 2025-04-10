@@ -57,11 +57,10 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ message: "Unhandled event" });
-  } catch (err: any) {
-    console.error("Webhook error:", err.message || err);
-    return NextResponse.json(
-      { error: err.message || "Webhook verification failed" },
-      { status: 400 }
-    );
+} catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Webhook verification failed";
+    console.error("Webhook error:", errorMessage);
+    return NextResponse.json({ error: errorMessage }, { status: 400 });
   }
+  
 }
