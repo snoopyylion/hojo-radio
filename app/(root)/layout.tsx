@@ -1,11 +1,11 @@
 import Footer from '@/components/Footer'
-import Navbar from '@/components/Navbar'
+import NewNavbar from '@/components/NewNavbar'
 import React from 'react'
 
 export default function Layout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <main>
-        <Navbar/>
+        <NewNavbar/>
            {children}
         <Footer/>
     </main>
