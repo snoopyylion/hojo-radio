@@ -125,6 +125,7 @@ const DatabaseClient = buildClient();
 const defaultOptions = {
   databaseURL: process.env.XATA_DATABASE_URL || "",
   apiKey: process.env.XATA_API_KEY || "",
+  branch: process.env.XATA_BRANCH || "", // ← ADD THIS LINE
 };
 
 
