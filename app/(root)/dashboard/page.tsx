@@ -23,7 +23,7 @@ export default function Dashboard() {
     }
   }, [user, isLoaded]);
 
-  if (!isLoaded) return <p>Loading...</p>;
+  if (!isLoaded || !user) return <p>Loading...</p>;
 
   return (
     <div className="p-4">
