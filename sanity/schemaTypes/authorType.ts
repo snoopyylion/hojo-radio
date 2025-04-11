@@ -12,6 +12,11 @@ export const authorType = defineType({
       type: 'string',
     }),
     defineField({
+      name: 'userId',
+      title: "Supabase User ID",
+      type: 'string',
+    }),
+    defineField({
       name: 'slug',
       type: 'slug',
       options: {

@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
-export default function Dashboard() {
+export default function HashedDashboardPage() {
   const { user } = useAppContext();
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -16,8 +16,8 @@ export default function Dashboard() {
     userId: user?.id,
     email: user?.email,
   });
-  useEffect(() => {
 
+  useEffect(() => {
     const fetchRole = async () => {
       if (!user?.id) return;
 
@@ -42,15 +42,15 @@ export default function Dashboard() {
 
   const handleRequestAccess = async () => {
     const payload = { userId: user?.id, email: user?.email };
-    console.log("Sending payload:", payload); // 🔍 log it here
-  
+    console.log("Sending payload:", payload);
+
     try {
       const res = await fetch("/api/request-author", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-  
+
       if (res.ok) {
         setRequestSent(true);
       } else {
@@ -63,7 +63,6 @@ export default function Dashboard() {
       alert("Something went wrong.");
     }
   };
-  
 
   if (!user || loading) {
     return (
