@@ -11,6 +11,9 @@
   "dependencies": {
     "@clerk/clerk-sdk-node": "^5.1.6",
     "@clerk/nextjs": "^6.14.2",
+    "@sanity/icons": "^3.7.0",
+    "@sanity/image-url": "^1.1.0",
+    "@sanity/vision": "^3.84.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.4",
     "@xata.io/client": "^0.0.0-next.v93343b9646f57a1e5c51c35eccf0767c2bb80baa",
@@ -19,11 +22,14 @@
     "micro": "^10.0.1",
     "mongoose": "^8.13.2",
     "next": "15.2.4",
+    "next-sanity": "^9.10.1",
     "prismjs": "^1.30.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.5.2",
     "react-markdown": "^10.1.0",
+    "sanity": "^3.84.0",
+    "styled-components": "^6.1.17",
     "svix": "^1.63.1"
   },
   "devDependencies": {
