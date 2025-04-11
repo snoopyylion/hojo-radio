@@ -1,11 +1,17 @@
-// app/context/AppContext.tsx
 "use client";
 
 import { useUser, useAuth } from "@clerk/nextjs";
 import { createContext, useContext, ReactNode, useEffect, useState } from "react";
 
+interface AppUser {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+}
+
 interface AppContextType {
-  user: any;
+  user: AppUser | null;
   token: string | null;
   clearSession: () => void;
 }
@@ -25,9 +31,10 @@ interface AppContextProviderProps {
 }
 
 export const AppContextProvider = ({ children }: AppContextProviderProps) => {
-  const { user } = useUser();
+  const { user: clerkUser } = useUser();
   const { getToken } = useAuth();
   const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
 
   useEffect(() => {
     const fetchToken = async () => {
@@ -35,15 +42,26 @@ export const AppContextProvider = ({ children }: AppContextProviderProps) => {
       setToken(t || null);
     };
 
-    if (user) {
+    if (clerkUser) {
+      const email = clerkUser.emailAddresses?.[0]?.emailAddress ?? "";
+      setUser({
+        id: clerkUser.id,
+        firstName: clerkUser.firstName,
+        lastName: clerkUser.lastName,
+        email,
+      });
+
       fetchToken();
+    } else {
+      setUser(null);
     }
-  }, [user]);
+  }, [clerkUser]);
 
   const clearSession = () => {
     setToken(null);
-    localStorage.clear(); // optional: if you store anything else
+    localStorage.clear();
     sessionStorage.clear();
+    setUser(null);
   };
 
   const value: AppContextType = {

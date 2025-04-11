@@ -12,7 +12,12 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [requestSent, setRequestSent] = useState(false);
 
+  console.log("Requesting author access for:", {
+    userId: user?.id,
+    email: user?.email,
+  });
   useEffect(() => {
+
     const fetchRole = async () => {
       if (!user?.id) return;
 
@@ -36,16 +41,21 @@ export default function Dashboard() {
   }, [user]);
 
   const handleRequestAccess = async () => {
+    const payload = { userId: user?.id, email: user?.email };
+    console.log("Sending payload:", payload); // 🔍 log it here
+  
     try {
       const res = await fetch("/api/request-author", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user?.id, email: user?.email }),
+        body: JSON.stringify(payload),
       });
-
+  
       if (res.ok) {
         setRequestSent(true);
       } else {
+        const errorData = await res.json();
+        console.error("Error response from server:", errorData);
         alert("Failed to send request.");
       }
     } catch (error) {
@@ -53,6 +63,7 @@ export default function Dashboard() {
       alert("Something went wrong.");
     }
   };
+  
 
   if (!user || loading) {
     return (
