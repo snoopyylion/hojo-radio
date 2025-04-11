@@ -2,9 +2,7 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
-import { XataClient } from "@/../../src/xata";
-
-const xata = new XataClient();
+import { supabase } from "../lib/supabase"; // adjust path if needed
 
 export default function Dashboard() {
   const { user, isLoaded } = useUser();
@@ -14,8 +12,18 @@ export default function Dashboard() {
     const fetchRole = async () => {
       if (!user) return;
 
-      const xataUser = await xata.db.users.filter({ clerkId: user.id }).getFirst();
-      setRole(xataUser?.role || "unknown");
+      const { data, error } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (error) {
+        console.error("Error fetching user role:", error);
+        setRole("unknown");
+      } else {
+        setRole(data?.role || "unknown");
+      }
     };
 
     if (isLoaded) {

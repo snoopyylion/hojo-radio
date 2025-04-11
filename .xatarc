@@ -1,6 +1,0 @@
-{
-  "databaseURL": "https://Tifase-Oluwaseyi-s-workspace-r6r3cj.us-east-1.xata.sh/db/hojo-app:main",
-  "codegen": {
-    "output": "src/xata.ts"
-  }
-}
