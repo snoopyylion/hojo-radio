@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     const email = data.email_addresses?.[0]?.email_address;
     const image = data.profile_image_url ?? null;
 
-    const { error } = await supabaseAdmin.from("users").insert([
+    const { error } = await supabaseAdmin.from("users").upsert([
         {
             id: data.id,
             email,
