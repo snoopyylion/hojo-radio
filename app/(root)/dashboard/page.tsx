@@ -2,7 +2,7 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
-import { supabase } from "../../../lib/supabase"; // adjust path if needed
+import { supabase } from "../../../lib/supabaseClient"; // adjust path if needed
 
 export default function Dashboard() {
   const { user, isLoaded } = useUser();

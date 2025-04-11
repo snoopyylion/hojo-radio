@@ -1,7 +1,7 @@
 import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { supabase } from "../../../../lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 interface ClerkUserCreatedEvent {
   data: {
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const name = [data.first_name, data.last_name].filter(Boolean).join(" ");
     const image = data.profile_image_url ?? null;
 
-    const { error } = await supabase.from("users").insert([
+    const { error } = await supabaseAdmin.from("users").insert([
       {
         id: data.id,
         email,
