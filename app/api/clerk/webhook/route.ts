@@ -30,7 +30,6 @@ export async function POST(req: Request) {
 
     const { data } = evt;
     const email = data.email_addresses?.[0]?.email_address;
-    const name = [data.first_name, data.last_name].filter(Boolean).join(" ");
     const image = data.profile_image_url ?? null;
 
     const { error } = await supabaseAdmin.from("users").insert([
