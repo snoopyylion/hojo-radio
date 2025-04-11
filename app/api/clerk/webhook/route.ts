@@ -3,15 +3,15 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-interface ClerkUserCreatedEvent {
+interface ClerkUserEvent {
+  type: "user.created" | "user.updated" | "user.deleted";
   data: {
     id: string;
     first_name?: string;
     last_name?: string;
-    email_addresses: { email_address: string }[];
+    email_addresses?: { email_address: string }[];
     profile_image_url?: string;
   };
-  type: "user.created";
 }
 
 export async function POST(req: Request) {
@@ -26,31 +26,63 @@ export async function POST(req: Request) {
 
   try {
     const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET || "");
-    const evt = wh.verify(body, svixHeaders) as ClerkUserCreatedEvent;
+    const evt = wh.verify(body, svixHeaders) as ClerkUserEvent;
 
-    const { data } = evt;
-    const email = data.email_addresses?.[0]?.email_address;
-    const image = data.profile_image_url ?? null;
+    const { type, data } = evt;
 
-    const { error } = await supabaseAdmin.from("users").upsert([
-        {
-            id: data.id,
-            email,
-            first_name: data.first_name ?? "",
-            last_name: data.last_name ?? "",
-            image_url: image, // 👈 make sure it's image_url now
-            role: "user",
-          },
-        ]);
+    // Logs to debug easily
+    console.log(`📣 Clerk webhook event received: ${type}`);
+    console.log(JSON.stringify(data, null, 2));
 
-    if (error) {
-      console.error("❌ Supabase insert error:", error);
-      return NextResponse.json({ error: "Supabase insert failed" }, { status: 500 });
+    // Destructure common fields
+    const { id, email_addresses, profile_image_url, first_name, last_name } = data;
+    const email = email_addresses?.[0]?.email_address || null;
+    const image_url = profile_image_url || null;
+
+    if (!id) {
+      console.warn("⚠️ Missing user ID, skipping...");
+      return NextResponse.json({ success: false }, { status: 400 });
     }
 
-    return NextResponse.json({ message: "✅ User synced to Supabase" });
+    if (type === "user.created" || type === "user.updated") {
+      if (!email) {
+        console.warn("⚠️ Missing email, skipping...");
+        return NextResponse.json({ success: false }, { status: 400 });
+      }
+
+      const { error } = await supabaseAdmin.from("users").upsert([
+        {
+          id,
+          email,
+          first_name: first_name ?? "",
+          last_name: last_name ?? "",
+          image_url,
+          role: "user",
+        },
+      ]);
+
+      if (error) {
+        console.error("❌ Supabase upsert error:", error);
+        return NextResponse.json({ error: "Supabase upsert failed" }, { status: 500 });
+      }
+
+      return NextResponse.json({ message: `✅ User ${type === "user.created" ? "created" : "updated"} in Supabase` });
+    }
+
+    if (type === "user.deleted") {
+      const { error } = await supabaseAdmin.from("users").delete().eq("id", id);
+
+      if (error) {
+        console.error("❌ Supabase delete error:", error);
+        return NextResponse.json({ error: "Supabase delete failed" }, { status: 500 });
+      }
+
+      return NextResponse.json({ message: "🗑️ User deleted from Supabase" });
+    }
+
+    return NextResponse.json({ message: "ℹ️ Event type not handled" });
   } catch (err) {
-    console.error("❌ Webhook error:", err);
+    console.error("❌ Webhook verification failed:", err);
     return NextResponse.json({ error: "Webhook verification failed" }, { status: 400 });
   }
 }
