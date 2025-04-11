@@ -1,35 +1,56 @@
+// app/context/AppContext.tsx
 "use client";
-import { useUser } from "@clerk/nextjs";
-import { createContext, useContext, ReactNode } from "react";
 
-// Define a type for the context value
+import { useUser, useAuth } from "@clerk/nextjs";
+import { createContext, useContext, ReactNode, useEffect, useState } from "react";
+
 interface AppContextType {
-  user: any; // You can replace `any` with a more specific type if needed, based on the user data structure from Clerk.
+  user: any;
+  token: string | null;
+  clearSession: () => void;
 }
 
-// Create the context with a default value of type `AppContextType`
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Custom hook to use the context
 export const useAppContext = () => {
   const context = useContext(AppContext);
   if (!context) {
-    throw new Error('useAppContext must be used within an AppContextProvider');
+    throw new Error("useAppContext must be used within an AppContextProvider");
   }
   return context;
-}
+};
 
-// Define the type for the props of AppContextProvider
 interface AppContextProviderProps {
-  children: ReactNode; // ReactNode ensures that you can pass any valid JSX element as children
+  children: ReactNode;
 }
 
 export const AppContextProvider = ({ children }: AppContextProviderProps) => {
   const { user } = useUser();
+  const { getToken } = useAuth();
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchToken = async () => {
+      const t = await getToken();
+      setToken(t || null);
+    };
+
+    if (user) {
+      fetchToken();
+    }
+  }, [user]);
+
+  const clearSession = () => {
+    setToken(null);
+    localStorage.clear(); // optional: if you store anything else
+    sessionStorage.clear();
+  };
 
   const value: AppContextType = {
-    user
+    user,
+    token,
+    clearSession,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
-}
+};

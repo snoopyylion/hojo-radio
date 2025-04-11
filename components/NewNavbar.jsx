@@ -6,6 +6,8 @@ import { Menu, X } from 'lucide-react'
 import { UserButton } from '@clerk/nextjs'
 import { useAppContext } from '@/context/AppContext'
 import Link from 'next/link'
+import SignOutBtn from "@/components/SignOutBtn";
+
 
 const NewNavbar = () => {
   const { user } = useAppContext()
@@ -54,6 +56,7 @@ const NewNavbar = () => {
             <div className="flex items-center gap-4">
               <span className="text-lg font-medium text-gray-700">Account</span>
               <UserButton />
+              <SignOutBtn />
             </div>
           ) : (
             <Link href="/sign-up">
@@ -85,26 +88,30 @@ const NewNavbar = () => {
           <Link href="/contact" className="text-gray-300 hover:text-[#d7325a]">Contact Us</Link>
 
           <div className="mt-72">
-            {user ? (
-              <div className="flex items-center gap-3 text-white">
-                <span className="text-lg">Account:</span>
-                <UserButton />
-              </div>
-            ) : (
-              <Link href="/sign-up">
-                <button className="flex items-center gap-3 bg-[#EF3866] hover:bg-[#d7325a] text-white font-semibold px-5 py-2 rounded-full transition-all text-sm md:text-base">
-                  <span className="text-lg">Sign Up</span>
-                  <Image
-                    src="/icons/arrow-circle-right.png"
-                    alt="arrow"
-                    width={20}
-                    height={20}
-                    className="w-6 h-6 md:w-8 md:h-8"
-                  />
-                </button>
-              </Link>
-            )}
-          </div>
+  {user ? (
+    <div className="flex flex-col gap-4 bg-[#444] rounded-lg p-4 text-white">
+      <span className="text-base font-semibold border-b border-gray-500 pb-2">Account</span>
+      <div className="flex items-center justify-between">
+        <UserButton />
+        <SignOutBtn />
+      </div>
+    </div>
+  ) : (
+    <Link href="/sign-up">
+      <button className="flex items-center gap-3 bg-[#EF3866] hover:bg-[#d7325a] text-white font-semibold px-5 py-2 rounded-full transition-all text-sm md:text-base">
+        <span className="text-lg">Sign Up</span>
+        <Image
+          src="/icons/arrow-circle-right.png"
+          alt="arrow"
+          width={20}
+          height={20}
+          className="w-6 h-6 md:w-8 md:h-8"
+        />
+      </button>
+    </Link>
+  )}
+</div>
+
         </div>
       </div>
     </nav>
