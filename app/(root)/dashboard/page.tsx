@@ -7,9 +7,10 @@ import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Dashboard() {
-  const { user, token } = useAppContext();
+  const { user } = useAppContext();
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [requestSent, setRequestSent] = useState(false);
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -33,6 +34,25 @@ export default function Dashboard() {
 
     fetchRole();
   }, [user]);
+
+  const handleRequestAccess = async () => {
+    try {
+      const res = await fetch("/api/request-author", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user?.id, email: user?.email }),
+      });
+
+      if (res.ok) {
+        setRequestSent(true);
+      } else {
+        alert("Failed to send request.");
+      }
+    } catch (error) {
+      console.error("Request failed:", error);
+      alert("Something went wrong.");
+    }
+  };
 
   if (!user || loading) {
     return (
@@ -59,13 +79,23 @@ export default function Dashboard() {
             <span className="font-semibold text-teal-300">{role}</span>.
           </p>
 
-          {role === "user" && (
-            <button className="mt-6 px-4 py-2 rounded-lg bg-teal-500 text-white hover:bg-teal-400 transition">
+          {role === "user" && !requestSent && (
+            <button
+              className="mt-6 px-4 py-2 rounded-lg bg-teal-500 text-white hover:bg-teal-400 transition"
+              onClick={handleRequestAccess}
+            >
               Request Author Access
             </button>
           )}
+
+          {role === "user" && requestSent && (
+            <p className="mt-6 text-teal-300 font-medium">
+              ✅ Your request has been sent. We'll review it shortly.
+            </p>
+          )}
+
           {role === "author" && (
-            <p className="text-teal-400 mt-4">You can now publish posts!</p>
+            <p className="text-teal-400 mt-4">🎉 You can now publish posts!</p>
           )}
         </motion.div>
       </div>
