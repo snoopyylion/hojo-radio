@@ -101,7 +101,7 @@ export default function Dashboard() {
 
           {role === "user" && requestSent && (
             <p className="mt-6 text-teal-300 font-medium">
-              ✅ Your request has been sent. We'll review it shortly.
+              ✅ Your request has been sent. We&apos;ll review it shortly.
             </p>
           )}
 
