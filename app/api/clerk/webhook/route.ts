@@ -34,14 +34,15 @@ export async function POST(req: Request) {
     const image = data.profile_image_url ?? null;
 
     const { error } = await supabaseAdmin.from("users").insert([
-      {
-        id: data.id,
-        email,
-        name,
-        image,
-        role: "user",
-      },
-    ]);
+        {
+            id: data.id,
+            email,
+            first_name: data.first_name ?? "",
+            last_name: data.last_name ?? "",
+            image_url: image, // 👈 make sure it's image_url now
+            role: "user",
+          },
+        ]);
 
     if (error) {
       console.error("❌ Supabase insert error:", error);
