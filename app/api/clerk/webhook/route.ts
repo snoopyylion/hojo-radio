@@ -11,6 +11,10 @@ interface ClerkUserEvent {
     last_name?: string;
     email_addresses?: { email_address: string }[];
     profile_image_url?: string;
+    external_accounts?: {
+      first_name?: string;
+      last_name?: string;
+    }[];
   };
 }
 
@@ -30,14 +34,27 @@ export async function POST(req: Request) {
 
     const { type, data } = evt;
 
-    // Logs to debug easily
     console.log(`📣 Clerk webhook event received: ${type}`);
     console.log(JSON.stringify(data, null, 2));
 
-    // Destructure common fields
-    const { id, email_addresses, profile_image_url, first_name, last_name } = data;
-    const email = email_addresses?.[0]?.email_address || null;
-    const image_url = profile_image_url || null;
+    const {
+      id,
+      email_addresses,
+      profile_image_url,
+      first_name,
+      last_name,
+      external_accounts,
+    } = data;
+
+    const email = email_addresses?.[0]?.email_address ?? null;
+    const image_url = profile_image_url ?? null;
+
+    //fallback and external account because thats where apple stores firstname and last name on clerk
+    const fallbackFirstName = external_accounts?.[0]?.first_name ?? "";
+    const fallbackLastName = external_accounts?.[0]?.last_name ?? "";
+
+    const resolvedFirstName = first_name || fallbackFirstName;
+    const resolvedLastName = last_name || fallbackLastName;
 
     if (!id) {
       console.warn("⚠️ Missing user ID, skipping...");
@@ -54,8 +71,8 @@ export async function POST(req: Request) {
         {
           id,
           email,
-          first_name: first_name ?? "",
-          last_name: last_name ?? "",
+          first_name: resolvedFirstName,
+          last_name: resolvedLastName,
           image_url,
           role: "user",
         },
@@ -66,7 +83,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Supabase upsert failed" }, { status: 500 });
       }
 
-      return NextResponse.json({ message: `✅ User ${type === "user.created" ? "created" : "updated"} in Supabase` });
+      return NextResponse.json({
+        message: `✅ User ${type === "user.created" ? "created" : "updated"} in Supabase`,
+      });
     }
 
     if (type === "user.deleted") {
