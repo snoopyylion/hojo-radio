@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ProtectedRoute from "@/components/ProtectedRoute"; // make sure this exists and is correctly imported
 
 type VerificationData = {
   source_confidence?: number;
@@ -17,6 +18,14 @@ type VerificationResult = {
 };
 
 export default function VerifyNewsPage() {
+  return (
+    <ProtectedRoute>
+      <InnerVerifyNewsPage />
+    </ProtectedRoute>
+  );
+}
+
+function InnerVerifyNewsPage() {
   const [headline, setHeadline] = useState("");
   const [content, setContent] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
@@ -103,10 +112,7 @@ export default function VerifyNewsPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label
-            htmlFor="headline"
-            className="block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="headline" className="block text-sm font-medium text-gray-700">
             Headline
           </label>
           <input
@@ -121,10 +127,7 @@ export default function VerifyNewsPage() {
         </div>
 
         <div>
-          <label
-            htmlFor="content"
-            className="block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="content" className="block text-sm font-medium text-gray-700">
             Content
           </label>
           <textarea
@@ -138,10 +141,7 @@ export default function VerifyNewsPage() {
         </div>
 
         <div>
-          <label
-            htmlFor="sourceUrl"
-            className="block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="sourceUrl" className="block text-sm font-medium text-gray-700">
             Source URL (optional)
           </label>
           <input
@@ -184,10 +184,8 @@ export default function VerifyNewsPage() {
 
       {result && (
         <div className="mt-6 space-y-6">
-          {/* Summary Card */}
           <div className="p-6 border border-gray-200 rounded-lg shadow-sm bg-white">
             <h2 className="text-xl font-bold mb-4">Verification Result</h2>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <h3 className="font-semibold text-gray-700">Verdict</h3>
@@ -205,21 +203,17 @@ export default function VerifyNewsPage() {
               </div>
 
               <div>
-                <h3 className="font-semibold text-gray-700">
-                  Credibility Score
-                </h3>
+                <h3 className="font-semibold text-gray-700">Credibility Score</h3>
                 <p className="text-lg font-bold">
                   {result.verification_data?.source_confidence || "N/A"}/100
                 </p>
               </div>
             </div>
-
             <div className="mt-4 p-4 bg-gray-50 rounded border border-gray-200 whitespace-pre-line">
               {result.status_message}
             </div>
           </div>
 
-          {/* Analysis Card */}
           {result.llm_response && (
             <div className="p-6 border border-gray-200 rounded-lg shadow-sm bg-white">
               <h2 className="text-xl font-bold mb-4">AI Analysis</h2>
@@ -229,7 +223,6 @@ export default function VerifyNewsPage() {
             </div>
           )}
 
-          {/* Technical Details Card */}
           <div className="p-6 border border-gray-200 rounded-lg shadow-sm bg-white">
             <h2 className="text-xl font-bold mb-4">Verification Details</h2>
             <div className="bg-gray-100 p-4 rounded-lg overflow-auto max-h-96">
