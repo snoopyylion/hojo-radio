@@ -1,4 +1,4 @@
-// /app/api/news-verification/route.ts
+// /app/api/news-verification/save/route.ts
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -6,66 +6,28 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 export async function POST(request: Request) {
   try {
     const { userId } = await auth();
-
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { headline, content, source_url = "" } = body;
+    const { headline, content, source_url, verdict, credibility_score } = await request.json();
 
-    if (!headline || !content) {
-      return NextResponse.json({
-        error: "Both headline and content are required",
-      }, { status: 400 });
-    }
-
-    const backendUrl = process.env.NEWS_VERIFICATION_API_URL;
-    if (!backendUrl) {
-      return NextResponse.json({
-        error: "Backend URL not configured",
-      }, { status: 500 });
-    }
-
-    // 🧠 1. Call external verification API
-    const response = await fetch(`${backendUrl}/verify`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ headline, content, source_url }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Backend responded with status: ${response.status}, message: ${errorText}`);
-    }
-
-    const result = await response.json();
-    
-    // Extract source_confidence from the verification_data object
-    const sourceConfidence = result.verification_data?.source_confidence || 0;
-
-    // ✅ 2. Save only required fields to Supabase
-    const { error } = await supabaseAdmin.from("verifications").insert([
-      {
-        user_id: userId,
-        headline,
-        content,
-        source_url,
-        verdict: result.verdict,
-        credibility_score: sourceConfidence, // Using the extracted source_confidence value
-      },
-    ]);
+    const { error } = await supabaseAdmin.from("verifications").insert([{
+      user_id: userId,
+      headline,
+      content,
+      source_url,
+      verdict,
+      credibility_score
+    }]);
 
     if (error) {
-      console.error("❌ Error saving to Supabase:", error);
+      console.error("Supabase insert error:", error);
       return NextResponse.json({ error: "Database insert failed" }, { status: 500 });
     }
 
-    // 🎉 3. Return the full result for frontend display
-    return NextResponse.json(result);
-  } catch (error) {
-    const err = error as Error
-    console.error('Verification failed:', err.message)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

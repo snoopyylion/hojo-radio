@@ -1,210 +1,194 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-
-interface VerificationResult {
-  status: string
-  verdict: string
-  explanation?: string
-  status_message?: string
-  llm_response?: string
-  verification_data?: {
-    report_id: string
-    direct_source_verified: boolean
-    found_in_reliable_sources: boolean
-    source_confidence: number
-    timestamp_utc: string
-    matched_sources?: string[]
-  }
-}
+import { useState } from "react";
 
 export default function VerifyNewsPage() {
-  const [headline, setHeadline] = useState('')
-  const [content, setContent] = useState('')
-  const [sourceUrl, setSourceUrl] = useState('')
-  const [result, setResult] = useState<VerificationResult | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [headline, setHeadline] = useState("");
+  const [content, setContent] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    setResult(null)
+    e.preventDefault();
+    setError(null);
+    setResult(null);
+    setSaveStatus(null);
+    setLoading(true);
 
     try {
-      const response = await fetch('/api/news-verification', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          headline,
-          content,
-          source_url: sourceUrl,
-        }),
-      })
+      // 🔍 1. Call the external verification API directly
+      const verificationRes = await fetch(
+        `${process.env.NEXT_PUBLIC_VERIFICATION_API}/verify`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ headline, content, source_url: sourceUrl }),
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error(`Failed to verify news: ${response.status}`)
+      if (!verificationRes.ok) {
+        const errorText = await verificationRes.text();
+        throw new Error(`Verification failed: ${errorText}`);
       }
 
-      const data: VerificationResult = await response.json()
-      setResult(data)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      setError(`An error occurred while verifying the news: ${message}`)
-      console.error(err)
-    } finally {
-      setLoading(false)
+      const verificationResult = await verificationRes.json();
+      
+      // Set the result immediately to display the full response
+      setResult(verificationResult);
+
+      // 💾 2. Save key fields to Supabase via your API route
+      try {
+        const saveRes = await fetch("/api/news-verification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            headline,
+            content, 
+            source_url: sourceUrl,
+            verdict: verificationResult.verdict,
+            credibility_score: verificationResult.verification_data?.source_confidence || 0,
+          }),
+        });
+
+        if (!saveRes.ok) {
+          throw new Error("Failed to save result to database");
+        }
+        
+        setSaveStatus("Result saved successfully!");
+      } catch (saveErr: any) {
+        console.error("Save error:", saveErr);
+        setSaveStatus("Warning: Verification completed but failed to save to database");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Something went wrong");
     }
-  }
+
+    setLoading(false);
+  };
+
+  // Format JSON for better display
+  const formatJsonOutput = (obj: any) => {
+    return JSON.stringify(obj, null, 2);
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">News Verification Tool</h1>
-      <p className="mb-6 text-gray-600">
-        Submit news content below to verify its authenticity using AI.
-      </p>
+      <h1 className="text-2xl font-bold mb-4">News Verification System</h1>
 
-      <form onSubmit={handleSubmit} className="mb-8">
-        <div className="mb-4">
-          <label htmlFor="headline" className="block mb-2 font-medium">
-            Headline
-          </label>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="headline" className="block text-sm font-medium text-gray-700">Headline</label>
           <input
             id="headline"
+            type="text"
+            placeholder="Enter news headline"
             value={headline}
             onChange={(e) => setHeadline(e.target.value)}
-            className="w-full border border-gray-300 rounded-md p-3"
-            placeholder="Enter the news headline"
             required
+            className="mt-1 w-full border border-gray-300 p-2 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
-
-        <div className="mb-4">
-          <label htmlFor="content" className="block mb-2 font-medium">
-            News Content
-          </label>
+        
+        <div>
+          <label htmlFor="content" className="block text-sm font-medium text-gray-700">Content</label>
           <textarea
             id="content"
+            placeholder="Enter news content"
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="w-full border border-gray-300 rounded-md p-3 h-64"
-            placeholder="Paste the full news content here..."
             required
+            className="mt-1 w-full border border-gray-300 p-2 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500 min-h-[150px]"
           />
         </div>
-
-        <div className="mb-4">
-          <label htmlFor="sourceUrl" className="block mb-2 font-medium">
-            Source URL (Optional)
-          </label>
+        
+        <div>
+          <label htmlFor="sourceUrl" className="block text-sm font-medium text-gray-700">Source URL (optional)</label>
           <input
             id="sourceUrl"
+            type="url"
+            placeholder="https://example.com/news-article"
             value={sourceUrl}
             onChange={(e) => setSourceUrl(e.target.value)}
-            className="w-full border border-gray-300 rounded-md p-3"
-            placeholder="https://example.com/news-article"
-            type="url"
+            className="mt-1 w-full border border-gray-300 p-2 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"
           />
-          <p className="text-sm text-gray-500 mt-1">
-            Adding the original source URL can improve verification accuracy
-          </p>
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-blue-400 transition-colors"
         >
-          {loading ? 'Verifying...' : 'Verify News'}
+          {loading ? "Verifying..." : "Verify News"}
         </button>
       </form>
 
       {error && (
-        <div className="p-4 mb-6 bg-red-100 border border-red-400 text-red-700 rounded-md">
-          {error}
+        <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded shadow text-red-700">
+          <h2 className="font-semibold">Error:</h2>
+          <p>{error}</p>
+        </div>
+      )}
+
+      {saveStatus && (
+        <div className={`mt-4 p-3 rounded ${saveStatus.includes("Warning") ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"}`}>
+          {saveStatus}
         </div>
       )}
 
       {result && (
-        <div className="p-6 border rounded-md bg-gray-50">
-          <h2 className="text-xl font-semibold mb-4">Verification Result</h2>
-
-          {result.status_message && (
-            <div className="mb-4 p-4 bg-gray-100 rounded-md whitespace-pre-line">
+        <div className="mt-6 space-y-6">
+          {/* Summary Card */}
+          <div className="p-6 border border-gray-200 rounded-lg shadow-sm bg-white">
+            <h2 className="text-xl font-bold mb-4">Verification Result</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h3 className="font-semibold text-gray-700">Verdict</h3>
+                <p className={`text-lg font-bold ${
+                  result.verdict === "Verified" ? "text-green-600" : 
+                  result.verdict === "Likely Fake" ? "text-red-600" : "text-yellow-600"
+                }`}>
+                  {result.verdict}
+                </p>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold text-gray-700">Credibility Score</h3>
+                <p className="text-lg font-bold">
+                  {result.verification_data?.source_confidence || "N/A"}/100
+                </p>
+              </div>
+            </div>
+            
+            {/* Status Message */}
+            <div className="mt-4 p-4 bg-gray-50 rounded border border-gray-200 whitespace-pre-line">
               {result.status_message}
             </div>
-          )}
-
-          <div className="mb-4">
-            <span className="font-medium">Verdict: </span>
-            <span
-              className={
-                result.verdict === 'Verified'
-                  ? 'text-green-600 font-bold'
-                  : result.verdict === 'Likely Fake'
-                  ? 'text-red-600 font-bold'
-                  : 'text-yellow-600 font-bold'
-              }
-            >
-              {result.verdict}
-            </span>
           </div>
-
+          
+          {/* Analysis Card */}
           {result.llm_response && (
-            <div className="mt-6">
-              <h3 className="font-medium mb-2">AI Analysis:</h3>
-              <div className="p-3 bg-gray-100 rounded-md whitespace-pre-line text-sm">
+            <div className="p-6 border border-gray-200 rounded-lg shadow-sm bg-white">
+              <h2 className="text-xl font-bold mb-4">AI Analysis</h2>
+              <div className="prose max-w-none bg-gray-50 p-4 rounded whitespace-pre-line">
                 {result.llm_response}
               </div>
             </div>
           )}
-
-          {result.verification_data && (
-            <div className="mt-6">
-              <h3 className="font-medium mb-2">Verification Details:</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="font-medium">Report ID:</span> {result.verification_data.report_id}
-                </div>
-                <div>
-                  <span className="font-medium">Source Verified:</span>{' '}
-                  {result.verification_data.direct_source_verified ? 'Yes' : 'No'}
-                </div>
-                <div>
-                  <span className="font-medium">Found in Reliable Sources:</span>{' '}
-                  {result.verification_data.found_in_reliable_sources ? 'Yes' : 'No'}
-                </div>
-                <div>
-                  <span className="font-medium">Source Confidence:</span>{' '}
-                  {result.verification_data.source_confidence}/100
-                </div>
-                <div>
-                  <span className="font-medium">Timestamp:</span>{' '}
-                  {result.verification_data.timestamp_utc}
-                </div>
-              </div>
-
-              {result.verification_data.matched_sources &&
-                result.verification_data.matched_sources.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="font-medium mb-1">Matched Sources:</h4>
-                    <ul className="list-disc pl-5 text-sm">
-                      {result.verification_data.matched_sources.map((source, index) => (
-                        <li key={index} className="text-gray-700 truncate">
-                          {source}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+          
+          {/* Technical Details Card */}
+          <div className="p-6 border border-gray-200 rounded-lg shadow-sm bg-white">
+            <h2 className="text-xl font-bold mb-4">Verification Details</h2>
+            <div className="bg-gray-100 p-4 rounded-lg overflow-auto max-h-96">
+              <pre className="text-sm">{formatJsonOutput(result.verification_data)}</pre>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>
-  )
+  );
 }
