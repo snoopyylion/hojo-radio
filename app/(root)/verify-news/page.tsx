@@ -2,16 +2,28 @@
 
 import { useState } from "react";
 
+type VerificationData = {
+  source_confidence?: number;
+  [key: string]: any;
+};
+
+type VerificationResult = {
+  verdict: string;
+  verification_data?: VerificationData;
+  llm_response?: string;
+  status_message?: string;
+};
+
 export default function VerifyNewsPage() {
   const [headline, setHeadline] = useState("");
   const [content, setContent] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<VerificationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setResult(null);
@@ -19,7 +31,6 @@ export default function VerifyNewsPage() {
     setLoading(true);
 
     try {
-      // 🔍 1. Call the external verification API directly
       const verificationRes = await fetch(
         `${process.env.NEXT_PUBLIC_VERIFICATION_API}/verify`,
         {
@@ -34,33 +45,34 @@ export default function VerifyNewsPage() {
         throw new Error(`Verification failed: ${errorText}`);
       }
 
-      const verificationResult = await verificationRes.json();
-      
-      // Set the result immediately to display the full response
+      const verificationResult: VerificationResult = await verificationRes.json();
       setResult(verificationResult);
 
-      // 💾 2. Save key fields to Supabase via your API route
       try {
         const saveRes = await fetch("/api/news-verification", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             headline,
-            content, 
+            content,
             source_url: sourceUrl,
             verdict: verificationResult.verdict,
             credibility_score: verificationResult.verification_data?.source_confidence || 0,
+            confidence_level: verificationResult.verification_data?.ai_confidence_level || 0,
+            matched_sources: verificationResult.verification_data?.matched_sources || [],
           }),
         });
 
         if (!saveRes.ok) {
           throw new Error("Failed to save result to database");
         }
-        
+
         setSaveStatus("Result saved successfully!");
-      } catch (saveErr: any) {
+      } catch (saveErr) {
         console.error("Save error:", saveErr);
-        setSaveStatus("Warning: Verification completed but failed to save to database");
+        setSaveStatus(
+          "Warning: Verification completed but failed to save to database"
+        );
       }
     } catch (err: any) {
       console.error(err);
@@ -70,8 +82,7 @@ export default function VerifyNewsPage() {
     setLoading(false);
   };
 
-  // Format JSON for better display
-  const formatJsonOutput = (obj: any) => {
+  const formatJsonOutput = (obj: object) => {
     return JSON.stringify(obj, null, 2);
   };
 
@@ -81,7 +92,12 @@ export default function VerifyNewsPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="headline" className="block text-sm font-medium text-gray-700">Headline</label>
+          <label
+            htmlFor="headline"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Headline
+          </label>
           <input
             id="headline"
             type="text"
@@ -92,9 +108,14 @@ export default function VerifyNewsPage() {
             className="mt-1 w-full border border-gray-300 p-2 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
-        
+
         <div>
-          <label htmlFor="content" className="block text-sm font-medium text-gray-700">Content</label>
+          <label
+            htmlFor="content"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Content
+          </label>
           <textarea
             id="content"
             placeholder="Enter news content"
@@ -104,9 +125,14 @@ export default function VerifyNewsPage() {
             className="mt-1 w-full border border-gray-300 p-2 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500 min-h-[150px]"
           />
         </div>
-        
+
         <div>
-          <label htmlFor="sourceUrl" className="block text-sm font-medium text-gray-700">Source URL (optional)</label>
+          <label
+            htmlFor="sourceUrl"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Source URL (optional)
+          </label>
           <input
             id="sourceUrl"
             type="url"
@@ -134,7 +160,13 @@ export default function VerifyNewsPage() {
       )}
 
       {saveStatus && (
-        <div className={`mt-4 p-3 rounded ${saveStatus.includes("Warning") ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"}`}>
+        <div
+          className={`mt-4 p-3 rounded ${
+            saveStatus.includes("Warning")
+              ? "bg-yellow-100 text-yellow-800"
+              : "bg-green-100 text-green-800"
+          }`}
+        >
           {saveStatus}
         </div>
       )}
@@ -144,32 +176,38 @@ export default function VerifyNewsPage() {
           {/* Summary Card */}
           <div className="p-6 border border-gray-200 rounded-lg shadow-sm bg-white">
             <h2 className="text-xl font-bold mb-4">Verification Result</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <h3 className="font-semibold text-gray-700">Verdict</h3>
-                <p className={`text-lg font-bold ${
-                  result.verdict === "Verified" ? "text-green-600" : 
-                  result.verdict === "Likely Fake" ? "text-red-600" : "text-yellow-600"
-                }`}>
+                <p
+                  className={`text-lg font-bold ${
+                    result.verdict === "Verified"
+                      ? "text-green-600"
+                      : result.verdict === "Likely Fake"
+                      ? "text-red-600"
+                      : "text-yellow-600"
+                  }`}
+                >
                   {result.verdict}
                 </p>
               </div>
-              
+
               <div>
-                <h3 className="font-semibold text-gray-700">Credibility Score</h3>
+                <h3 className="font-semibold text-gray-700">
+                  Credibility Score
+                </h3>
                 <p className="text-lg font-bold">
                   {result.verification_data?.source_confidence || "N/A"}/100
                 </p>
               </div>
             </div>
-            
-            {/* Status Message */}
+
             <div className="mt-4 p-4 bg-gray-50 rounded border border-gray-200 whitespace-pre-line">
               {result.status_message}
             </div>
           </div>
-          
+
           {/* Analysis Card */}
           {result.llm_response && (
             <div className="p-6 border border-gray-200 rounded-lg shadow-sm bg-white">
@@ -179,12 +217,16 @@ export default function VerifyNewsPage() {
               </div>
             </div>
           )}
-          
+
           {/* Technical Details Card */}
           <div className="p-6 border border-gray-200 rounded-lg shadow-sm bg-white">
             <h2 className="text-xl font-bold mb-4">Verification Details</h2>
             <div className="bg-gray-100 p-4 rounded-lg overflow-auto max-h-96">
-              <pre className="text-sm">{formatJsonOutput(result.verification_data)}</pre>
+              <pre className="text-sm">
+                {result.verification_data
+                  ? formatJsonOutput(result.verification_data)
+                  : "No verification data available."}
+              </pre>
             </div>
           </div>
         </div>
