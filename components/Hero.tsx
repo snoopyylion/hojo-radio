@@ -4,8 +4,8 @@ import Image from 'next/image'
 
 const Hero = () => {
   return (
-    <section className="w-full h-screen py-16 bg-white">
-      <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between">
+    <section className="w-full h-screen py-16 mb-12 bg-white">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-12 xl:px-20 2xl:px-32 flex flex-col md:flex-row items-center justify-between">
         {/* Hero Left */}
         <div className="hero-left md:w-1/2 w-full text-center md:text-left">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 leading-snug">
@@ -15,7 +15,7 @@ const Hero = () => {
             Hojo fights misinformation head-on, equipping you with cutting-edge AI tools to verify the news you consume. Search for articles and instantly access real-time accuracy checks, ensuring you only engage with credible information that matters to you.
           </p>
           <div className="flex justify-center md:justify-start">
-            <LinkButton title="Verify News" href="/" />
+            <LinkButton title="Verify News" href="/verify-news" />
           </div>
         </div>
 
@@ -26,7 +26,7 @@ const Hero = () => {
             alt="hero"
             width={600}
             height={600}
-            className="w-full max-w-[600px] h-auto object-cover"
+            className="w-full max-w-[600px] rounded-3xl h-auto object-cover"
           />
         </div>
       </div>
