@@ -5,17 +5,13 @@ import { useAppContext } from "@/context/AppContext";
 import { supabase } from "@/lib/supabaseClient";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import VerifiedList from "@/components/VerifiedList";
 
 export default function HashedDashboardPage() {
   const { user } = useAppContext();
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [requestSent, setRequestSent] = useState(false);
-
-  console.log("Requesting author access for:", {
-    userId: user?.id,
-    email: user?.email,
-  });
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -42,7 +38,6 @@ export default function HashedDashboardPage() {
 
   const handleRequestAccess = async () => {
     const payload = { userId: user?.id, email: user?.email };
-    console.log("Sending payload:", payload);
 
     try {
       const res = await fetch("/api/request-author", {
@@ -74,41 +69,41 @@ export default function HashedDashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f2027] via-[#203a43] to-[#2c5364] px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="bg-white/10 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl p-6 sm:p-8 text-white"
-        >
-          <h1 className="text-3xl sm:text-4xl font-bold mb-4">
-            Welcome, {user.firstName} 👋
-          </h1>
-          <p className="text-lg sm:text-xl">
-            You are currently signed in as a{" "}
-            <span className="font-semibold text-teal-300">{role}</span>.
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7 }}
+        className="max-w-4xl mx-auto bg-white/10 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl p-6 sm:p-8 text-white"
+      >
+        <h1 className="text-3xl sm:text-4xl font-bold mb-4">
+          Welcome, {user.firstName} 👋
+        </h1>
+        <p className="text-lg sm:text-xl">
+          You are currently signed in as a{" "}
+          <span className="font-semibold text-teal-300">{role}</span>.
+        </p>
+
+        {role === "user" && !requestSent && (
+          <button
+            className="mt-6 px-4 py-2 rounded-lg bg-teal-500 text-white hover:bg-teal-400 transition"
+            onClick={handleRequestAccess}
+          >
+            Request Author Access
+          </button>
+        )}
+
+        {role === "user" && requestSent && (
+          <p className="mt-6 text-teal-300 font-medium">
+            ✅ Your request has been sent. We&apos;ll review it shortly.
           </p>
+        )}
 
-          {role === "user" && !requestSent && (
-            <button
-              className="mt-6 px-4 py-2 rounded-lg bg-teal-500 text-white hover:bg-teal-400 transition"
-              onClick={handleRequestAccess}
-            >
-              Request Author Access
-            </button>
-          )}
+        {role === "author" && (
+          <p className="text-teal-400 mt-4">🎉 You can now publish posts!</p>
+        )}
+      </motion.div>
 
-          {role === "user" && requestSent && (
-            <p className="mt-6 text-teal-300 font-medium">
-              ✅ Your request has been sent. We&apos;ll review it shortly.
-            </p>
-          )}
-
-          {role === "author" && (
-            <p className="text-teal-400 mt-4">🎉 You can now publish posts!</p>
-          )}
-        </motion.div>
-      </div>
+      <VerifiedList />
     </div>
   );
 }

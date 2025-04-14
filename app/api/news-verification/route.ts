@@ -1,72 +1,73 @@
-import { NextResponse } from 'next/server'
-
-interface NewsVerificationRequest {
-  headline: string
-  content: string
-  source_url?: string
-}
-
-interface VerificationResult {
-  status: string
-  verdict: string
-  explanation?: string
-  llm_response?: string
-  status_message?: string
-  verification_data?: {
-    report_id: string
-    direct_source_verified: boolean
-    found_in_reliable_sources: boolean
-    source_confidence: number
-    timestamp_utc: string
-    matched_sources?: string[]
-  }
-}
+// /app/api/news-verification/route.ts
+import { auth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   try {
-    const body: NewsVerificationRequest = await request.json()
-    const { headline, content, source_url = '' } = body
+    const { userId } = await auth();
+
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { headline, content, source_url = "" } = body;
 
     if (!headline || !content) {
-      return NextResponse.json(
-        { error: 'Both headline and content are required' },
-        { status: 400 }
-      )
+      return NextResponse.json({
+        error: "Both headline and content are required",
+      }, { status: 400 });
     }
 
-    const backendUrl = process.env.NEWS_VERIFICATION_API_URL
-
+    const backendUrl = process.env.NEWS_VERIFICATION_API_URL;
     if (!backendUrl) {
-      return NextResponse.json(
-        { error: 'Backend URL not configured' },
-        { status: 500 }
-      )
+      return NextResponse.json({
+        error: "Backend URL not configured",
+      }, { status: 500 });
     }
 
+    // 🧠 1. Call external verification API
     const response = await fetch(`${backendUrl}/verify`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ headline, content, source_url }),
-    })
+    });
 
     if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Backend responded with status: ${response.status}, message: ${errorText}`)
+      const errorText = await response.text();
+      throw new Error(`Backend responded with status: ${response.status}, message: ${errorText}`);
     }
 
-    const result: VerificationResult = await response.json()
-    return NextResponse.json(result)
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    console.error('Error processing news verification:', errorMessage)
-    return NextResponse.json(
+    const result = await response.json();
+    
+    // Extract source_confidence from the verification_data object
+    const sourceConfidence = result.verification_data?.source_confidence || 0;
+
+    // ✅ 2. Save only required fields to Supabase
+    const { error } = await supabaseAdmin.from("verifications").insert([
       {
-        error: 'Failed to verify news',
-        details: errorMessage,
+        user_id: userId,
+        headline,
+        content,
+        source_url,
+        verdict: result.verdict,
+        credibility_score: sourceConfidence, // Using the extracted source_confidence value
       },
+    ]);
+
+    if (error) {
+      console.error("❌ Error saving to Supabase:", error);
+      return NextResponse.json({ error: "Database insert failed" }, { status: 500 });
+    }
+
+    // 🎉 3. Return the full result for frontend display
+    return NextResponse.json(result);
+  } catch (error: any) {
+    console.error("❌ Error processing news verification:", error);
+    return NextResponse.json(
+      { error: "Failed to verify news", details: error.message },
       { status: 500 }
-    )
+    );
   }
 }
