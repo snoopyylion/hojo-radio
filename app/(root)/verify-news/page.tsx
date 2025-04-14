@@ -4,9 +4,9 @@ import { useState } from "react";
 
 type VerificationData = {
   source_confidence?: number;
-  ai_confidence_level?: number;
+  ai_confidence_level?: string;
   matched_sources?: string[];
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 type VerificationResult = {
@@ -60,7 +60,7 @@ export default function VerifyNewsPage() {
             source_url: sourceUrl,
             verdict: verificationResult.verdict,
             credibility_score: verificationResult.verification_data?.source_confidence || 0,
-            confidence_level: verificationResult.verification_data?.ai_confidence_level || 0,
+            confidence_level: verificationResult.verification_data?.ai_confidence_level || "N/A",
             matched_sources: verificationResult.verification_data?.matched_sources || [],
           }),
         });
@@ -70,12 +70,17 @@ export default function VerifyNewsPage() {
         }
 
         setSaveStatus("Result saved successfully!");
-      } catch (saveErr) {
+      } catch (saveErr: unknown) {
         console.error("Save error:", saveErr);
-        setSaveStatus(
-          "Warning: Verification completed but failed to save to database"
-        );
+        if (saveErr instanceof Error) {
+          setSaveStatus(`Warning: ${saveErr.message}`);
+        } else {
+          setSaveStatus(
+            "Warning: Verification completed but failed to save to database"
+          );
+        }
       }
+      
     } catch (err: unknown) {
       console.error(err);
       if (err instanceof Error) {
