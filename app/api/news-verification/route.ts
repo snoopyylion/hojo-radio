@@ -63,11 +63,9 @@ export async function POST(request: Request) {
 
     // 🎉 3. Return the full result for frontend display
     return NextResponse.json(result);
-  } catch (error: any) {
-    console.error("❌ Error processing news verification:", error);
-    return NextResponse.json(
-      { error: "Failed to verify news", details: error.message },
-      { status: 500 }
-    );
+  } catch (error) {
+    const err = error as Error
+    console.error('Verification failed:', err.message)
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }

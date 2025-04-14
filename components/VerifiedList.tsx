@@ -4,8 +4,18 @@ import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 
+type VerificationItem = {
+    id: string
+    headline: string
+    content: string
+    verdict: string
+    created_at: string
+  }
+
 const VerifiedList = () => {
-  const [data, setData] = useState<any[]>([])
+   
+      
+  const [data, setData] = useState<VerificationItem[]>([])  
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
 

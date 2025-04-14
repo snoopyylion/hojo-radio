@@ -38,11 +38,9 @@ export async function GET(request: Request) {
                 totalPages: Math.ceil((count || 0) / limit)
             }
         });
-    } catch (error: any) {
-        console.error("❌ Error fetching verifications:", error);
-        return NextResponse.json(
-            { error: "Failed to fetch verifications", details: error.message },
-            { status: 500 }
-        );
-    }
+    } catch (error) {
+        const err = error as Error
+        console.error('Fetch verifications failed:', err.message)
+        return NextResponse.json({ error: err.message }, { status: 500 })
+      }
 }
