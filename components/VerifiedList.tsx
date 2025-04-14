@@ -38,7 +38,7 @@ const VerifiedList = () => {
       }
     } catch (error) {
       console.error('Error fetching verifications:', error)
-      toast.error('Failed to load verifications')
+      toast.error('Failed to load verifications', { duration: 6000 })
       setData([])
     } finally {
       setLoading(false)
@@ -46,11 +46,10 @@ const VerifiedList = () => {
   }
 
   useEffect(() => {
-    // Safe, self-calling async function inside useEffect
     ;(async () => {
       await fetchVerifications()
     })()
-  }, []) // Run only on mount
+  }, [])
 
   const handleDelete = (id: string) => {
     toast.custom((t) => (
@@ -94,11 +93,11 @@ const VerifiedList = () => {
 
       if (!res.ok) throw new Error('Delete failed')
 
-      toast.success('Verification deleted successfully')
+      toast.success('Verification deleted successfully', { duration: 4000 })
       setData((prev) => prev.filter((item) => item.id !== id))
     } catch (err) {
       console.error('Delete error:', err)
-      toast.error('Failed to delete verification')
+      toast.error('Failed to delete verification', { duration: 6000 })
     }
   }
 
