@@ -1,21 +1,36 @@
-// /app/(root)/verify-news/page.tsx
-'use client';
+'use client'
 
-import { useState } from 'react';
+import { useState } from 'react'
+
+interface VerificationResult {
+  status: string
+  verdict: string
+  explanation?: string
+  status_message?: string
+  llm_response?: string
+  verification_data?: {
+    report_id: string
+    direct_source_verified: boolean
+    found_in_reliable_sources: boolean
+    source_confidence: number
+    timestamp_utc: string
+    matched_sources?: string[]
+  }
+}
 
 export default function VerifyNewsPage() {
-  const [headline, setHeadline] = useState('');
-  const [content, setContent] = useState('');
-  const [sourceUrl, setSourceUrl] = useState('');
-  const [result, setResult] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [headline, setHeadline] = useState('')
+  const [content, setContent] = useState('')
+  const [sourceUrl, setSourceUrl] = useState('')
+  const [result, setResult] = useState<VerificationResult | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    setResult(null);
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    setResult(null)
 
     try {
       const response = await fetch('/api/news-verification', {
@@ -23,26 +38,27 @@ export default function VerifyNewsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          headline, 
+        body: JSON.stringify({
+          headline,
           content,
-          source_url: sourceUrl 
+          source_url: sourceUrl,
         }),
-      });
+      })
 
       if (!response.ok) {
-        throw new Error(`Failed to verify news: ${response.status}`);
+        throw new Error(`Failed to verify news: ${response.status}`)
       }
 
-      const data = await response.json();
-      setResult(data);
-    } catch (err) {
-      setError('An error occurred while verifying the news');
-      console.error(err);
+      const data: VerificationResult = await response.json()
+      setResult(data)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      setError(`An error occurred while verifying the news: ${message}`)
+      console.error(err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -115,27 +131,28 @@ export default function VerifyNewsPage() {
       {result && (
         <div className="p-6 border rounded-md bg-gray-50">
           <h2 className="text-xl font-semibold mb-4">Verification Result</h2>
-          
-          {/* Status Message */}
+
           {result.status_message && (
             <div className="mb-4 p-4 bg-gray-100 rounded-md whitespace-pre-line">
               {result.status_message}
             </div>
           )}
-          
-          {/* Verdict */}
+
           <div className="mb-4">
             <span className="font-medium">Verdict: </span>
-            <span className={
-              result.verdict === "Verified" ? "text-green-600 font-bold" : 
-              result.verdict === "Likely Fake" ? "text-red-600 font-bold" : 
-              "text-yellow-600 font-bold"
-            }>
+            <span
+              className={
+                result.verdict === 'Verified'
+                  ? 'text-green-600 font-bold'
+                  : result.verdict === 'Likely Fake'
+                  ? 'text-red-600 font-bold'
+                  : 'text-yellow-600 font-bold'
+              }
+            >
               {result.verdict}
             </span>
           </div>
-          
-          {/* LLM Analysis */}
+
           {result.llm_response && (
             <div className="mt-6">
               <h3 className="font-medium mb-2">AI Analysis:</h3>
@@ -144,34 +161,49 @@ export default function VerifyNewsPage() {
               </div>
             </div>
           )}
-          
-          {/* Verification Details */}
+
           {result.verification_data && (
             <div className="mt-6">
               <h3 className="font-medium mb-2">Verification Details:</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                <div><span className="font-medium">Report ID:</span> {result.verification_data.report_id}</div>
-                <div><span className="font-medium">Source Verified:</span> {result.verification_data.direct_source_verified ? "Yes" : "No"}</div>
-                <div><span className="font-medium">Found in Reliable Sources:</span> {result.verification_data.found_in_reliable_sources ? "Yes" : "No"}</div>
-                <div><span className="font-medium">Source Confidence:</span> {result.verification_data.source_confidence}/100</div>
-                <div><span className="font-medium">Timestamp:</span> {result.verification_data.timestamp_utc}</div>
-              </div>
-              
-              {/* Matched Sources */}
-              {result.verification_data.matched_sources && result.verification_data.matched_sources.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="font-medium mb-1">Matched Sources:</h4>
-                  <ul className="list-disc pl-5 text-sm">
-                    {result.verification_data.matched_sources.map((source: string, index: number) => (
-                      <li key={index} className="text-gray-700 truncate">{source}</li>
-                    ))}
-                  </ul>
+                <div>
+                  <span className="font-medium">Report ID:</span> {result.verification_data.report_id}
                 </div>
-              )}
+                <div>
+                  <span className="font-medium">Source Verified:</span>{' '}
+                  {result.verification_data.direct_source_verified ? 'Yes' : 'No'}
+                </div>
+                <div>
+                  <span className="font-medium">Found in Reliable Sources:</span>{' '}
+                  {result.verification_data.found_in_reliable_sources ? 'Yes' : 'No'}
+                </div>
+                <div>
+                  <span className="font-medium">Source Confidence:</span>{' '}
+                  {result.verification_data.source_confidence}/100
+                </div>
+                <div>
+                  <span className="font-medium">Timestamp:</span>{' '}
+                  {result.verification_data.timestamp_utc}
+                </div>
+              </div>
+
+              {result.verification_data.matched_sources &&
+                result.verification_data.matched_sources.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="font-medium mb-1">Matched Sources:</h4>
+                    <ul className="list-disc pl-5 text-sm">
+                      {result.verification_data.matched_sources.map((source, index) => (
+                        <li key={index} className="text-gray-700 truncate">
+                          {source}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
             </div>
           )}
         </div>
       )}
     </div>
-  );
+  )
 }

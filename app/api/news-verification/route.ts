@@ -1,18 +1,25 @@
-// /app/api/news-verification/route.ts
 import { NextResponse } from 'next/server'
 
-// Define the expected request body type
 interface NewsVerificationRequest {
   headline: string
   content: string
   source_url?: string
 }
 
-// Define the expected response type from the backend (optional, adjust as needed)
 interface VerificationResult {
   status: string
   verdict: string
   explanation?: string
+  llm_response?: string
+  status_message?: string
+  verification_data?: {
+    report_id: string
+    direct_source_verified: boolean
+    found_in_reliable_sources: boolean
+    source_confidence: number
+    timestamp_utc: string
+    matched_sources?: string[]
+  }
 }
 
 export async function POST(request: Request) {
@@ -51,12 +58,13 @@ export async function POST(request: Request) {
 
     const result: VerificationResult = await response.json()
     return NextResponse.json(result)
-  } catch (error: any) {
-    console.error('Error processing news verification:', error)
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Error processing news verification:', errorMessage)
     return NextResponse.json(
       {
         error: 'Failed to verify news',
-        details: error.message ?? 'Unknown error',
+        details: errorMessage,
       },
       { status: 500 }
     )
