@@ -4,6 +4,8 @@ import { useState } from "react";
 
 type VerificationData = {
   source_confidence?: number;
+  ai_confidence_level?: number;
+  matched_sources?: string[];
   [key: string]: any;
 };
 
@@ -74,9 +76,13 @@ export default function VerifyNewsPage() {
           "Warning: Verification completed but failed to save to database"
         );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Something went wrong");
+      if (err instanceof Error) {
+        setError(err.message || "Something went wrong");
+      } else {
+        setError("Something went wrong");
+      }
     }
 
     setLoading(false);

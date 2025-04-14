@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 type PendingUser = {
@@ -155,7 +156,7 @@ export default function AdminDashboardPage() {
               >
                 <div className="flex items-center gap-4">
                   {author.image?.asset?.url && (
-                    <img
+                    <Image
                       src={author.image.asset.url}
                       alt={author.name}
                       className="w-12 h-12 rounded-full object-cover"
