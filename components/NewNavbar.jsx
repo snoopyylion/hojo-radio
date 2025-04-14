@@ -77,6 +77,11 @@ const NewNavbar = () => {
                 Contact Us
               </Link>
             </li>
+            <li>
+              <Link href="/hashedpage" className="hover:text-[#d7325a] transition">
+                Dashboard
+              </Link>
+            </li>
           </ul>
         </div>
 
@@ -139,6 +144,9 @@ const NewNavbar = () => {
               </Link>
               <Link href="/contact" className="text-gray-300 hover:text-[#d7325a]">
                 Contact Us
+              </Link>
+              <Link href="/hashedpage" className="text-gray-300 hover:text-[#d7325a]">
+                Dashboard
               </Link>
 
               <div className="mt-72">
