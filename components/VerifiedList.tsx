@@ -52,33 +52,39 @@ const VerifiedList = () => {
   }, [])
 
   const handleDelete = (id: string) => {
-    toast.custom((t) => (
-      <div
-        className="max-w-sm w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg border dark:border-gray-700 p-4 flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0 sm:space-x-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="text-center sm:text-left text-sm text-gray-800 dark:text-gray-200 font-medium">
-          Are you sure you want to delete this verification?
+    toast.custom(
+      (t) => (
+        <div
+          className="max-w-sm w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg border dark:border-gray-700 p-4 flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0 sm:space-x-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-center sm:text-left text-sm text-gray-800 dark:text-gray-200 font-medium">
+            Are you sure you want to delete this verification?
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => {
+                toast.dismiss(t.id)
+                handleDeleteConfirmed(id)
+              }}
+              className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm rounded-lg transition"
+            >
+              Yes
+            </button>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="px-3 py-1.5 bg-gray-300 hover:bg-gray-400 text-gray-900 text-sm rounded-lg transition"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => {
-              toast.dismiss(t.id)
-              handleDeleteConfirmed(id)
-            }}
-            className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm rounded-lg transition"
-          >
-            Yes
-          </button>
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            className="px-3 py-1.5 bg-gray-300 hover:bg-gray-400 text-gray-900 text-sm rounded-lg transition"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    ))
+      ),
+      {
+        id: `delete-confirm-${id}`, // optional: helpful for multiple toasts
+        duration: 15000, // ✅ 15 seconds max duration to auto-dismiss on all screen sizes
+      }
+    )
   }
 
   const handleDeleteConfirmed = async (id: string) => {
