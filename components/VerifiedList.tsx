@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { Loader2, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { toast } from 'react-hot-toast'
 
 type VerificationItem = {
   id: string
@@ -15,7 +16,6 @@ type VerificationItem = {
 
 const VerifiedList = () => {
   const { getToken } = useAuth()
-
   const [data, setData] = useState<VerificationItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -38,6 +38,7 @@ const VerifiedList = () => {
       }
     } catch (error) {
       console.error('Error fetching verifications:', error)
+      toast.error('Failed to load verifications')
       setData([])
     } finally {
       setLoading(false)
@@ -45,13 +46,43 @@ const VerifiedList = () => {
   }
 
   useEffect(() => {
-    fetchVerifications()
-  }, [getToken])
+    // Safe, self-calling async function inside useEffect
+    ;(async () => {
+      await fetchVerifications()
+    })()
+  }, []) // Run only on mount
 
-  const handleDelete = async (id: string) => {
-    const confirmDelete = confirm('Are you sure you want to delete this verification?')
-    if (!confirmDelete) return
+  const handleDelete = (id: string) => {
+    toast.custom((t) => (
+      <div
+        className="max-w-sm w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg border dark:border-gray-700 p-4 flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0 sm:space-x-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-center sm:text-left text-sm text-gray-800 dark:text-gray-200 font-medium">
+          Are you sure you want to delete this verification?
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => {
+              toast.dismiss(t.id)
+              handleDeleteConfirmed(id)
+            }}
+            className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm rounded-lg transition"
+          >
+            Yes
+          </button>
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="px-3 py-1.5 bg-gray-300 hover:bg-gray-400 text-gray-900 text-sm rounded-lg transition"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    ))
+  }
 
+  const handleDeleteConfirmed = async (id: string) => {
     try {
       const token = await getToken()
       const res = await fetch(`/api/news-verification/verification-list?id=${id}`, {
@@ -61,12 +92,13 @@ const VerifiedList = () => {
         },
       })
 
-      if (!res.ok) throw new Error('Failed to delete verification')
+      if (!res.ok) throw new Error('Delete failed')
 
+      toast.success('Verification deleted successfully')
       setData((prev) => prev.filter((item) => item.id !== id))
-    } catch (error) {
-      console.error('Error deleting verification:', error)
-      alert('Failed to delete. Please try again.')
+    } catch (err) {
+      console.error('Delete error:', err)
+      toast.error('Failed to delete verification')
     }
   }
 
