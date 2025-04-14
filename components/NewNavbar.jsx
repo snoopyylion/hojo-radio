@@ -149,7 +149,7 @@ const NewNavbar = () => {
                 Dashboard
               </Link>
 
-              <div className="mt-72">
+              <div className="mt-52">
                 {user ? (
                   <div className="flex flex-col gap-4 bg-[#444] rounded-lg p-4 text-white">
                     <span className="text-base font-semibold border-b border-gray-500 pb-2">
