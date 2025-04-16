@@ -63,7 +63,7 @@ const NewNavbar = () => {
               </Link>
             </li>
             <li>
-              <Link href="/about" className="hover:text-[#d7325a] transition">
+              <Link href="/aboutus" className="hover:text-[#d7325a] transition">
                 About Us
               </Link>
             </li>
@@ -73,7 +73,7 @@ const NewNavbar = () => {
               </Link>
             </li>
             <li>
-              <Link href="/contact" className="hover:text-[#d7325a] transition">
+              <Link href="/contactus" className="hover:text-[#d7325a] transition">
                 Contact Us
               </Link>
             </li>
@@ -136,13 +136,13 @@ const NewNavbar = () => {
               <Link href="/" className="text-gray-300 hover:text-[#d7325a]">
                 Home
               </Link>
-              <Link href="/about" className="text-gray-300 hover:text-[#d7325a]">
+              <Link href="/aboutus" className="text-gray-300 hover:text-[#d7325a]">
                 About Us
               </Link>
               <Link href="/blog" className="text-gray-300 hover:text-[#d7325a]">
                 Blog
               </Link>
-              <Link href="/contact" className="text-gray-300 hover:text-[#d7325a]">
+              <Link href="/contactus" className="text-gray-300 hover:text-[#d7325a]">
                 Contact Us
               </Link>
               <Link href="/hashedpage" className="text-gray-300 hover:text-[#d7325a]">
