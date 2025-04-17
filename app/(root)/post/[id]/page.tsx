@@ -38,25 +38,19 @@ const ptComponents: Partial<PortableTextReactComponents> = {
 };
 
 export async function generateMetadata({ params }: { params: { id: string } }) {
-    // Force Next.js to treat params as resolved
-    const getParams = async () => params;
-    const resolvedParams = await getParams();
-    
-    return {
-      title: `Post ${resolvedParams.id}`,
-    };
-  }
+  return {
+    title: `Post ${params.id}`,
+  };
+}
+
+export default async function PostPage({ 
+  params 
+}: {
+  params: { id: string }
+}) {
+  const id = params.id;
+  if (!id) notFound();
   
-  export default async function PostPage({ 
-    params 
-  }: {
-    params: { id: string }
-  }) {
-    // Force Next.js to treat params as resolved
-    const getParams = async () => params;
-    const resolvedParams = await getParams();
-    const id = resolvedParams.id;
-    
     const post = await client.fetch(
       `*[_type == "post" && _id == $id][0]{
         _id, title, slug, description, body, publishedAt, _createdAt,
