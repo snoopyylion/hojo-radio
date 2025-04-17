@@ -113,7 +113,7 @@ const NewNavbar = () => {
               </div>
 
               {user?.role === "author" && (
-                <LinkButton title="Create post" href="/create-post" />
+                <LinkButton title="Create post" href="/post/create-post" />
               )}
             </div>
           ) : (
@@ -172,7 +172,7 @@ const NewNavbar = () => {
                 Dashboard
               </Link>
               {user?.role === "author" && (
-                <LinkButton title="Create post" href="/create-post" />
+                <LinkButton title="Create post" href="/post/create-post" />
               )}
 
               <div className="mt-52">
