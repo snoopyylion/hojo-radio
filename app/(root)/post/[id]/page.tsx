@@ -4,7 +4,6 @@ import { notFound } from 'next/navigation';
 import { PortableText } from '@portabletext/react';
 import type { PortableTextReactComponents } from '@portabletext/react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { formatDate } from "@/lib/utils";
 import markdownIt from "markdown-it";
 
