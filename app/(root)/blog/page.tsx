@@ -30,15 +30,18 @@ interface Post {
 }
 
 // Create a type guard to check if a document matches the Post interface
-function isPost(doc: any): doc is Post {
+function isPost(doc: unknown): doc is Post {
+  if (typeof doc !== 'object' || doc === null) return false;
+
+  const post = doc as Record<string, any>;
+
   return (
-    doc &&
-    typeof doc._id === 'string' &&
-    typeof doc.title === 'string' &&
-    doc.slug && typeof doc.slug.current === 'string' &&
-    typeof doc.publishedAt === 'string' &&
-    doc.author && typeof doc.author.name === 'string' &&
-    Array.isArray(doc.categories)
+    typeof post._id === 'string' &&
+    typeof post.title === 'string' &&
+    post.slug && typeof post.slug.current === 'string' &&
+    typeof post.publishedAt === 'string' &&
+    post.author && typeof post.author.name === 'string' &&
+    Array.isArray(post.categories)
   );
 }
 

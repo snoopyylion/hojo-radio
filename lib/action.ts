@@ -5,7 +5,6 @@ import { parseServerActionResponse } from "./utils";
 import slugify from "slugify";
 import { writeClient } from "@/sanity/lib/write-client";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { NextResponse } from "next/server";
 
 export const createPostItem = async (state: any, form: FormData) => {
     const { userId } = await auth();
@@ -28,7 +27,6 @@ export const createPostItem = async (state: any, form: FormData) => {
         }
 
         const title = form.get("title") as string;
-        const description = form.get("description") as string;
         const rawBody = form.get("body") as string;
         const rawImageUrl = form.get("imageUrl") as string;
         const categoryIds = Array.from(new Set(

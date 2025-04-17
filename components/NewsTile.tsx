@@ -2,20 +2,33 @@
 import React from "react";
 import { urlFor } from "@/sanity/lib/image";
 import Link from "next/link";
+import Image from "next/image";
 
-interface NewsTileProps {
-    post: {
-        _id: string;
-        title: string;
-        slug: { current: string };
-        mainImage?: any;
-        publishedAt: string;
-        author: { name: string; image?: any };
-        categories: { title: string }[];
+// Define stronger types instead of using 'any'
+interface SanityImage {
+    asset: {
+      _ref: string;
+      _type: string;
     };
-}
+  }
 
-const NewsTile: React.FC<{ post: NewsTileProps["post"] }> = ({ post }) => {
+  interface NewsTileProps {
+    post: {
+      _id: string;
+      title: string;
+      slug: { current: string };
+      mainImage?: SanityImage; // Replace 'any' with specific type
+      publishedAt: string;
+      author: { 
+        name: string; 
+        image?: SanityImage; // Replace 'any' with specific type
+      };
+      categories: { title: string }[];
+    };
+  }
+
+
+  const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
     // Format date in a more readable way
     const formattedDate = new Date(post.publishedAt).toLocaleDateString('en-US', {
         day: 'numeric',

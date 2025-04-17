@@ -1,4 +1,3 @@
-// /lib/sanity/image.ts
 import { createClient } from "next-sanity";
 import imageUrlBuilder from "@sanity/image-url";
 
@@ -10,6 +9,15 @@ const config = {
     apiVersion: '2023-10-10',
 };
 
+// Define a type for Sanity image source
+interface SanityImageSource {
+  asset: {
+    _ref: string;
+    _type: string;
+  };
+  [key: string]: unknown; // For any other properties that might be present
+}
+
 const client = createClient(config);
 const builder = imageUrlBuilder(client);
-export const urlFor = (source: any) => builder.image(source);
+export const urlFor = (source: SanityImageSource) => builder.image(source);
