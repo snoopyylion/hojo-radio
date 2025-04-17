@@ -1,11 +1,11 @@
 "use client";
 
-import React from 'react'
+import React from "react";
 import { useAppContext } from "@/context/AppContext";
 import CreatePostForm from "@/components/CreatePostForm";
 import { redirect } from "next/navigation";
 
-const page = () => {
+const CreatePostPage = () => {
   const { user } = useAppContext();
   if (!user) redirect("/");
 
@@ -20,4 +20,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default CreatePostPage;

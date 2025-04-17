@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { Loader2, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { toast } from 'react-hot-toast'
+
 
 type VerificationItem = {
   id: string
@@ -19,7 +20,7 @@ const VerifiedList = () => {
   const [data, setData] = useState<VerificationItem[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchVerifications = async () => {
+  const fetchVerifications = useCallback(async () => {
     try {
       const token = await getToken()
       const res = await fetch('/api/news-verification/verification-list?page=1&limit=10', {
@@ -27,9 +28,9 @@ const VerifiedList = () => {
           Authorization: `Bearer ${token}`,
         },
       })
-
+  
       if (!res.ok) throw new Error('Failed to fetch verifications')
-
+  
       const json = await res.json()
       if (Array.isArray(json.verifications)) {
         setData(json.verifications)
@@ -43,7 +44,8 @@ const VerifiedList = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [getToken])
+  
 
   useEffect(() => {
     (async () => {
