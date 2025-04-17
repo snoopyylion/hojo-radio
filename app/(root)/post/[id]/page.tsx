@@ -36,16 +36,21 @@ const ptComponents: Partial<PortableTextReactComponents> = {
   },
 };
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
-  const { id } = await params; // Directly use params without awaiting
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  // Await the params Promise to get the id
+  const resolvedParams = await params;
+  const id = resolvedParams.id;
+  
   return {
     title: `Post ${id}`,
   };
 }
 
 // Type the props of the PostPage component to expect an id param
-export default async function PostPage({ params }: { params: { id: string } }) {
-  const { id } = await params; // Directly use params without awaiting
+export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
+  // Await the params Promise to get the id
+  const resolvedParams = await params;
+  const id = resolvedParams.id;
 
   if (!id) {
     return notFound(); // Handle the case where there's no id
