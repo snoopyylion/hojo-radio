@@ -1,7 +1,7 @@
 "use client";
 
 import { useAppContext } from "@/context/AppContext";
-import CreatePostForm from "@/components/NewsForm";
+import CreatePostForm from "@/components/CreatePostForm";
 import { redirect } from "next/navigation";
 
 const CreatePostPage = () => {
