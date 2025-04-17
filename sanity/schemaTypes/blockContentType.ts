@@ -31,7 +31,10 @@ export const blockContentType = defineType({
         {title: 'H4', value: 'h4'},
         {title: 'Quote', value: 'blockquote'},
       ],
-      lists: [{title: 'Bullet', value: 'bullet'}],
+      lists: [
+        {title: 'Bullet', value: 'bullet'},
+        {title: 'Numbered', value: 'number'}
+      ],
       // Marks let you mark up inline text in the Portable Text Editor
       marks: {
         // Decorators usually describe a single property – e.g. a typographic
@@ -39,6 +42,10 @@ export const blockContentType = defineType({
         decorators: [
           {title: 'Strong', value: 'strong'},
           {title: 'Emphasis', value: 'em'},
+          {title: 'Underline', value: 'underline'},
+          {title: 'Strike', value: 'strike-through'},
+          {title: 'Highlight', value: 'highlight'},
+          {title: 'Code', value: 'code'},
         ],
         // Annotations can be any object structure – e.g. a link or a footnote.
         annotations: [
@@ -52,14 +59,18 @@ export const blockContentType = defineType({
                 name: 'href',
                 type: 'url',
               },
+              {
+                title: 'Open in new tab',
+                name: 'blank',
+                type: 'boolean',
+                initialValue: true,
+              },
             ],
           },
         ],
       },
     }),
-    // You can add additional types here. Note that you can't use
-    // primitive types such as 'string' and 'number' in the same array
-    // as a block type.
+    // Enhanced image support
     defineArrayMember({
       type: 'image',
       icon: ImageIcon,
@@ -69,8 +80,52 @@ export const blockContentType = defineType({
           name: 'alt',
           type: 'string',
           title: 'Alternative Text',
-        }
+          description: 'Important for SEO and accessibility',
+          validation: Rule => Rule.required(),
+        },
+        {
+          name: 'caption',
+          type: 'string',
+          title: 'Caption',
+          description: 'Displayed below the image',
+        },
+        {
+          name: 'attribution',
+          type: 'string',
+          title: 'Attribution',
+          description: 'Credit for the image source',
+        },
+        {
+          name: 'width',
+          type: 'string',
+          title: 'Width',
+          description: 'Optional: specify image width (e.g., "100%", "500px")',
+          initialValue: '100%',
+        },
+        {
+          name: 'align',
+          type: 'string',
+          title: 'Alignment',
+          options: {
+            list: [
+              {title: 'Left', value: 'left'},
+              {title: 'Center', value: 'center'},
+              {title: 'Right', value: 'right'},
+            ],
+          },
+          initialValue: 'center',
+        },
       ]
+    }),
+    // You can also add other types of content blocks here
+    defineArrayMember({
+      type: 'code',
+      title: 'Code Block',
+      name: 'code',
+      options: {
+        language: 'javascript',
+        withFilename: true,
+      },
     }),
   ],
 })

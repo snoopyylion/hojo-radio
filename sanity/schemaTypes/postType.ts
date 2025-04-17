@@ -41,8 +41,14 @@ export const postType = defineType({
     }),
     defineField({
       name: 'categories',
+      title: 'Categories',
       type: 'array',
-      of: [defineArrayMember({ type: 'reference', to: { type: 'category' } })],
+      of: [
+        {
+          type: 'reference',
+          to: [{ type: 'category' }]
+        }
+      ]
     }),    
     defineField({
       name: 'publishedAt',
@@ -50,7 +56,8 @@ export const postType = defineType({
     }),
     defineField({
       name: 'body',
-      type: 'blockContent',
+      title: 'Body',
+      type: 'blockContent' // Using Sanity's rich text format
     }),
 
     // ✅ New field: Approved flag
