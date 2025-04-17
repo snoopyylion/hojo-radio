@@ -8,13 +8,14 @@ import { useAppContext } from "@/context/AppContext";
 import Link from "next/link";
 import SignOutBtn from "@/components/SignOutBtn";
 import { motion, AnimatePresence } from 'framer-motion'
-
+import LinkButton from "./LinkButton";
 
 const NewNavbar = () => {
   const { user } = useAppContext();
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [showSignOut, setShowSignOut] = useState(false);
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
@@ -44,8 +45,9 @@ const NewNavbar = () => {
 
   return (
     <nav
-      className={`px-6 md:px-28 pt-4 bg-white shadow-sm relative transition-transform duration-300 z-50 ${isVisible ? "translate-y-0" : "-translate-y-full"}`}
+      className={`px-6 md:px-28 pt-4 bg-white/70 backdrop-blur-sm shadow-sm fixed top-0 left-0 w-full transition-transform duration-300 z-50 ${isVisible ? "translate-y-0" : "-translate-y-full"}`}
     >
+
       <div className="flex items-center justify-between">
         {/* Logo */}
         <div className="flex-shrink-0">
@@ -89,9 +91,30 @@ const NewNavbar = () => {
         <div className="hidden md:block">
           {user ? (
             <div className="flex items-center gap-4">
-              <span className="text-lg font-medium text-gray-700">Account</span>
-              <UserButton />
-              <SignOutBtn />
+              <div
+                className="relative"
+                onMouseEnter={() => setShowSignOut(true)}
+                onMouseLeave={() => setShowSignOut(false)}
+              >
+                <UserButton />
+                <AnimatePresence>
+                  {showSignOut && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute w-[120px] right-0 mt-2 bg-gray-50 border border-gray-200 shadow-lg rounded-lg p-2 z-50 m-auto"
+                    >
+                      <SignOutBtn />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {user?.role === "author" && (
+                <LinkButton title="Create post" href="/create-post" />
+              )}
             </div>
           ) : (
             <Link href="/sign-up">
@@ -148,6 +171,9 @@ const NewNavbar = () => {
               <Link href="/hashedpage" className="text-gray-300 hover:text-[#d7325a]">
                 Dashboard
               </Link>
+              {user?.role === "author" && (
+                <LinkButton title="Create post" href="/create-post" />
+              )}
 
               <div className="mt-52">
                 {user ? (

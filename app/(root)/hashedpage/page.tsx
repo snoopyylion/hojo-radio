@@ -40,7 +40,7 @@ export default function HashedDashboardPage() {
     const payload = { userId: user?.id, email: user?.email };
 
     try {
-      const res = await fetch("/api/request-author", {
+      const res = await fetch("/api/authors/request-author", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

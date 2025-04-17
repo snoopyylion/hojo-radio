@@ -9,40 +9,41 @@ export const postType = defineType({
   fields: [
     defineField({
       name: 'title',
+      title: 'Title',
       type: 'string',
+      validation: Rule => Rule.required()
     }),
     defineField({
       name: 'slug',
+      title: 'Slug',
       type: 'slug',
       options: {
         source: 'title',
+        maxLength: 96
       },
+      validation: Rule => Rule.required()
     }),
     defineField({
       name: 'author',
       title: 'Author',
       type: 'reference',
-      to: [{ type: 'author' }],
+      to: {type: 'author'},
+      validation: Rule => Rule.required()
     }),
     defineField({
       name: 'mainImage',
+      title: 'Main image',
       type: 'image',
       options: {
-        hotspot: true,
+        hotspot: true
       },
-      fields: [
-        defineField({
-          name: 'alt',
-          type: 'string',
-          title: 'Alternative text',
-        }),
-      ],
+      validation: (Rule) => Rule.required(),
     }),
     defineField({
       name: 'categories',
       type: 'array',
       of: [defineArrayMember({ type: 'reference', to: { type: 'category' } })],
-    }),
+    }),    
     defineField({
       name: 'publishedAt',
       type: 'datetime',
@@ -52,16 +53,47 @@ export const postType = defineType({
       type: 'blockContent',
     }),
 
-    // Likes: either count or array of user IDs
+    // ✅ New field: Approved flag
+    defineField({
+      name: 'status',
+      title: 'Status',
+      type: 'string',
+      initialValue: 'pending',
+      options: {
+        list: [
+          { title: 'Pending', value: 'pending' },
+          { title: 'Approved', value: 'approved' },
+          { title: 'Rejected', value: 'rejected' },
+        ],
+        layout: 'radio',
+      },
+    }),
+    
+    defineField({
+      name: 'rejectionReason',
+      title: 'Rejection Reason',
+      type: 'text',
+      hidden: ({ parent }) => parent?.status !== 'rejected',  // Only show if rejected
+    }),    
+
+    // ✅ New field: Created At (manual since publishedAt may differ)
+    defineField({
+      name: 'createdAt',
+      title: 'Created At',
+      type: 'datetime',
+      initialValue: () => new Date().toISOString(),  // Set default to current time on creation
+    }),    
+
+    // ✅ Likes (array of user IDs)
     defineField({
       name: 'likes',
       title: 'Likes',
       type: 'array',
-      of: [{ type: 'string' }], // store Clerk/Supabase user IDs
-      readOnly: true, // Prevent manual edits from studio
+      of: [{ type: 'string' }],
+      readOnly: true,
     }),
 
-    // Comments
+    // ✅ Comments (array of objects)
     defineField({
       name: 'comments',
       title: 'Comments',
@@ -73,10 +105,15 @@ export const postType = defineType({
             { name: 'userId', type: 'string', title: 'User ID' },
             { name: 'text', type: 'text', title: 'Comment Text' },
             { name: 'createdAt', type: 'datetime', title: 'Posted At' },
+            {
+              name: 'likes',
+              type: 'array',
+              of: [{ type: 'string' }],
+            },
           ],
         }),
       ],
-      readOnly: true, // Prevent studio edits for integrity
+      readOnly: true,
     }),
   ],
   preview: {
