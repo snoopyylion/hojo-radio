@@ -1,4 +1,3 @@
-// app/(root)/post/[id]/page.tsx
 import { client } from '@/sanity/lib/client';
 import { notFound } from 'next/navigation';
 import { PortableText } from '@portabletext/react';
@@ -37,29 +36,27 @@ const ptComponents: Partial<PortableTextReactComponents> = {
   },
 };
 
+// Correctly type the params for metadata generation
 export async function generateMetadata({ params }: { params: { id: string } }) {
   return {
     title: `Post ${params.id}`,
   };
 }
 
-export default async function PostPage({ 
-  params 
-}: {
-  params: { id: string }
-}) {
+// Type the props of the PostPage component to expect an id param
+export default async function PostPage({ params }: { params: { id: string } }) {
   const id = params.id;
   if (!id) notFound();
   
-    const post = await client.fetch(
-      `*[_type == "post" && _id == $id][0]{
-        _id, title, slug, description, body, publishedAt, _createdAt,
-        mainImage{ asset->{url}, alt },
-        "author": author->{ name, bio, image{asset->{url}}, "imageUrl": image.asset->url },
-        categories[]->{title}
-      }`,
-      { id }
-    );
+  const post = await client.fetch(
+    `*[_type == "post" && _id == $id][0]{
+      _id, title, slug, description, body, publishedAt, _createdAt,
+      mainImage{ asset->{url}, alt },
+      "author": author->{ name, bio, image{asset->{url}}, "imageUrl": image.asset->url },
+      categories[]->{title}
+    }`,
+    { id }
+  );
 
   if (!post) notFound();
 
@@ -79,7 +76,6 @@ export default async function PostPage({
     <div className=''>
       {/* Hero Section */}
       <section className="pt-[150px] bg-gradient-to-r from-pink-100 via-white to-purple-100 py-16 text-center px-4 md:px-10">
-
         <p className="uppercase text-sm text-gray-500 tracking-widest">{formatDate(post.publishedAt || post._createdAt)}</p>
         <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mt-4">{post.title}</h1>
         {post.description && (
@@ -89,7 +85,7 @@ export default async function PostPage({
 
       {/* Floating Action Buttons */}
       <div className="mt-10 flex justify-center gap-4 flex-wrap px-4">
-        {[
+        {[ 
           { label: 'Like', icon: '❤️', color: 'bg-[#EF3866]' },
           { label: 'Share', icon: '🔗', color: 'bg-blue-500' },
           { label: 'Favorite', icon: '⭐', color: 'bg-yellow-500' },
@@ -158,4 +154,3 @@ export default async function PostPage({
     </div>
   );
 }
-
