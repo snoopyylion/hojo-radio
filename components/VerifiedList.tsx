@@ -46,10 +46,10 @@ const VerifiedList = () => {
   }
 
   useEffect(() => {
-    ;(async () => {
+    (async () => {
       await fetchVerifications()
     })()
-  }, [])
+  }, [fetchVerifications])
 
   const handleDelete = (id: string) => {
     toast.custom(

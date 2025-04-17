@@ -11,6 +11,12 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { createPostItem } from "@/lib/action";
 
+interface FormState {
+    error: string;
+    status: string;
+    _id?: string;
+    [key: string]: unknown;
+  }
 
 const CreatePostForm = () => {
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -77,7 +83,7 @@ const CreatePostForm = () => {
     };
 
     // Form Submission Handler
-    const handleFormSubmit = async (prevState: any, formData: FormData) => {
+    const handleFormSubmit = async (prevState: FormState, formData: FormData) => {
         try {
             // Validate form
             if (!validateForm(formData)) {

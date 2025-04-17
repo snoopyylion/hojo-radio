@@ -300,7 +300,7 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <div className="p-6 space-y-10">
+    <div className="p-6 pt-[150px] space-y-10">
       {/* Pending Author Requests */}
       <section>
         <h1 className="text-2xl font-bold mb-4">Pending Author Requests</h1>

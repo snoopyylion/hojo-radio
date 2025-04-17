@@ -2,7 +2,6 @@
 import React from "react";
 import { urlFor } from "@/sanity/lib/image";
 import Link from "next/link";
-import Image from "next/image";
 
 // Define stronger types instead of using 'any'
 interface SanityImage {

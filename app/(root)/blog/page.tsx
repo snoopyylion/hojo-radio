@@ -31,18 +31,34 @@ interface Post {
 
 // Create a type guard to check if a document matches the Post interface
 function isPost(doc: unknown): doc is Post {
-  if (typeof doc !== 'object' || doc === null) return false;
+  if (!doc || typeof doc !== 'object') return false;
 
-  const post = doc as Record<string, any>;
+  const post = doc as Record<string, unknown>;
 
-  return (
-    typeof post._id === 'string' &&
-    typeof post.title === 'string' &&
-    post.slug && typeof post.slug.current === 'string' &&
-    typeof post.publishedAt === 'string' &&
-    post.author && typeof post.author.name === 'string' &&
-    Array.isArray(post.categories)
-  );
+  
+  // Check if _id exists and is a string
+  if (typeof post._id !== 'string') return false;
+  
+  // Check if title exists and is a string
+  if (typeof post.title !== 'string') return false;
+  
+  // Check if slug exists and has a current property that is a string
+  if (!post.slug || typeof post.slug !== 'object') return false;
+  const slug = post.slug as Record<string, unknown>;
+  if (typeof slug.current !== 'string') return false;
+  
+  // Check if publishedAt exists and is a string
+  if (typeof post.publishedAt !== 'string') return false;
+  
+  // Check if author exists and has a name property that is a string
+  if (!post.author || typeof post.author !== 'object') return false;
+  const author = post.author as Record<string, unknown>;
+  if (typeof author.name !== 'string') return false;
+  
+  // Check if categories exists and is an array
+  if (!Array.isArray(post.categories)) return false;
+  
+  return true;
 }
 
 const NewsPage = () => {

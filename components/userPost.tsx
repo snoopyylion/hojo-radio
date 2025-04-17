@@ -1,6 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 
+type UserPostDataType = {
+  _id: string;
+  title?: string;
+  content?: string;
+};
+
 export default function UserPosts({ userId }: { userId: string }) {
   const [posts, setPosts] = useState([]);
 
@@ -15,7 +21,7 @@ export default function UserPosts({ userId }: { userId: string }) {
 
   return (
     <ul>
-      {posts.map((post: any) => (
+      {posts.map((post: UserPostDataType) => (
         <li key={post._id}>{post.title}</li>
       ))}
     </ul>

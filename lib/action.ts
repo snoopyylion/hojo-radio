@@ -6,7 +6,14 @@ import slugify from "slugify";
 import { writeClient } from "@/sanity/lib/write-client";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-export const createPostItem = async (state: any, form: FormData) => {
+interface ActionState {
+    error?: string;
+    status?: string;
+    _id?: string;
+    [key: string]: unknown;
+  }
+
+export const createPostItem = async (state: ActionState, form: FormData) => {
     const { userId } = await auth();
     console.log("Starting post creation for user:", userId);
     
