@@ -7,10 +7,6 @@ import Image from 'next/image';
 import { formatDate } from "@/lib/utils";
 import markdownIt from "markdown-it";
 
-interface PostPageProps {
-    params: { id: string };
-  }
-
 const md = markdownIt();
 
 const ptComponents: Partial<PortableTextReactComponents> = {

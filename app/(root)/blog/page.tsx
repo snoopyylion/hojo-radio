@@ -1,4 +1,3 @@
-// app/news/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -6,15 +5,27 @@ import NewsTile from "@/components/NewsTile";
 import { client } from "@/sanity/lib/client";
 import { ALL_POSTS_QUERY } from "@/sanity/lib/queries";
 import { groq } from "next-sanity";
-import { SanityDocument } from "@sanity/client";
 
 interface Post {
   _id: string;
   title: string;
   slug: { current: string };
-  mainImage?: any;
+  mainImage?: {
+    asset: {
+      _ref: string;
+      _type: string;
+    };
+  };
   publishedAt: string;
-  author: { name: string; image?: any };
+  author: {
+    name: string;
+    image?: {
+      asset: {
+        _ref: string;
+        _type: string;
+      };
+    };
+  };
   categories: { title: string }[];
 }
 

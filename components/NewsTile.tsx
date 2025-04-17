@@ -2,7 +2,6 @@
 import React from "react";
 import { urlFor } from "@/sanity/lib/image";
 import Link from "next/link";
-import Image from "next/image";
 
 interface NewsTileProps {
     post: {

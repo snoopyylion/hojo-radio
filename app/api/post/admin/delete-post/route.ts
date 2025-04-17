@@ -18,6 +18,7 @@ export async function DELETE(req: Request) {
   .commit();
     return NextResponse.json({ message: "Post deleted successfully" });
   } catch (error) {
+    console.error("Failed to delete post", error);
     return NextResponse.json({ error: "Error deleting post" }, { status: 500 });
   }
 }

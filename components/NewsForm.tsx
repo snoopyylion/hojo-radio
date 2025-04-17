@@ -50,7 +50,8 @@ const CreatePostForm = () => {
             );
 
             return hasImageExtension || url.includes('image'); // Basic check
-        } catch (e) {
+        } catch (error) {
+            console.error("Invalid URL:", error);
             return false;
         }
     };
