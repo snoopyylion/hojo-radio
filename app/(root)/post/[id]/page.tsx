@@ -38,9 +38,8 @@ const ptComponents: Partial<PortableTextReactComponents> = {
 
 // Correctly type the params for metadata generation
 export async function generateMetadata({ params }: { params: { id: string } }) {
-  // Await the entire params object first
-  const id = params.id;
-  
+  const { id } = await params;
+
   return {
     title: `Post ${id}`,
   };
@@ -48,11 +47,12 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 
 // Type the props of the PostPage component to expect an id param
 export default async function PostPage({ params }: { params: { id: string } }) {
-  // Await the entire params object first
-  const id = params.id;
-  
-  if (!id) notFound();
-  
+  const { id } = await params; // Ensure params are awaited before use
+
+  if (!id) {
+    return notFound(); // Handle the case where there's no id
+  }
+
   const post = await client.fetch(
     `*[_type == "post" && _id == $id][0]{
       _id, title, slug, description, body, publishedAt, _createdAt,
