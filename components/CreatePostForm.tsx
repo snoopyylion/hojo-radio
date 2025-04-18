@@ -11,6 +11,13 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { createPostItem } from "@/lib/action";
 
+// Define the state type
+interface ActionState {
+  error: string;
+  status: "INITIAL" | "ERROR" | "SUCCESS";
+  _id?: string;
+}
+
 const CreatePostForm = () => {
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [body, setBody] = useState("");
@@ -35,8 +42,8 @@ const CreatePostForm = () => {
         fetchCategories();
     }, []);
 
-    // Form submission handler
-    const handleFormSubmit = async (prevState: any, formData: FormData) => {
+    // Form submission handler with properly typed prevState
+    const handleFormSubmit = async (prevState: ActionState, formData: FormData) => {
         try {
             // Add body and categories to formData
             formData.append('body', body);
@@ -45,27 +52,27 @@ const CreatePostForm = () => {
             // Validate form data
             if (!formData.get('title')) {
                 setErrors(prev => ({ ...prev, title: "Title is required" }));
-                return { ...prevState, error: 'Validation failed', status: 'ERROR' };
+                return { ...prevState, error: 'Validation failed', status: 'ERROR' as const };
             }
 
             if (!formData.get('description')) {
                 setErrors(prev => ({ ...prev, description: "Description is required" }));
-                return { ...prevState, error: 'Validation failed', status: 'ERROR' };
+                return { ...prevState, error: 'Validation failed', status: 'ERROR' as const };
             }
 
             if (!body) {
                 setErrors(prev => ({ ...prev, body: "Content is required" }));
-                return { ...prevState, error: 'Validation failed', status: 'ERROR' };
+                return { ...prevState, error: 'Validation failed', status: 'ERROR' as const };
             }
 
             if (!imageUrl) {
                 setErrors(prev => ({ ...prev, imageUrl: "Image URL is required" }));
-                return { ...prevState, error: 'Validation failed', status: 'ERROR' };
+                return { ...prevState, error: 'Validation failed', status: 'ERROR' as const };
             }
 
             if (categories.length === 0) {
                 setErrors(prev => ({ ...prev, categories: "At least one category is required" }));
-                return { ...prevState, error: 'Validation failed', status: 'ERROR' };
+                return { ...prevState, error: 'Validation failed', status: 'ERROR' as const };
             }
 
             // Submit to server action
@@ -86,14 +93,14 @@ const CreatePostForm = () => {
             return {
                 ...prevState,
                 error: error instanceof Error ? error.message : 'Unknown error creating post',
-                status: "ERROR",
+                status: "ERROR" as const,
             };
         }
     };
 
-    const [state, formAction, isPending] = useActionState(handleFormSubmit, {
+    const [_state, formAction, isPending] = useActionState(handleFormSubmit, {
         error: "",
-        status: "INITIAL",
+        status: "INITIAL" as const,
     });
 
     const handleEditorChange = (value: string | undefined) => {

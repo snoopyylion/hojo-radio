@@ -61,6 +61,7 @@ function isPost(doc: unknown): doc is Post {
   return true;
 }
 
+
 const NewsPage = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [search, setSearch] = useState("");

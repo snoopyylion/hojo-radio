@@ -1,3 +1,4 @@
+
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
@@ -6,7 +7,14 @@ import slugify from "slugify";
 import { writeClient } from "@/sanity/lib/write-client";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-export const createPostItem = async (state: any, form: FormData) => {
+// Define response type
+interface ActionState {
+  error: string;
+  status: "INITIAL" | "ERROR" | "SUCCESS";
+  _id?: string;
+}
+
+export const createPostItem = async (state: ActionState, form: FormData) => {
     const { userId } = await auth();
     
     if (!userId) {
