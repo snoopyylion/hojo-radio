@@ -49,7 +49,13 @@ export const postType = defineType({
           to: [{ type: 'category' }]
         }
       ]
-    }),    
+    }),  
+    defineField({
+      name: 'description',
+      title: 'Description',
+      type: 'string',
+      validation: Rule => Rule.required().max(200),
+    }),  
     defineField({
       name: 'publishedAt',
       type: 'datetime',

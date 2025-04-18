@@ -6,23 +6,15 @@ import slugify from "slugify";
 import { writeClient } from "@/sanity/lib/write-client";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-interface ActionState {
-    error?: string;
-    status?: string;
-    _id?: string;
-    [key: string]: unknown;
-  }
-
-export const createPostItem = async (state: ActionState, form: FormData) => {
+export const createPostItem = async (state: any, form: FormData) => {
     const { userId } = await auth();
-    console.log("Starting post creation for user:", userId);
     
     if (!userId) {
-        console.log("Unauthorized attempt - no userId");
         return parseServerActionResponse({ error: "Unauthorized", status: "ERROR" });
     }
 
     try {
+        // Check user role
         const { data: user, error: fetchUserError } = await supabaseAdmin
             .from("users")
             .select("role")
@@ -33,21 +25,24 @@ export const createPostItem = async (state: ActionState, form: FormData) => {
             return parseServerActionResponse({ error: "User is not an author or role not found", status: "ERROR" });
         }
 
+        // Get form data
         const title = form.get("title") as string;
+        const description = form.get("description") as string;
         const rawBody = form.get("body") as string;
-        const rawImageUrl = form.get("imageUrl") as string;
+        const imageUrl = form.get("imageUrl") as string;
         const categoryIds = Array.from(new Set(
             form.getAll("categoryIds").filter((id): id is string => typeof id === "string")
-          ));
+        ));
           
-
         const slug = slugify(title, { lower: true, strict: true });
 
-        console.log("Form data received:");
-        
         // Validate required data
-        if (!title || !rawBody) {
+        if (!title || !rawBody || !description || !imageUrl) {
             return parseServerActionResponse({ error: "Missing required fields", status: "ERROR" });
+        }
+
+        if (categoryIds.length === 0) {
+            return parseServerActionResponse({ error: "At least one category is required", status: "ERROR" });
         }
 
         // Get author reference
@@ -91,50 +86,78 @@ export const createPostItem = async (state: ActionState, form: FormData) => {
                 };
             });
 
-        // Handle image upload
+        // Upload the image to Sanity
         let mainImage = null;
-        if (rawImageUrl && typeof rawImageUrl === "string" && rawImageUrl.length > 0) {
-            const imageAsset = await uploadImageToSanity(rawImageUrl, slug);
-            if (imageAsset) {
-                mainImage = {
-                    _type: "image",
-                    asset: {
-                        _type: "reference",
-                        _ref: imageAsset._id,
-                    },
-                };
-            } else {
-                console.error("Failed to upload image, setting mainImage to null");
+        try {
+            if (imageUrl) {
+                const response = await fetch(imageUrl);
+                if (!response.ok) {
+                    throw new Error(`Image fetch failed: ${response.status}`);
+                }
+                
+                const contentType = response.headers.get('Content-Type');
+                if (!contentType?.startsWith('image/')) {
+                    throw new Error('URL does not point to an image');
+                }
+                
+                const imageBlob = await response.blob();
+                const imageAsset = await writeClient.assets.upload('image', imageBlob, {
+                    filename: `${slug}-main-image.jpg`,
+                });
+                
+                if (imageAsset && imageAsset._id) {
+                    mainImage = {
+                        _type: "image",
+                        asset: {
+                            _type: "reference",
+                            _ref: imageAsset._id,
+                        },
+                    };
+                }
             }
+        } catch (imageError) {
+            console.error("Image upload error:", imageError);
+            return parseServerActionResponse({ 
+                error: "Failed to upload image. Please check URL and try again.", 
+                status: "ERROR" 
+            });
+        }
+
+        if (!mainImage) {
+            return parseServerActionResponse({ 
+                error: "Image upload failed. Please try a different image URL.", 
+                status: "ERROR" 
+            });
         }
 
         // Create post document with unique keys for arrays
         const postItem = {
-            _type: "post",
-            title,
-            slug: {
-                _type: "slug",
-                current: slug,
-            },
-            author: {
-                _type: "reference",
-                _ref: authorDoc._id,
-            },
-            categories: categoryIds.map((id, index) => ({ 
-                _type: "reference", 
-                _ref: id,
-                _key: `category_${id}_${Date.now()}_${index}` // Ensure uniqueness
-            })),
-            ...(mainImage ? { mainImage } : {}),
-            body: bodyBlocks,
-            publishedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            status: "pending",
-            likes: [],
-            comments: [],
-        };
-
-        const result = await writeClient.create(postItem);
+          title,
+          description,
+          slug: {
+              _type: "slug",
+              current: slug,
+          },
+          author: {
+              _type: "reference",
+              _ref: authorDoc._id,
+          },
+          categories: categoryIds.map((id, index) => ({ 
+              _type: "reference", 
+              _ref: id,
+              _key: `category_${Date.now()}_${index}` 
+          })),
+          mainImage,
+          body: bodyBlocks,
+          publishedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          status: "pending",
+      };
+      const result = await writeClient.create({
+          _type: "post",
+          ...postItem,
+      });
+      
 
         return parseServerActionResponse({
             ...result,
@@ -149,54 +172,3 @@ export const createPostItem = async (state: ActionState, form: FormData) => {
         });
     }
 };
-
-async function uploadImageToSanity(imageUrl: string, slug: string) {
-    try {
-      if (imageUrl.startsWith("data:")) {
-        const base64Data = imageUrl.split(",")[1];
-        const buffer = Buffer.from(base64Data, "base64");
-        return await writeClient.assets.upload("image", buffer, {
-          filename: `${slug}-main-image.jpg`,
-        });
-      } else if (imageUrl.startsWith("http")) {
-        // Add timeout to fetch request
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-        
-        try {
-          const imageResponse = await fetch(imageUrl, { 
-            signal: controller.signal,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
-          });
-          
-          clearTimeout(timeoutId);
-          
-          if (!imageResponse.ok) {
-            console.error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
-            return null;
-          }
-  
-          const imageArrayBuffer = await imageResponse.arrayBuffer();
-          const imageBlob = new Blob([imageArrayBuffer], {
-            type: imageResponse.headers.get("content-type") || "image/jpeg",
-          });
-  
-          return await writeClient.assets.upload("image", imageBlob, {
-            filename: `${slug}-main-image-from-url.jpg`,
-          });
-        } catch (fetchError) {
-          clearTimeout(timeoutId);
-          console.error("Fetch error details:", fetchError);
-          
-          // If the image fetch fails, you could try a fallback approach
-          // For example, use a default image or return null
-          return null;
-        }
-      }
-    } catch (error) {
-      console.error("Error in uploadImageToSanity:", error);
-    }
-    return null;
-  }

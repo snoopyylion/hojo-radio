@@ -1,12 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sanityClient } from '@/lib/sanity/server';
 
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb', // Adjust as needed
-    },
-  },
+export const runtime = 'nodejs'; // Use Node.js runtime
+
+// Helper function for fetching with timeout
+const fetchWithTimeout = async (url: string, timeout = 10000) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, { 
+      signal: controller.signal,
+      headers: {
+        'Accept': 'image/*'
+      }
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
 };
 
 export async function POST(req: NextRequest) {
@@ -25,25 +39,54 @@ export async function POST(req: NextRequest) {
     if (imageUrl.startsWith('data:')) {
       // Handle base64 image
       const base64Data = imageUrl.split(',')[1];
+      if (!base64Data) {
+        return NextResponse.json({ error: "Invalid base64 format" }, { status: 400 });
+      }
+      
       const buffer = Buffer.from(base64Data, 'base64');
+      // Check size before uploading
+      if (buffer.length > 5 * 1024 * 1024) { // 5MB limit
+        return NextResponse.json({ error: "Image is too large (max 5MB)" }, { status: 400 });
+      }
       
       imageAsset = await sanityClient.assets.upload('image', buffer, {
         filename: `${filename}.jpg`,
       });
     } 
     else if (imageUrl.startsWith('http')) {
-      // Handle external URL
-      const imageResponse = await fetch(imageUrl);
-      if (!imageResponse.ok) {
-        return NextResponse.json({ error: "Failed to fetch image from URL" }, { status: 400 });
+      try {
+        // Handle external URL with timeout
+        const imageResponse = await fetchWithTimeout(imageUrl, 8000);
+        if (!imageResponse.ok) {
+          return NextResponse.json({ 
+            error: `Failed to fetch image from URL: ${imageResponse.status}` 
+          }, { status: 400 });
+        }
+        
+        // Validate that it's an image
+        const contentType = imageResponse.headers.get('content-type');
+        if (!contentType || !contentType.includes('image')) {
+          return NextResponse.json({ error: "URL does not point to an image" }, { status: 400 });
+        }
+        
+        // Check file size
+        const contentLength = imageResponse.headers.get('content-length');
+        if (contentLength && parseInt(contentLength) > 5 * 1024 * 1024) { // 5MB limit
+          return NextResponse.json({ error: "Image is too large (max 5MB)" }, { status: 400 });
+        }
+        
+        const imageBuffer = await imageResponse.arrayBuffer();
+        const buffer = Buffer.from(imageBuffer);
+        
+        imageAsset = await sanityClient.assets.upload('image', buffer, {
+          filename: `${filename}-from-url.jpg`,
+        });
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          return NextResponse.json({ error: "Image fetch timed out" }, { status: 408 });
+        }
+        throw error;
       }
-      
-      const imageBuffer = await imageResponse.arrayBuffer();
-      const buffer = Buffer.from(imageBuffer);
-      
-      imageAsset = await sanityClient.assets.upload('image', buffer, {
-        filename: `${filename}-from-url.jpg`,
-      });
     }
     else {
       return NextResponse.json({ error: "Invalid image format" }, { status: 400 });
@@ -59,8 +102,14 @@ export async function POST(req: NextRequest) {
         }
       }
     });
-  } catch (error) {
+} catch (error) {
     console.error("Error uploading image:", error);
-    return NextResponse.json({ error: "Failed to upload image" }, { status: 500 });
+    
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+  
+    return NextResponse.json({ 
+      error: `Failed to upload image: ${errorMessage}` 
+    }, { status: 500 });
   }
 }
