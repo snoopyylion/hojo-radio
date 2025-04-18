@@ -16,7 +16,6 @@ const CreatePostForm = () => {
     const [body, setBody] = useState("");
     const [categories, setCategories] = useState<string[]>([]);
     const [imageUrl, setImageUrl] = useState<string>("");
-    const [isUploading, setIsUploading] = useState(false);
     const [categoryOptions, setCategoryOptions] = useState<{ _id: string, title: string }[]>([]);
     const router = useRouter();
 
