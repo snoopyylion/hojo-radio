@@ -6,25 +6,28 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import MDEditor from '@uiw/react-md-editor';
 import { Button } from './ui/button';
-import { Send } from 'lucide-react';
+import { Send, Upload } from 'lucide-react';
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { createPostItem } from "@/lib/action";
+import { useAppContext } from "@/context/AppContext";
 
 interface FormState {
     error: string;
     status: string;
     _id?: string;
     [key: string]: unknown;
-  }
+}
 
 const CreatePostForm = () => {
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [body, setBody] = useState("");
     const [categories, setCategories] = useState<string[]>([]);
     const [imageUrl, setImageUrl] = useState<string>("");
+    const [imageRef, setImageRef] = useState<string>("");
+    const [isUploading, setIsUploading] = useState(false);
     const [categoryOptions, setCategoryOptions] = useState<{ _id: string, title: string }[]>([]);
     const router = useRouter();
+    const { user } = useAppContext();
 
     // Fetch categories from Sanity
     useEffect(() => {
@@ -41,93 +44,143 @@ const CreatePostForm = () => {
 
         fetchCategories();
     }, []);
-    // Add this to your CreatePostForm component
+
+    // Image URL validation
     const validateImageUrl = (url: string) => {
         if (!url) return false;
 
-        // Check if it's a valid URL
         try {
             new URL(url);
-
-            // Check if it's an image URL (at least by extension)
             const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
             const hasImageExtension = imageExtensions.some(ext =>
                 url.toLowerCase().endsWith(ext)
             );
 
-            return hasImageExtension || url.includes('image'); // Basic check
+            return hasImageExtension || url.includes('image');
         } catch (error) {
             console.error("Invalid URL:", error);
             return false;
         }
     };
 
-    // Then update your validateForm function
-    const validateForm = (formData: FormData) => {
-        const newErrors: Record<string, string> = {};
-
-        if (!formData.get("title")) newErrors.title = "Title is required";
-        if (!formData.get("description")) newErrors.description = "Description is required";
-        if (!body) newErrors.body = "Content is required";
-
+    // Function to upload image before form submission
+    const handleImageUpload = async () => {
         if (!imageUrl) {
-            newErrors.imageUrl = "Image URL is required";
-        } else if (!validateImageUrl(imageUrl)) {
-            newErrors.imageUrl = "Please enter a valid image URL";
+            setErrors(prev => ({ ...prev, imageUrl: "Image URL is required" }));
+            return false;
+        }
+        
+        if (!validateImageUrl(imageUrl)) {
+            setErrors(prev => ({ ...prev, imageUrl: "Please enter a valid image URL" }));
+            return false;
         }
 
-        if (categories.length === 0) newErrors.categories = "At least one category is required";
+        setIsUploading(true);
+        try {
+            const formData = new FormData();
+            const titleElement = document.getElementById('title') as HTMLInputElement | null;
+            formData.append('imageUrl', imageUrl);
+            formData.append('filename', titleElement?.value || 'post-image');
+
+            const response = await fetch('/api/upload-image', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to upload image');
+            }
+
+            const result = await response.json();
+            setImageRef(JSON.stringify(result.imageRef));
+            toast.success("Image uploaded successfully!");
+            return true;
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to upload image');
+            return false;
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    // Form validation
+    const validateForm = () => {
+        const newErrors: Record<string, string> = {};
+        const titleElement = document.getElementById('title') as HTMLInputElement | null;
+        const descriptionElement = document.getElementById('description') as HTMLTextAreaElement | null;
+
+        if (!titleElement?.value) {
+            newErrors.title = "Title is required";
+          }
+        
+          if (!descriptionElement?.value) {
+            newErrors.description = "Description is required";
+          }
+        
+        if (!body) 
+            newErrors.body = "Content is required";
+        
+        if (!imageRef) 
+            newErrors.imageUrl = "You must upload an image first";
+        
+        if (categories.length === 0) 
+            newErrors.categories = "At least one category is required";
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
-    // Form Submission Handler
-    const handleFormSubmit = async (prevState: FormState, formData: FormData) => {
+    // Form submission handler
+    const handleFormSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (!validateForm()) {
+            toast.error("Please fix the form errors");
+            return;
+        }
+
         try {
-            // Validate form
-            if (!validateForm(formData)) {
-                return { ...prevState, error: 'Please fix the form errors', status: 'ERROR' };
+            const formData = new FormData(e.target as HTMLFormElement);
+            
+            // Add body, categories, and image reference
+            formData.append('body', body);
+            formData.append('imageRef', imageRef);
+            categories.forEach(cat => formData.append('categoryIds', cat));
+            
+            // Add user ID
+            if (user?.id) {
+                formData.append('authorId', user.id);
+            } else {
+                toast.error("User not authenticated");
+                return;
             }
 
-            // Manually append additional fields to formData
-            if (body) formData.append("body", body);
+            // Generate slug from title
+            const title = formData.get('title') as string;
+            const slug = title.toLowerCase().replace(/\s+/g, '-');
+            formData.append('slug', slug);
 
-            // Add image URL to form data
-            if (imageUrl) formData.append("imageUrl", imageUrl);
+            // Submit the form
+            const response = await fetch('/api/post/create-post', {
+                method: 'POST',
+                body: formData,
+            });
 
-            // Add selected categories to form data
-            categories.forEach(cat => formData.append("categoryIds", cat));
-
-            const formValues = {
-                title: formData.get("title") as string,
-                description: formData.get("description") as string,
-                body,
-                imageUrl,
-                categories,
-            };
-
-            console.log("Form Values:", formValues);
-
-            // Call the server action with the enhanced formData
-            const result = await createPostItem(prevState, formData);
-
-            if (result.status === "SUCCESS") {
-                toast.success("Post created successfully!");
-                router.push(`/post/${result._id}`);
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to create post');
             }
-            return result;
+
+            const result = await response.json();
+            toast.success("Post created successfully!");
+            router.push(`/post/${result._id}`);
         } catch (error) {
-            console.error("Error:", error);
-            toast.error("An error occurred while submitting the post.");
-            return { ...prevState, error: 'Submission failed', status: 'ERROR' };
+            console.error('Error creating post:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to create post');
         }
     };
-
-    const [state, formAction, isPending] = useActionState(handleFormSubmit, {
-        error: "",
-        status: "INITIAL",
-    });
 
     const handleEditorChange = (value: string | undefined) => {
         if (value !== undefined) {
@@ -137,7 +190,7 @@ const CreatePostForm = () => {
 
     return (
         <form
-            action={formAction}
+            onSubmit={handleFormSubmit}
             className="w-full max-w-4xl mx-auto p-6 md:p-8 bg-white rounded-2xl shadow-xl space-y-6 border border-gray-100"
         >
             <h2 className="text-2xl font-bold text-gray-800">Post Details</h2>
@@ -193,21 +246,34 @@ const CreatePostForm = () => {
                 {errors.categories && <p className="text-sm text-red-500 mt-1">{errors.categories}</p>}
             </div>
 
-            {/* Image URL */}
+            {/* Image URL with upload button */}
             <div>
                 <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">
                     Image URL
                 </label>
-                <Input
-                    id="imageUrl"
-                    name="imageUrl"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    required
-                    placeholder="Paste a direct image link"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                />
+                <div className="flex gap-2">
+                    <Input
+                        id="imageUrl"
+                        name="imageUrl"
+                        className="flex-1 rounded-xl border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        required
+                        placeholder="Paste a direct image link"
+                        value={imageUrl}
+                        onChange={(e) => setImageUrl(e.target.value)}
+                        disabled={!!imageRef || isUploading}
+                    />
+                    <Button
+                        type="button"
+                        onClick={handleImageUpload}
+                        className="bg-green-600 text-white hover:bg-green-700 transition-colors px-4 py-2 rounded-xl shadow-md disabled:bg-gray-400 flex items-center gap-2"
+                        disabled={!!imageRef || isUploading || !imageUrl}
+                    >
+                        {isUploading ? "Uploading..." : imageRef ? "Uploaded" : "Upload"}
+                        <Upload className="w-4 h-4" />
+                    </Button>
+                </div>
                 {errors.imageUrl && <p className="text-sm text-red-500 mt-1">{errors.imageUrl}</p>}
+                {imageRef && <p className="text-sm text-green-500 mt-1">Image uploaded successfully!</p>}
             </div>
 
             {/* Content Editor */}
@@ -234,21 +300,13 @@ const CreatePostForm = () => {
                 <Button
                     type="submit"
                     className="inline-flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors px-6 py-3 rounded-xl shadow-md disabled:bg-gray-400"
-                    disabled={isPending}
+                    disabled={isUploading || !imageRef}
                 >
-                    {isPending ? "Submitting..." : "Create Post"}
+                    Create Post
                     <Send className="w-4 h-4" />
                 </Button>
             </div>
-
-            {/* Error Message */}
-            {state.error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
-                    {state.error}
-                </div>
-            )}
         </form>
-
     );
 };
 
