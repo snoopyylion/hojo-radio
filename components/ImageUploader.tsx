@@ -8,9 +8,15 @@ import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { AlertCircle, Upload } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
+import Image from "next/image";
 
 interface ImageUploaderProps {
     onImageReady: (imageUrl: string) => void;
+}
+
+interface ImageAssetResponse {
+    _id: string;
+    [key: string]: unknown;
 }
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageReady }) => {
@@ -74,49 +80,52 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageReady }) => {
     };
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-col space-y-2">
-                <div className="flex space-x-2">
-                    <Button
-                        type="button"
-                        variant={uploadMode === 'url' ? 'default' : 'outline'}
-                        onClick={() => setUploadMode('url')}
-                        className="flex-1"
-                    >
-                        Use URL
-                    </Button>
-                    <Button
-                        type="button"
-                        variant={uploadMode === 'file' ? 'default' : 'outline'}
-                        onClick={() => setUploadMode('file')}
-                        className="flex-1"
-                    >
-                        Upload File
-                    </Button>
-                </div>
+        <div className="space-y-6">
+            {/* Mode Toggle Buttons */}
+            <div className="grid grid-cols-2 gap-4">
+                <Button
+                    type="button"
+                    variant={uploadMode === 'url' ? 'default' : 'outline'}
+                    onClick={() => setUploadMode('url')}
+                    className="w-full"
+                >
+                    Use URL
+                </Button>
+                <Button
+                    type="button"
+                    variant={uploadMode === 'file' ? 'default' : 'outline'}
+                    onClick={() => setUploadMode('file')}
+                    className="w-full"
+                >
+                    Upload File
+                </Button>
             </div>
 
-            {uploadMode === 'url' ? (
-                <div>
-                    <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">
-                        Image URL <span className="text-xs text-gray-500">(Direct image link)</span>
+            {/* Upload by URL */}
+            {uploadMode === 'url' && (
+                <div className="space-y-2">
+                    <label htmlFor="imageUrl" className="text-sm font-medium text-muted-foreground">
+                        Image URL <span className="text-xs text-muted">(.jpg, .png, etc.)</span>
                     </label>
                     <Input
                         id="imageUrl"
                         name="imageUrl"
-                        className="w-full rounded-xl border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        placeholder="https://example.com/image.jpg"
+                        className="w-full rounded-xl"
                         required
-                        placeholder="Paste a direct image link"
                         value={imageUrl}
                         onChange={handleUrlChange}
                     />
                 </div>
-            ) : (
-                <div>
-                    <label htmlFor="imageFile" className="block text-sm font-medium text-gray-700 mb-1">
-                        Upload Image <span className="text-xs text-gray-500">(Will be automatically compressed)</span>
+            )}
+
+            {/* Upload by File */}
+            {uploadMode === 'file' && (
+                <div className="space-y-2">
+                    <label htmlFor="imageFile" className="text-sm font-medium text-muted-foreground">
+                        Upload Image <span className="text-xs text-muted">(Auto-compressed under 5MB)</span>
                     </label>
-                    <div className="border-dashed border-2 border-gray-300 rounded-xl p-6 text-center">
+                    <div className="relative border-2 border-dashed border-gray-300 rounded-xl p-6 text-center bg-muted/20">
                         <Input
                             id="imageFile"
                             name="imageFile"
@@ -127,7 +136,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageReady }) => {
                         />
                         <Button
                             type="button"
-                            variant="outline"
+                            variant="secondary"
                             onClick={() => document.getElementById('imageFile')?.click()}
                             className="inline-flex items-center gap-2"
                             disabled={isCompressing}
@@ -135,11 +144,18 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageReady }) => {
                             {isCompressing ? "Compressing..." : "Choose File"}
                             <Upload className="w-4 h-4" />
                         </Button>
-                        {imageUrl && uploadMode === 'file' && (
-                            <div className="mt-2">
-                                <p className="text-sm text-gray-600">Image ready to upload</p>
-                                <div className="mt-2 w-24 h-24 mx-auto">
-                                    <img src={imageUrl} alt="Preview" className="h-full w-full object-cover rounded" />
+
+                        {imageUrl && (
+                            <div className="mt-4">
+                                <p className="text-sm text-muted-foreground">Image preview:</p>
+                                <div className="mt-2 w-32 h-32 mx-auto relative">
+                                    <Image
+                                        src={imageUrl}
+                                        alt="Preview"
+                                        fill
+                                        className="object-cover rounded-xl shadow-md"
+                                        unoptimized={imageUrl.startsWith('data:')}
+                                    />
                                 </div>
                             </div>
                         )}
@@ -147,19 +163,25 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageReady }) => {
                 </div>
             )}
 
-            {urlError && <p className="text-sm text-red-500 mt-1">{urlError}</p>}
+            {/* Error Message */}
+            {urlError && <p className="text-sm text-destructive">{urlError}</p>}
 
-            <div className="flex gap-2 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-blue-700">
-                    <p className="font-medium">Image Tips:</p>
-                    <p>When uploading files, images will be automatically compressed to be under 5MB.</p>
-                    <p>For URL mode, ensure you're using a direct image link that ends with .jpg, .png, etc.</p>
+            {/* Tips Box */}
+            <div className="flex gap-3 p-4 bg-blue-50 dark:bg-blue-950 rounded-xl border border-blue-100 dark:border-blue-800 shadow-sm">
+                <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5" />
+                <div className="text-sm text-blue-700 dark:text-blue-200">
+                    <p className="font-semibold">Image Tips:</p>
+                    <ul className="list-disc list-inside text-sm space-y-1 mt-1">
+                        <li>File uploads are compressed automatically under 5MB.</li>
+                        <li>URL must link directly to an image (e.g., .jpg, .png).</li>
+                    </ul>
                 </div>
             </div>
 
+            {/* Hidden Input for submission */}
             <input type="hidden" name="imageUrl" value={imageUrl} />
         </div>
+
     );
 };
 

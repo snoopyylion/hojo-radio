@@ -12,6 +12,10 @@ interface ActionState {
   status: "INITIAL" | "ERROR" | "SUCCESS";
   _id?: string;
 }
+interface ImageAssetResponse {
+  _id: string;
+  [key: string]: unknown;
+}
 
 export const createPostItem = async (state: ActionState, form: FormData) => {
   const { userId } = await auth();
@@ -94,96 +98,127 @@ export const createPostItem = async (state: ActionState, form: FormData) => {
       });
 
     // Upload the image to Sanity with optimized fetching and timeout
-let mainImage = null;
-try {
-  if (imageUrl) {
-    let imageAsset;
-    
-    // Check if it's a data URL (base64)
-    if (imageUrl.startsWith('data:image/')) {
-      // Extract content type and base64 data
-      const contentType = imageUrl.split(';')[0].split(':')[1];
-      const base64Data = imageUrl.split(',')[1];
-      const blobData = Buffer.from(base64Data, 'base64');
-      
-      // Set upload timeout
-      const uploadTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Image upload timed out')), 90000); // 90 seconds
-      });
-      
-      // Upload directly to Sanity without fetch
-      const uploadPromise = writeClient.assets.upload('image', blobData, {
-        filename: `${slug}-main-image.jpg`,
-        contentType: contentType || 'image/jpeg'
-      });
-      
-      // Race between upload and timeout
-      imageAsset = await Promise.race([uploadPromise, uploadTimeoutPromise]) as any;
-    } else {
-      // Regular URL handling (not blob: or data:)
-      // Add a timeout to the fetch operation
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
-      
-      const response = await fetch(imageUrl, {
-        signal: controller.signal,
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
-      });
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`Image fetch failed: ${response.status}`);
+    let mainImage = null;
+    try {
+      if (imageUrl) {
+        let imageAsset;
+        
+        // Check if it's a data URL (base64)
+        if (imageUrl.startsWith('data:image/')) {
+          // Extract content type and base64 data
+          const contentType = imageUrl.split(';')[0].split(':')[1];
+          const base64Data = imageUrl.split(',')[1];
+          const blobData = Buffer.from(base64Data, 'base64');
+          
+          // Function to upload with retry
+          const uploadWithRetry = async (retries = 3) => {
+            try {
+              return await writeClient.assets.upload('image', blobData, {
+                filename: `${slug}-main-image-${Date.now()}.jpg`, // Add timestamp for uniqueness
+                contentType: contentType || 'image/jpeg'
+              });
+            } catch (err) {
+              if (retries > 0) {
+                console.log(`Retrying image upload, ${retries} attempts left`);
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                return uploadWithRetry(retries - 1);
+              }
+              throw err;
+            }
+          };
+          
+          // Upload with retry mechanism
+          imageAsset = await uploadWithRetry();
+        } else {
+          // Regular URL handling (not blob: or data:)
+          // Use dynamic import for node-fetch to avoid SSR issues
+          const fetch = (await import('node-fetch')).default;
+          
+          // Use a unique request URL to avoid caching
+          const uniqueUrl = imageUrl.includes('?') 
+            ? `${imageUrl}&nocache=${Date.now()}` 
+            : `${imageUrl}?nocache=${Date.now()}`;
+          
+          // Add a timeout to the fetch operation
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 seconds timeout
+          
+          try {
+            const response = await fetch(uniqueUrl, {
+              signal: controller.signal,
+              headers: { 
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+              }
+            });
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+              throw new Error(`Image fetch failed: ${response.status}`);
+            }
+            
+            const contentType = response.headers.get('Content-Type');
+            if (!contentType?.startsWith('image/')) {
+              throw new Error('URL does not point to an image');
+            }
+            
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            
+            // Function to upload with retry
+            const uploadWithRetry = async (retries = 3) => {
+              try {
+                return await writeClient.assets.upload('image', buffer, {
+                  filename: `${slug}-main-image-${Date.now()}.jpg`, // Add timestamp for uniqueness
+                  contentType: contentType || 'image/jpeg'
+                });
+              } catch (err) {
+                if (retries > 0) {
+                  console.log(`Retrying image upload, ${retries} attempts left`);
+                  await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                  return uploadWithRetry(retries - 1);
+                }
+                throw err;
+              }
+            };
+            
+            // Upload with retry mechanism
+            imageAsset = await uploadWithRetry();
+          } finally {
+            clearTimeout(timeoutId);
+          }
+        }
+        
+        // Create image reference once we have the asset
+        if (imageAsset && imageAsset._id) {
+          mainImage = {
+            _type: "image",
+            asset: {
+              _type: "reference",
+              _ref: imageAsset._id,
+            },
+          };
+        }
       }
-      
-      const contentType = response.headers.get('Content-Type');
-      if (!contentType?.startsWith('image/')) {
-        throw new Error('URL does not point to an image');
-      }
-      
-      const imageBlob = await response.blob();
-      
-      // Check image size for regular URLs
-      if (imageBlob.size > 5 * 1024 * 1024) {
-        throw new Error('Image from URL is too large (max 5MB). Please use file upload with compression instead.');
-      }
-      
-      // Upload to Sanity with a timeout
-      const uploadTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Image upload timed out')), 90000); // 90 seconds
-      });
-      
-      const uploadPromise = writeClient.assets.upload('image', imageBlob, {
-        filename: `${slug}-main-image.jpg`,
-        contentType: contentType || 'image/jpeg'
-      });
-      
-      // Race between upload and timeout
-      imageAsset = await Promise.race([uploadPromise, uploadTimeoutPromise]) as any;
-    }
-    
-    // Create image reference once we have the asset
-    if (imageAsset && imageAsset._id) {
-      mainImage = {
-        _type: "image",
-        asset: {
-          _type: "reference",
-          _ref: imageAsset._id,
-        },
-      };
-    }
-  }
-    } catch (imageError) {
+    } catch (imageError: unknown) {
       console.error("Image upload error:", imageError);
+    
+      const errorMessage =
+        imageError instanceof Error
+          ? imageError.message
+          : "An unknown error occurred during image upload.";
+    
       return parseServerActionResponse({
-        error: "Failed to upload image. If using a URL, please use a smaller image or try the file upload option with compression.",
+        error: `Failed to upload image: ${errorMessage}. If using a URL, please use a smaller image or try the file upload option with compression.`,
         status: "ERROR"
       });
     }
-
+    
+    
     if (!mainImage) {
       return parseServerActionResponse({
-        error: "Image upload failed. Please try a different image URL.",
+        error: "Image upload failed. Please try a different image URL or file.",
         status: "ERROR"
       });
     }
