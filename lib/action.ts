@@ -12,10 +12,6 @@ interface ActionState {
   status: "INITIAL" | "ERROR" | "SUCCESS";
   _id?: string;
 }
-interface ImageAssetResponse {
-  _id: string;
-  [key: string]: unknown;
-}
 
 export const createPostItem = async (state: ActionState, form: FormData) => {
   const { userId } = await auth();

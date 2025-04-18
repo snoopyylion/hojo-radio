@@ -14,11 +14,6 @@ interface ImageUploaderProps {
     onImageReady: (imageUrl: string) => void;
 }
 
-interface ImageAssetResponse {
-    _id: string;
-    [key: string]: unknown;
-}
-
 const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageReady }) => {
     const [imageUrl, setImageUrl] = useState<string>("");
     const [urlError, setUrlError] = useState<string>("");
