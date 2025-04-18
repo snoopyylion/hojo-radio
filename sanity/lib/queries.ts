@@ -5,6 +5,7 @@ export const ALL_POSTS_QUERY = defineQuery(`
   *[_type == "post"] | order(publishedAt desc) {
     _id,
     title,
+    description,
     slug,
     publishedAt,
     mainImage,

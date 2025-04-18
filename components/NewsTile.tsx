@@ -15,6 +15,7 @@ interface NewsTileProps {
   post: {
     _id: string;
     title: string;
+    description: string;
     slug: { current: string };
     mainImage?: SanityImage;
     publishedAt: string;
@@ -96,8 +97,12 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
           </div>
         </div>
 
+
         {/* Read more */}
         <div className="px-5 pb-4 mt-auto">
+        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+          {post.description}
+        </p>
           <div className="text-sm text-blue-600 dark:text-blue-400 font-semibold flex items-center hover:underline">
             Read More
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -9,6 +9,7 @@ import { groq } from "next-sanity";
 interface Post {
   _id: string;
   title: string;
+  description: string;
   slug: { current: string };
   mainImage?: {
     asset: {
@@ -87,7 +88,13 @@ const NewsPage = () => {
     const subscription = client
       .listen(
         groq`*[_type == "post"] {
-          _id, title, slug, mainImage, publishedAt, _createdAt,
+          _id,
+          title,
+          description,
+          slug,
+          mainImage,
+          publishedAt,
+          _createdAt,
           author->{ name, image },
           categories[]->{ title }
         }`
