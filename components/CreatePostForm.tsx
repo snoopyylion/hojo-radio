@@ -75,7 +75,7 @@ const CreatePostForm = () => {
             formData.append('imageUrl', imageUrl);
             formData.append('filename', titleElement?.value || 'post-image');
 
-            const response = await fetch('/api/upload-image', {
+            const response = await fetch('/api/post/create-post/upload-image', {
                 method: 'POST',
                 body: formData,
             });
