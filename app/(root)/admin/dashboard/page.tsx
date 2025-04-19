@@ -42,27 +42,11 @@ export default function AdminDashboardPage() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-  const [darkMode, setDarkMode] = useState(false);
 
   // Filter posts by status
   const pendingPosts = allPosts.filter(post => post.status === 'pending');
   const approvedPosts = allPosts.filter(post => post.status === 'approved');
   const rejectedPosts = allPosts.filter(post => post.status === 'rejected');
-
-  useEffect(() => {
-    // Check for system preference or saved preference
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-      document.documentElement.classList.add('dark');
-      setDarkMode(true);
-    } else {
-      document.documentElement.classList.remove('dark');
-      setDarkMode(false);
-    }
-  }, []);
-
 
   const fetchPendingAuthors = async () => {
     try {
@@ -259,7 +243,7 @@ export default function AdminDashboardPage() {
     }
 
     if (currentPosts.length === 0) {
-      return <p className="text-gray-500 dark:text-gray-400 italic">No {activePostTab} posts available.</p>;
+      return <p className="text-gray-500 italic">No {activePostTab} posts available.</p>;
     }
 
     return (
