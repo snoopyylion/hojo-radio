@@ -63,17 +63,6 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
-  const toggleDarkMode = () => {
-    if (darkMode) {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-      setDarkMode(false);
-    } else {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-      setDarkMode(true);
-    }
-  };
 
   const fetchPendingAuthors = async () => {
     try {
