@@ -4,7 +4,7 @@ import Image from 'next/image'
 
 const Hero = () => {
   return (
-    <section className="w-full h-screen pt-[150px] py-16 mb-12 bg-white dark:bg-black transition-colors duration-300">
+    <section className="w-full min-h-[500px] py-16 pt-[100px] sm:pt-[120px] md:pt-[150px] bg-white dark:bg-black transition-colors duration-300">
       <div className="container mx-auto px-4 sm:px-6 lg:px-12 xl:px-20 2xl:px-32 flex flex-col md:flex-row items-center justify-between">
         {/* Hero Left */}
         <div className="hero-left md:w-1/2 w-full text-center md:text-left">
@@ -18,9 +18,9 @@ const Hero = () => {
             <LinkButton title="Verify News" href="/verify-news" />
           </div>
         </div>
-
+        
         {/* Hero Right */}
-        <div className="hero-right md:w-1/2 w-[90dvw] mt-10 md:mt-0 flex justify-end">
+        <div className="hero-right md:w-1/2 w-full mt-10 md:mt-0 flex justify-center md:justify-end">
           <Image
             src="/img/heroimg.png"
             alt="hero"
