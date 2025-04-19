@@ -81,19 +81,25 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className=''>
+    <div className="bg-white dark:bg-black transition-colors duration-300 min-h-screen">
       {/* Hero Section */}
-      <section className="pt-[150px] bg-gradient-to-r from-pink-100 via-white to-purple-100 py-16 text-center px-4 md:px-10">
-        <p className="uppercase text-sm text-gray-500 tracking-widest">{formatDate(post.publishedAt || post._createdAt)}</p>
-        <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mt-4">{post.title}</h1>
+      <section className="pt-[150px] bg-gradient-to-r from-pink-100 via-white to-purple-100 dark:from-pink-950 dark:via-gray-950 dark:to-purple-950 py-16 text-center px-4 md:px-10 transition-colors duration-300">
+        <p className="uppercase text-sm text-gray-500 dark:text-gray-400 tracking-widest transition-colors">
+          {formatDate(post.publishedAt || post._createdAt)}
+        </p>
+        <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mt-4 transition-colors">
+          {post.title}
+        </h1>
         {post.description && (
-          <p className="mt-4 max-w-2xl mx-auto text-base md:text-lg text-gray-600">{post.description}</p>
+          <p className="mt-4 max-w-2xl mx-auto text-base md:text-lg text-gray-600 dark:text-gray-300 transition-colors">
+            {post.description}
+          </p>
         )}
       </section>
 
       {/* Floating Action Buttons */}
       <div className="mt-10 flex justify-center gap-4 flex-wrap px-4">
-        {[ 
+        {[
           { label: 'Like', icon: '❤️', color: 'bg-[#EF3866]' },
           { label: 'Share', icon: '🔗', color: 'bg-blue-500' },
           { label: 'Favorite', icon: '⭐', color: 'bg-yellow-500' },
@@ -128,35 +134,55 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
           {post.author && (
             <div className="flex items-center gap-4">
-              <Image
-                src={post.author.imageUrl || post.author.image?.asset?.url}
-                alt="Author"
-                width={60}
-                height={60}
-                className="rounded-full border-2 border-[#EF3866] object-cover"
-              />
+              {post.author.imageUrl || post.author.image?.asset?.url ? (
+                <Image
+                  src={post.author.imageUrl || post.author.image?.asset?.url}
+                  alt="Author"
+                  width={60}
+                  height={60}
+                  className="rounded-full border-2 border-[#EF3866] object-cover"
+                />
+              ) : null}
               <div>
-                <p className="font-semibold text-lg">{post.author.name}</p>
-                <p className="text-sm text-gray-500">@{post.author.name?.toLowerCase().replace(/\s+/g, '')}</p>
+                <p className="font-semibold text-lg text-gray-900 dark:text-white transition-colors">
+                  {post.author.name}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 transition-colors">
+                  @{post.author.name?.toLowerCase().replace(/\s+/g, '')}
+                </p>
               </div>
             </div>
           )}
           {post.categories?.length > 0 && (
-            <span className="inline-block bg-[#fce7f3] text-[#d7325a] text-sm font-medium px-4 py-1 rounded-full shadow-sm">
+            <span className="inline-block bg-[#fce7f3] dark:bg-[#4c1d38] text-[#d7325a] dark:text-[#ff5e8a] text-sm font-medium px-4 py-1 rounded-full shadow-sm transition-colors">
               {post.categories[0].title}
             </span>
           )}
         </div>
 
         {/* Post Content */}
-        <div className="text-gray-800 prose prose-p:leading-7 prose-headings:font-bold prose-img:rounded-xl max-w-none prose-a:text-[#EF3866]">
-          {isPortableText ? (
-            <PortableText value={contentToRender} components={ptComponents} />
-          ) : contentToRender ? (
-            <article dangerouslySetInnerHTML={{ __html: contentToRender }} />
-          ) : (
-            <p className="text-center text-gray-400 italic">No content available.</p>
-          )}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow border border-gray-100 dark:border-gray-700 transition-colors">
+          <div className="text-gray-800 dark:text-gray-200 prose prose-p:leading-7 prose-headings:font-bold prose-img:rounded-xl max-w-none prose-a:text-[#EF3866] dark:prose-a:text-[#ff7a9c] dark:prose-headings:text-white dark:prose-p:text-gray-300 dark:prose-strong:text-white dark:prose-li:text-gray-300 transition-colors">
+            {isPortableText ? (
+              <PortableText value={contentToRender} components={ptComponents} />
+            ) : contentToRender ? (
+              <article dangerouslySetInnerHTML={{ __html: contentToRender }} />
+            ) : (
+              <p className="text-center text-gray-400 dark:text-gray-500 italic transition-colors">
+                No content available.
+              </p>
+            )}
+          </div>
+        </div>
+        
+        {/* Related Posts or Comments Section */}
+        <div className="mt-8 bg-white dark:bg-gray-800 p-6 rounded-xl shadow border border-gray-100 dark:border-gray-700 transition-colors">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">💬 Discussion</h2>
+          <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded border border-gray-200 dark:border-gray-600 text-sm text-gray-800 dark:text-gray-200 transition-colors">
+            <p className="text-center text-gray-500 dark:text-gray-400">
+              Be the first to start the discussion!
+            </p>
+          </div>
         </div>
       </section>
     </div>
