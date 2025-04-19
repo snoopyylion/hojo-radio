@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import ProtectedRoute from "@/components/ProtectedRoute";
+import ProtectedRoute from "@/components/ProtectedRoute"; // make sure this exists and is correctly imported
 
 type VerificationData = {
   source_confidence?: number;
@@ -52,38 +52,58 @@ function InnerVerifyNewsPage() {
       );
 
       if (!verificationRes.ok) {
-        throw new Error(`Verification failed: ${await verificationRes.text()}`);
+        const errorText = await verificationRes.text();
+        throw new Error(`Verification failed: ${errorText}`);
       }
 
       const verificationResult: VerificationResult = await verificationRes.json();
       setResult(verificationResult);
 
-      const saveRes = await fetch("/api/news-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          headline,
-          content,
-          source_url: sourceUrl,
-          verdict: verificationResult.verdict,
-          credibility_score: verificationResult.verification_data?.source_confidence || 0,
-          confidence_level: verificationResult.verification_data?.ai_confidence_level || "N/A",
-          matched_sources: verificationResult.verification_data?.matched_sources || [],
-        }),
-      });
+      try {
+        const saveRes = await fetch("/api/news-verification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            headline,
+            content,
+            source_url: sourceUrl,
+            verdict: verificationResult.verdict,
+            credibility_score: verificationResult.verification_data?.source_confidence || 0,
+            confidence_level: verificationResult.verification_data?.ai_confidence_level || "N/A",
+            matched_sources: verificationResult.verification_data?.matched_sources || [],
+          }),
+        });
 
-      if (!saveRes.ok) {
-        throw new Error("Failed to save result to database");
+        if (!saveRes.ok) {
+          throw new Error("Failed to save result to database");
+        }
+
+        setSaveStatus("Result saved successfully!");
+      } catch (saveErr: unknown) {
+        console.error("Save error:", saveErr);
+        if (saveErr instanceof Error) {
+          setSaveStatus(`Warning: ${saveErr.message}`);
+        } else {
+          setSaveStatus(
+            "Warning: Verification completed but failed to save to database"
+          );
+        }
       }
-
-      setSaveStatus("✅ Result saved successfully!");
-    } catch (err: any) {
+      
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Something went wrong");
-      setSaveStatus("⚠️ Verification completed but failed to save.");
-    } finally {
-      setLoading(false);
+      if (err instanceof Error) {
+        setError(err.message || "Something went wrong");
+      } else {
+        setError("Something went wrong");
+      }
     }
+
+    setLoading(false);
+  };
+
+  const formatJsonOutput = (obj: object) => {
+    return JSON.stringify(obj, null, 2);
   };
 
   return (
