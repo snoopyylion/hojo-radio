@@ -102,10 +102,6 @@ function InnerVerifyNewsPage() {
     setLoading(false);
   };
 
-  const formatJsonOutput = (obj: object) => {
-    return JSON.stringify(obj, null, 2);
-  };
-
   return (
     <section className="px-4 pt-[150px] md:px-8 lg:px-16 py-8 bg-white dark:bg-black transition-colors duration-300 min-h-screen">
       <div className="max-w-4xl mx-auto">
