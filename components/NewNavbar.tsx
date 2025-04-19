@@ -147,38 +147,38 @@ const NewNavbar = () => {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="fixed top-0 right-0 h-screen w-64 bg-[#333333] shadow-lg z-40"
+            className="fixed top-0 right-0 h-screen w-64 bg-white dark:bg-black shadow-lg dark:shadow-gray-900/50 z-40"
           >
             <div className="p-6 flex flex-col space-y-6">
               <button
                 onClick={toggleSidebar}
-                className="self-end text-[#d7325a] hover:text-gray-300"
+                className="self-end text-[#d7325a] hover:text-gray-500 dark:hover:text-gray-300"
               >
                 <X size={24} />
               </button>
-              <Link href="/" className="text-gray-300 hover:text-[#d7325a]">
+              <Link href="/" className="text-gray-700 dark:text-gray-300 hover:text-[#d7325a] dark:hover:text-[#d7325a]">
                 Home
               </Link>
-              <Link href="/aboutus" className="text-gray-300 hover:text-[#d7325a]">
+              <Link href="/aboutus" className="text-gray-700 dark:text-gray-300 hover:text-[#d7325a] dark:hover:text-[#d7325a]">
                 About Us
               </Link>
-              <Link href="/blog" className="text-gray-300 hover:text-[#d7325a]">
+              <Link href="/blog" className="text-gray-700 dark:text-gray-300 hover:text-[#d7325a] dark:hover:text-[#d7325a]">
                 Blog
               </Link>
-              <Link href="/contactus" className="text-gray-300 hover:text-[#d7325a]">
+              <Link href="/contactus" className="text-gray-700 dark:text-gray-300 hover:text-[#d7325a] dark:hover:text-[#d7325a]">
                 Contact Us
               </Link>
-              <Link href="/hashedpage" className="text-gray-300 hover:text-[#d7325a]">
+              <Link href="/hashedpage" className="text-gray-700 dark:text-gray-300 hover:text-[#d7325a] dark:hover:text-[#d7325a]">
                 Dashboard
               </Link>
               {user?.role === "author" && (
                 <LinkButton title="Create post" href="/post/create-post" />
               )}
 
-              <div className="mt-52">
+              <div className="mt-auto pt-[60px] border-t border-gray-200 dark:border-gray-700">
                 {user ? (
-                  <div className="flex flex-col gap-4 bg-[#444] rounded-lg p-4 text-white">
-                    <span className="text-base font-semibold border-b border-gray-500 pb-2">
+                  <div className="flex flex-col gap-4 bg-gray-100 dark:bg-gray-800 rounded-lg p-4 text-gray-800 dark:text-white">
+                    <span className="text-base font-semibold border-b border-gray-300 dark:border-gray-600 pb-2">
                       Account
                     </span>
                     <div className="flex items-center justify-between">
