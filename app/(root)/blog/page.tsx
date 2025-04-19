@@ -133,15 +133,15 @@ const NewsPage = () => {
   );
 
   return (
-    <section className="px-4 pt-[150px] md:px-8 lg:px-16 py-8 bg-gray-50 dark:bg-black min-h-screen">
-      <div className="flex justify-between items-center mb-6">
+    <section className="px-4 pt-[150px] md:px-8 lg:px-16 py-8 bg-white dark:bg-black transition-colors duration-300 min-h-screen">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Latest News</h1>
         <input
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search news..."
-          className="border border-gray-300 dark:border-gray-700 rounded px-4 py-2 w-full max-w-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-white"
+          className="border border-gray-300 dark:border-gray-700 rounded px-4 py-2 w-full max-w-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-colors"
         />
       </div>
 

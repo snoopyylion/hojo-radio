@@ -36,8 +36,8 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
 
   return (
     <Link href={`/post/${post._id}`} className="block h-full">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1 flex flex-col h-full border border-gray-100 dark:border-gray-700">
-        {/* Image container */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden shadow transition-all hover:shadow-lg hover:-translate-y-1 duration-300 flex flex-col h-full">
+        
         <div className="relative w-full aspect-[16/9] bg-gray-100 dark:bg-gray-700">
           {post.mainImage ? (
             <>
@@ -45,16 +45,14 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
                 src={urlFor(post.mainImage).url()}
                 alt={post.title}
                 fill
-                className="object-contain"
-                sizes="(max-width: 768px) 100vw, 50vw"
-                priority={false}
+                className="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute top-3 right-3 flex flex-wrap gap-2 z-10">
-                {post.categories?.map((cat, index) => (
+              <div className="absolute top-3 right-3 flex gap-2 z-10">
+                {post.categories.map((cat, index) => (
                   <span
-                    key={`${cat.title}-${index}`}
-                    className="bg-blue-600 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-sm"
+                    key={index}
+                    className="bg-blue-600 text-white text-xs font-semibold px-2 py-1 rounded-full"
                   >
                     {cat.title}
                   </span>
@@ -66,14 +64,12 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
           )}
         </div>
 
-        {/* Content */}
-        <div className="p-4 md:p-5 flex flex-col justify-between flex-grow space-y-3">
-          <h3 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-white line-clamp-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+        <div className="p-4 flex flex-col flex-grow space-y-3">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white line-clamp-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
             {post.title}
           </h3>
 
-          {/* Author and date */}
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between text-sm pt-2">
             <div className="flex items-center">
               {post.author.image ? (
                 <div className="w-8 h-8 relative rounded-full overflow-hidden mr-2">
@@ -85,27 +81,25 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
                   />
                 </div>
               ) : (
-                <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 mr-2 flex items-center justify-center">
+                <div className="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center mr-2">
                   <span className="text-sm font-semibold text-gray-700 dark:text-white">
                     {post.author.name.charAt(0)}
                   </span>
                 </div>
               )}
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{post.author.name}</span>
+              <span className="text-gray-700 dark:text-gray-300">{post.author.name}</span>
             </div>
             <span className="text-xs text-gray-500 dark:text-gray-400">{formattedDate}</span>
           </div>
         </div>
 
-
-        {/* Read more */}
-        <div className="px-5 pb-4 mt-auto">
-        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-          {post.description}
-        </p>
+        <div className="px-5 pb-4 mt-auto space-y-1">
+          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+            {post.description}
+          </p>
           <div className="text-sm text-blue-600 dark:text-blue-400 font-semibold flex items-center hover:underline">
             Read More
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-4 w-4 ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </div>

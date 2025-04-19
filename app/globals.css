@@ -4,7 +4,9 @@
   --color-primary: #FFFFFF;
 }
 html{
-  @apply scroll-smooth
+  @apply scroll-smooth;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  
 }
 ::-webkit-scrollbar {
   display: none;
