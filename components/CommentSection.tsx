@@ -167,12 +167,12 @@ export default function CommentSection({ postId }: Props) {
   if (isLoading) {
     return (
       <div className="mt-10">
-        <h3 className="text-xl font-semibold mb-4">Comments</h3>
+        <h3 className="text-xl font-semibold mb-4 dark:text-white">Comments</h3>
         <div className="flex justify-center py-10">
           <div className="animate-pulse space-y-4 w-full">
-            <div className="h-12 bg-muted rounded w-1/4"></div>
-            <div className="h-20 bg-muted rounded"></div>
-            <div className="h-20 bg-muted rounded"></div>
+            <div className="h-12 bg-muted dark:bg-gray-700 rounded w-1/4"></div>
+            <div className="h-20 bg-muted dark:bg-gray-700 rounded"></div>
+            <div className="h-20 bg-muted dark:bg-gray-700 rounded"></div>
           </div>
         </div>
       </div>
@@ -182,8 +182,8 @@ export default function CommentSection({ postId }: Props) {
   if (error) {
     return (
       <div className="mt-10">
-        <h3 className="text-xl font-semibold mb-4">Comments</h3>
-        <div className="p-4 bg-red-50 text-red-700 rounded-md">
+        <h3 className="text-xl font-semibold mb-4 dark:text-white">Comments</h3>
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-md">
           <p>Error loading comments: {error}</p>
           <Button onClick={fetchComments} className="mt-2">Try Again</Button>
         </div>
@@ -193,7 +193,7 @@ export default function CommentSection({ postId }: Props) {
 
   return (
     <div className="mt-10">
-      <h3 className="text-xl font-semibold mb-4">Comments</h3>
+      <h3 className="text-xl font-semibold mb-4 dark:text-white">Comments</h3>
       
       {/* Comment input */}
       {user && (
@@ -203,6 +203,7 @@ export default function CommentSection({ postId }: Props) {
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="Write a comment..."
             rows={3}
+            className="dark:border-gray-700"
           />
           <Button onClick={handleSubmit} disabled={loading || !newComment.trim()}>
             {loading ? "Posting..." : "Post Comment"}
@@ -212,21 +213,25 @@ export default function CommentSection({ postId }: Props) {
 
       {/* Display comments */}
       {comments.length === 0 ? (
-        <p className="text-gray-500">No comments yet. Be the first to leave a comment!</p>
+        <p className="text-gray-500 dark:text-gray-400">No comments yet. Be the first to leave a comment!</p>
       ) : (
         <ul className="space-y-4">
           {comments.map((comment) => (
-            <li key={comment.id} className="p-4 bg-muted rounded-xl shadow-sm">
+            <li key={comment.id} className="p-4 bg-muted dark:bg-gray-800 rounded-xl shadow-sm">
               <div className="flex justify-between items-start">
                 <div>
-                  <span className="font-semibold">{`${comment.user_first_name} ${comment.user_last_name}`}</span>
-                  <p className="text-sm text-muted-foreground">
+                  <span className="font-semibold dark:text-white">{`${comment.user_first_name} ${comment.user_last_name}`}</span>
+                  <p className="text-sm text-muted-foreground dark:text-gray-400">
                     {formatDistanceToNow(new Date(comment.created_at))} ago
                   </p>
                 </div>
                 <div className="flex items-center space-x-4">
                   <button
-                    className={`flex items-center space-x-1 ${comment.userReaction === 'like' ? 'text-blue-600' : ''}`}
+                    className={`flex items-center space-x-1 ${
+                      comment.userReaction === 'like' 
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'dark:text-gray-300'
+                    }`}
                     onClick={() => handleReaction(comment.id, "like")}
                     disabled={submittingReaction === comment.id}
                     aria-label="Like comment"
@@ -235,7 +240,11 @@ export default function CommentSection({ postId }: Props) {
                     <span>{comment.likes || 0}</span>
                   </button>
                   <button
-                    className={`flex items-center space-x-1 ${comment.userReaction === 'dislike' ? 'text-red-600' : ''}`}
+                    className={`flex items-center space-x-1 ${
+                      comment.userReaction === 'dislike'
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'dark:text-gray-300'
+                    }`}
                     onClick={() => handleReaction(comment.id, "dislike")}
                     disabled={submittingReaction === comment.id}
                     aria-label="Dislike comment"
@@ -245,7 +254,7 @@ export default function CommentSection({ postId }: Props) {
                   </button>
                 </div>
               </div>
-              <p className="mt-3 text-base">{comment.comment}</p>
+              <p className="mt-3 text-base dark:text-gray-200">{comment.comment}</p>
             </li>
           ))}
         </ul>
