@@ -288,7 +288,7 @@ export default function PostClient({ id }: PostClientProps) {
 
       {/* Hero Section with parallax effect */}
       <section className="pt-[120px] md:pt-[150px] bg-gradient-to-r from-pink-100 via-white to-purple-100 dark:from-pink-950 dark:via-gray-950 dark:to-purple-950 py-16 text-center px-4 md:px-10 transition-colors duration-300 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-5"></div>
+        <div className="absolute inset-0 bg-[url('/img/heroimg.png')] opacity-5"></div>
         <div className="relative z-10">
           <p className="uppercase text-sm text-gray-500 dark:text-gray-400 tracking-widest transition-colors">
             {formatDate(post.publishedAt || post._createdAt || '')}
