@@ -2,9 +2,13 @@ import { client } from '@/sanity/lib/client';
 import { Metadata } from 'next';
 import PostClient from './PostClient';
 
+type PageProps = {
+  params: Promise<{ id: string }>
+}
 
-export async function generateMetadata(context: { params: { id: string } }): Promise<Metadata> {
-  const { id } = await context.params;
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  
   try {
     const post = await client.fetch(
       `*[_type == "post" && _id == $id][0]{
@@ -27,9 +31,8 @@ export async function generateMetadata(context: { params: { id: string } }): Pro
   }
 }
 
-export default async function PostPage(context: { params: { id: string } }) {
-  const { id } = await context.params;
+export default async function PostPage({ params }: PageProps) {
+  const { id } = await params;
 
   return <PostClient id={id} />;
 }
-
