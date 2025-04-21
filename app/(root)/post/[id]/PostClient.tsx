@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CommentSection from '@/components/CommentSection';
+import type { PortableTextBlock } from '@portabletext/types';
 
 // Define interfaces for type safety
 interface PostImage {
@@ -53,7 +54,7 @@ interface Post {
   categories?: {
     title: string;
   }[];
-  body: any; // This will be typed properly below
+  body: PortableTextBlock[] | string | null;
   nextPost?: RelatedPost;
   prevPost?: RelatedPost;
 }
@@ -97,11 +98,11 @@ export default function PostClient({ id }: PostClientProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [lastScrollY, setLastScrollY] = useState(0);
   const router = useRouter();
-  
+
   // States for scroll tracking and boundaries
   const [atTop, setAtTop] = useState(true);
   const [atBottom, setAtBottom] = useState(false);
-  
+
   // New states for improved scroll navigation
   const [scrollDirection, setScrollDirection] = useState<'none' | 'up' | 'down'>('none');
   const scrollAttemptTimer = useRef<NodeJS.Timeout | null>(null);
@@ -116,7 +117,7 @@ export default function PostClient({ id }: PostClientProps) {
         if (!id) {
           throw new Error("Missing post ID");
         }
-        
+
         const fetchedPost = await client.fetch<Post>(
           `*[_type == "post" && _id == $id][0]{
             _id, title, slug, description, body, publishedAt, _createdAt,
@@ -128,7 +129,7 @@ export default function PostClient({ id }: PostClientProps) {
           }`,
           { id }
         );
-        
+
         if (!fetchedPost) {
           notFound();
         }
@@ -139,14 +140,14 @@ export default function PostClient({ id }: PostClientProps) {
         setLoading(false);
       }
     };
-    
+
     fetchPost();
   }, [id]);
 
   useEffect(() => {
     // Reset navigation confirmation counter when navigation intent changes
     navigationConfirmationCounter.current = 0;
-    
+
     // Clear any existing timer when navigation intent changes
     if (scrollAttemptTimer.current) {
       clearTimeout(scrollAttemptTimer.current);
@@ -158,33 +159,33 @@ export default function PostClient({ id }: PostClientProps) {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       const previousScrollY = lastScrollY;
-      
+
       // Calculate scroll direction
       if (currentScrollY < previousScrollY) {
         setScrollDirection('up');
       } else if (currentScrollY > previousScrollY) {
         setScrollDirection('down');
       }
-      
+
       // Show navigation hint if user scrolls down
       setShowNavigation(currentScrollY > 200);
-      
+
       // Determine if we're at boundaries
       const windowHeight = window.innerHeight;
       const documentHeight = document.documentElement.scrollHeight;
-      
+
       const isAtTop = currentScrollY < 50;
       const isAtBottom = (windowHeight + currentScrollY) >= documentHeight - 50;
-      
+
       setAtTop(isAtTop);
       setAtBottom(isAtBottom);
-      
+
       // REVERSED DIRECTION: Check for continued scrolling at boundaries
       // When at bottom and trying to scroll DOWN, we want to go to PREVIOUS post
       if (isAtBottom && scrollDirection === 'down' && post?.prevPost?._id) {
         if (navigationIntent === 'prev') {
           navigationConfirmationCounter.current += 1;
-          
+
           if (navigationConfirmationCounter.current >= navigationMaxConfirmations) {
             router.push(`/post/${post.prevPost._id}`);
             setNavigationIntent('none');
@@ -199,7 +200,7 @@ export default function PostClient({ id }: PostClientProps) {
       else if (isAtTop && scrollDirection === 'up' && post?.nextPost?._id) {
         if (navigationIntent === 'next') {
           navigationConfirmationCounter.current += 1;
-          
+
           if (navigationConfirmationCounter.current >= navigationMaxConfirmations) {
             router.push(`/post/${post.nextPost._id}`);
             setNavigationIntent('none');
@@ -215,10 +216,10 @@ export default function PostClient({ id }: PostClientProps) {
         setNavigationIntent('none');
         navigationConfirmationCounter.current = 0;
       }
-      
+
       setLastScrollY(currentScrollY);
     };
-    
+
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY, post, router, scrollDirection, navigationIntent]);
@@ -249,25 +250,25 @@ export default function PostClient({ id }: PostClientProps) {
           <div className="animate-bounce flex flex-col items-center">
             <ChevronDown size={24} />
             <p className="text-sm font-medium">
-              Continue scrolling for previous post 
+              Continue scrolling for previous post
               ({navigationConfirmationCounter.current}/{navigationMaxConfirmations})
             </p>
           </div>
         </div>
       )}
-      
+
       {navigationIntent === 'next' && atTop && post?.nextPost && (
         <div className="fixed top-0 inset-x-0 bg-gradient-to-b from-[#EF3866]/80 to-transparent h-24 z-40 flex items-start justify-center pt-4 text-white">
           <div className="animate-bounce flex flex-col items-center">
             <ChevronUp size={24} />
             <p className="text-sm font-medium">
-              Continue scrolling for next post 
+              Continue scrolling for next post
               ({navigationConfirmationCounter.current}/{navigationMaxConfirmations})
             </p>
           </div>
         </div>
       )}
-      
+
       {/* "End of Posts" indicator when there's no previous/next post */}
       {scrollDirection === 'down' && atBottom && !post?.prevPost && (
         <div className="fixed bottom-0 inset-x-0 bg-gradient-to-t from-gray-400/50 dark:from-gray-700/50 to-transparent h-16 z-40 flex items-end justify-center pb-4">
@@ -276,7 +277,7 @@ export default function PostClient({ id }: PostClientProps) {
           </p>
         </div>
       )}
-      
+
       {scrollDirection === 'up' && atTop && !post?.nextPost && (
         <div className="fixed top-0 inset-x-0 bg-gradient-to-b from-gray-400/50 dark:from-gray-700/50 to-transparent h-16 z-40 flex items-start justify-center pt-4">
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -383,25 +384,23 @@ export default function PostClient({ id }: PostClientProps) {
         <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm p-6 md:p-8 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 transition-colors">
           <div className="text-gray-800 dark:text-gray-200 prose prose-p:leading-7 prose-headings:font-bold prose-img:rounded-xl max-w-none prose-a:text-[#EF3866] dark:prose-a:text-[#ff7a9c] dark:prose-headings:text-white dark:prose-p:text-gray-300 dark:prose-strong:text-white dark:prose-li:text-gray-300 transition-colors">
             {isPortableText && (
-              <PortableText value={post.body} components={ptComponents} />
+              <PortableText
+                value={post.body as PortableTextBlock[]}
+                components={ptComponents}
+              />
             )}
             {isMarkdown && (
-              <ReactMarkdown>{post.body}</ReactMarkdown>
-            )}
-            {!isPortableText && !isMarkdown && (
-              <p className="text-center text-gray-400 dark:text-gray-500 italic transition-colors">
-                No content available.
-              </p>
+              <ReactMarkdown>{post.body as string}</ReactMarkdown>
             )}
           </div>
         </div>
-        
+
         {/* Discussion Section */}
         <div className="mt-8 bg-white dark:bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 transition-colors">
           <CommentSection postId={post._id} />
         </div>
       </section> any
-      
+
       {/* Previous/Next Post Navigation */}
       <div className={`fixed z-30 inset-y-0 right-0 flex items-center transform transition-transform duration-300 ${showNavigation ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="bg-white/80 dark:bg-black/80 backdrop-blur-sm p-3 rounded-l-lg shadow-lg border border-r-0 border-gray-200 dark:border-gray-700 flex flex-col gap-4">
@@ -430,7 +429,7 @@ export default function PostClient({ id }: PostClientProps) {
           ) : (
             <div className="w-24"></div>
           )}
-          
+
           <div className="flex space-x-6">
             <button className="text-gray-700 dark:text-gray-300 hover:text-[#EF3866] dark:hover:text-[#EF3866] transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -452,7 +451,7 @@ export default function PostClient({ id }: PostClientProps) {
               </svg>
             </button>
           </div>
-          
+
           {post.nextPost ? (
             <Link href={`/post/${post.nextPost._id}`} className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-[#EF3866] dark:hover:text-[#EF3866] transition-colors">
               <span className="hidden sm:inline">Next</span>

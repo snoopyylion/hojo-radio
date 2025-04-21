@@ -2,9 +2,6 @@ import { client } from '@/sanity/lib/client';
 import { Metadata } from 'next';
 import PostClient from './PostClient';
 
-interface PostPageProps {
-  params: { id: string };
-}
 
 export async function generateMetadata(context: { params: { id: string } }): Promise<Metadata> {
   const { id } = await context.params;

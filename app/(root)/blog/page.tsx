@@ -306,7 +306,7 @@ const NewsPage = () => {
               </div>
               <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">No posts found</h3>
               <p className="text-gray-600 dark:text-gray-300 max-w-md mb-4">
-                We couldn't find any posts matching your search criteria. Try adjusting your filters or explore different categories.
+                We couldn&apos;t find any posts matching your search criteria. Try adjusting your filters or explore different categories.
               </p>
               <button
                 onClick={() => { setSearch(""); setActiveCategory(null); }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { formatDistanceToNow } from "date-fns";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,7 +33,7 @@ export default function CommentSection({ postId }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
@@ -61,7 +61,7 @@ export default function CommentSection({ postId }: Props) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [postId]);
 
   const handleSubmit = async () => {
     if (!newComment.trim() || !postId) return;
