@@ -1,8 +1,5 @@
-// app/(root)/post/[id]/page.tsx
-import dynamic from 'next/dynamic';
 import { client } from '@/sanity/lib/client';
 import { Metadata } from 'next';
-import { Suspense } from 'react';
 import PostClient from './PostClient';
 
 interface PostPageProps {

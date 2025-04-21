@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ message: "Comment added", data });
-  } catch (err) {
+  } catch (error) {
+    console.error("Server error:", error);
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 }

@@ -98,13 +98,16 @@ export default function PostClient({ id }: PostClientProps) {
   const [lastScrollY, setLastScrollY] = useState(0);
   const router = useRouter();
   
-  // New state to track scroll boundaries
+  // States for scroll tracking and boundaries
   const [atTop, setAtTop] = useState(true);
   const [atBottom, setAtBottom] = useState(false);
-  const [scrollAttempt, setScrollAttempt] = useState<'none' | 'up' | 'down'>('none');
+  
+  // New states for improved scroll navigation
+  const [scrollDirection, setScrollDirection] = useState<'none' | 'up' | 'down'>('none');
   const scrollAttemptTimer = useRef<NodeJS.Timeout | null>(null);
-  const [scrollIntent, setScrollIntent] = useState<'none' | 'up' | 'down'>('none');
-  const scrollIntentConfirmed = useRef(false);
+  const [navigationIntent, setNavigationIntent] = useState<'none' | 'prev' | 'next'>('none');
+  const navigationConfirmationCounter = useRef(0);
+  const navigationMaxConfirmations = 2; // Number of continued scroll attempts needed to navigate
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -141,75 +144,84 @@ export default function PostClient({ id }: PostClientProps) {
   }, [id]);
 
   useEffect(() => {
+    // Reset navigation confirmation counter when navigation intent changes
+    navigationConfirmationCounter.current = 0;
+    
+    // Clear any existing timer when navigation intent changes
+    if (scrollAttemptTimer.current) {
+      clearTimeout(scrollAttemptTimer.current);
+      scrollAttemptTimer.current = null;
+    }
+  }, [navigationIntent]);
+
+  useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-    
+      const previousScrollY = lastScrollY;
+      
+      // Calculate scroll direction
+      if (currentScrollY < previousScrollY) {
+        setScrollDirection('up');
+      } else if (currentScrollY > previousScrollY) {
+        setScrollDirection('down');
+      }
+      
       // Show navigation hint if user scrolls down
       setShowNavigation(currentScrollY > 200);
-    
+      
+      // Determine if we're at boundaries
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      
       const isAtTop = currentScrollY < 50;
-      const isAtBottom = (window.innerHeight + currentScrollY) >= document.body.offsetHeight - 50;
-    
+      const isAtBottom = (windowHeight + currentScrollY) >= documentHeight - 50;
+      
       setAtTop(isAtTop);
       setAtBottom(isAtBottom);
-    
-      if (isAtTop && currentScrollY < lastScrollY) {
-        if (scrollIntent === 'up' && scrollIntentConfirmed.current && post?.prevPost?._id) {
-          router.push(`/post/${post.prevPost._id}`);
-          scrollIntentConfirmed.current = false;
-          setScrollIntent('none');
+      
+      // REVERSED DIRECTION: Check for continued scrolling at boundaries
+      // When at bottom and trying to scroll DOWN, we want to go to PREVIOUS post
+      if (isAtBottom && scrollDirection === 'down' && post?.prevPost?._id) {
+        if (navigationIntent === 'prev') {
+          navigationConfirmationCounter.current += 1;
+          
+          if (navigationConfirmationCounter.current >= navigationMaxConfirmations) {
+            router.push(`/post/${post.prevPost._id}`);
+            setNavigationIntent('none');
+            navigationConfirmationCounter.current = 0;
+          }
         } else {
-          setScrollIntent('up');
-          scrollIntentConfirmed.current = true;
-        }
-      } else if (isAtBottom && currentScrollY > lastScrollY) {
-        if (scrollIntent === 'down' && scrollIntentConfirmed.current && post?.nextPost?._id) {
-          router.push(`/post/${post.nextPost._id}`);
-          scrollIntentConfirmed.current = false;
-          setScrollIntent('none');
-        } else {
-          setScrollIntent('down');
-          scrollIntentConfirmed.current = true;
-        }
-      } else {
-        if (scrollIntent !== 'none') {
-          setScrollIntent('none');
-          scrollIntentConfirmed.current = false;
+          setNavigationIntent('prev');
+          navigationConfirmationCounter.current = 1;
         }
       }
-    
+      // When at top and trying to scroll UP, we want to go to NEXT post
+      else if (isAtTop && scrollDirection === 'up' && post?.nextPost?._id) {
+        if (navigationIntent === 'next') {
+          navigationConfirmationCounter.current += 1;
+          
+          if (navigationConfirmationCounter.current >= navigationMaxConfirmations) {
+            router.push(`/post/${post.nextPost._id}`);
+            setNavigationIntent('none');
+            navigationConfirmationCounter.current = 0;
+          }
+        } else {
+          setNavigationIntent('next');
+          navigationConfirmationCounter.current = 1;
+        }
+      }
+      // Reset intent if user starts scrolling normally again
+      else if (!isAtTop && !isAtBottom) {
+        setNavigationIntent('none');
+        navigationConfirmationCounter.current = 0;
+      }
+      
       setLastScrollY(currentScrollY);
     };
     
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY, post, router]);
-
-  // Handle navigation when user tries to scroll beyond boundaries
-  useEffect(() => {
-    if (scrollAttempt === 'none') return;
-    
-    // Clear any existing timer
-    if (scrollAttemptTimer.current) {
-      clearTimeout(scrollAttemptTimer.current);
-    }
-    
-    // Set a timer to navigate if user continues the scrolling attempt
-    scrollAttemptTimer.current = setTimeout(() => {
-      if (scrollAttempt === 'down' && atBottom && post?.nextPost?._id) {
-        router.push(`/post/${post.nextPost._id}`);
-      } else if (scrollAttempt === 'up' && atTop && post?.prevPost?._id) {
-        router.push(`/post/${post.prevPost._id}`);
-      }
-      setScrollAttempt('none');
-    }, 600); // Slightly shorter delay for better responsiveness
-    
-    return () => {
-      if (scrollAttemptTimer.current) {
-        clearTimeout(scrollAttemptTimer.current);
-      }
-    };
-  }, [scrollAttempt, atTop, atBottom, post, router]);
+  }, [lastScrollY, post, router, scrollDirection, navigationIntent]);
 
   // Determine content type
   const isPortableText = post?.body && typeof post.body === 'object' && Array.isArray(post.body);
@@ -231,22 +243,45 @@ export default function PostClient({ id }: PostClientProps) {
 
   return (
     <div className="bg-white dark:bg-black transition-colors duration-300 min-h-screen" ref={scrollRef}>
-      {/* Scroll Indicators - Only show when actively trying to scroll beyond */}
-      {scrollAttempt === 'down' && atBottom && post?.nextPost && (
+      {/* Scroll Indicators - Only show when actively trying to navigate */}
+      {navigationIntent === 'prev' && atBottom && post?.prevPost && (
         <div className="fixed bottom-0 inset-x-0 bg-gradient-to-t from-[#EF3866]/80 to-transparent h-24 z-40 flex items-end justify-center pb-4 text-white">
           <div className="animate-bounce flex flex-col items-center">
             <ChevronDown size={24} />
-            <p className="text-sm font-medium">Next Post</p>
+            <p className="text-sm font-medium">
+              Continue scrolling for previous post 
+              ({navigationConfirmationCounter.current}/{navigationMaxConfirmations})
+            </p>
           </div>
         </div>
       )}
       
-      {scrollAttempt === 'up' && atTop && post?.prevPost && (
+      {navigationIntent === 'next' && atTop && post?.nextPost && (
         <div className="fixed top-0 inset-x-0 bg-gradient-to-b from-[#EF3866]/80 to-transparent h-24 z-40 flex items-start justify-center pt-4 text-white">
           <div className="animate-bounce flex flex-col items-center">
             <ChevronUp size={24} />
-            <p className="text-sm font-medium">Previous Post</p>
+            <p className="text-sm font-medium">
+              Continue scrolling for next post 
+              ({navigationConfirmationCounter.current}/{navigationMaxConfirmations})
+            </p>
           </div>
+        </div>
+      )}
+      
+      {/* "End of Posts" indicator when there's no previous/next post */}
+      {scrollDirection === 'down' && atBottom && !post?.prevPost && (
+        <div className="fixed bottom-0 inset-x-0 bg-gradient-to-t from-gray-400/50 dark:from-gray-700/50 to-transparent h-16 z-40 flex items-end justify-center pb-4">
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            ― End of posts ―
+          </p>
+        </div>
+      )}
+      
+      {scrollDirection === 'up' && atTop && !post?.nextPost && (
+        <div className="fixed top-0 inset-x-0 bg-gradient-to-b from-gray-400/50 dark:from-gray-700/50 to-transparent h-16 z-40 flex items-start justify-center pt-4">
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            ― Beginning of posts ―
+          </p>
         </div>
       )}
 
@@ -365,18 +400,19 @@ export default function PostClient({ id }: PostClientProps) {
         <div className="mt-8 bg-white dark:bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 transition-colors">
           <CommentSection postId={post._id} />
         </div>
-      </section>
+      </section> any
       
       {/* Previous/Next Post Navigation */}
       <div className={`fixed z-30 inset-y-0 right-0 flex items-center transform transition-transform duration-300 ${showNavigation ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="bg-white/80 dark:bg-black/80 backdrop-blur-sm p-3 rounded-l-lg shadow-lg border border-r-0 border-gray-200 dark:border-gray-700 flex flex-col gap-4">
-          {post.prevPost && (
-            <Link href={`/post/${post.prevPost._id}`} className="bg-gray-100 dark:bg-gray-800 hover:bg-[#EF3866] hover:text-white text-gray-700 dark:text-gray-300 p-3 rounded-full transition-colors flex items-center justify-center">
+          {/* REVERSED NAVIGATION: Next (up) and Prev (down) */}
+          {post.nextPost && (
+            <Link href={`/post/${post.nextPost._id}`} className="bg-gray-100 dark:bg-gray-800 hover:bg-[#EF3866] hover:text-white text-gray-700 dark:text-gray-300 p-3 rounded-full transition-colors flex items-center justify-center">
               <ChevronUp size={20} />
             </Link>
           )}
-          {post.nextPost && (
-            <Link href={`/post/${post.nextPost._id}`} className="bg-gray-100 dark:bg-gray-800 hover:bg-[#EF3866] hover:text-white text-gray-700 dark:text-gray-300 p-3 rounded-full transition-colors flex items-center justify-center">
+          {post.prevPost && (
+            <Link href={`/post/${post.prevPost._id}`} className="bg-gray-100 dark:bg-gray-800 hover:bg-[#EF3866] hover:text-white text-gray-700 dark:text-gray-300 p-3 rounded-full transition-colors flex items-center justify-center">
               <ChevronDown size={20} />
             </Link>
           )}

@@ -30,12 +30,6 @@ interface NewsTileProps {
 }
 
 const NewsTile: React.FC<NewsTileProps> = ({ post, view = 'grid' }) => {
-  const formattedDate = new Date(post.publishedAt).toLocaleDateString("en-US", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-  
   const timeAgo = formatDistance(new Date(post.publishedAt), new Date(), { addSuffix: true });
 
   if (view === 'list') {

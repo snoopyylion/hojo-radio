@@ -157,28 +157,28 @@ const NewsPage = () => {
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
+    const currentLoaderRef = loaderRef.current; // Capture current value
+    
     const observer = new IntersectionObserver(
       entries => {
         const [entry] = entries;
         if (entry.isIntersecting && visiblePosts < filteredPosts.length) {
-          // Load more posts when scrolling to the bottom
           setVisiblePosts(prev => Math.min(prev + postsPerPage, filteredPosts.length));
         }
       },
       { threshold: 0.1 }
     );
-
-    if (loaderRef.current) {
-      observer.observe(loaderRef.current);
+  
+    if (currentLoaderRef) {
+      observer.observe(currentLoaderRef);
     }
-
+  
     return () => {
-      if (loaderRef.current) {
-        observer.unobserve(loaderRef.current);
+      if (currentLoaderRef) {
+        observer.unobserve(currentLoaderRef);
       }
     };
   }, [loaderRef, visiblePosts, filteredPosts.length]);
-
   // Scroll to top function
   const scrollToTop = () => {
     window.scrollTo({

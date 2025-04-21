@@ -54,9 +54,9 @@ export default function CommentSection({ postId }: Props) {
       
       const data = await res.json();
       setComments(data.comments || []);
-    } catch (err: any) {
-      console.error("Fetch error:", err);
-      setError(err.message || "Failed to load comments");
+    } catch (error: unknown) {
+      console.error("Fetch error:", error);
+      setError(error instanceof Error ? error.message : "Failed to load comments");
       toast.error("Failed to load comments");
     } finally {
       setIsLoading(false);
@@ -84,8 +84,9 @@ export default function CommentSection({ postId }: Props) {
       toast.success("Comment posted!");
       setNewComment("");
       fetchComments();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to post comment");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to post comment";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -147,8 +148,9 @@ export default function CommentSection({ postId }: Props) {
       );
 
       toast.success(`${reactionType === "like" ? "Liked" : "Disliked"} comment`);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to process reaction");
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "Failed to process reaction");
+      toast.error("Failed to process reaction")
       // If there was an error, refetch to ensure state is correct
       fetchComments();
     } finally {
@@ -160,7 +162,7 @@ export default function CommentSection({ postId }: Props) {
     if (postId) {
       fetchComments();
     }
-  }, [postId]);
+  }, [postId, fetchComments]);
 
   if (isLoading) {
     return (
