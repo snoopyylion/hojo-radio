@@ -63,7 +63,7 @@ export const postType = defineType({
     defineField({
       name: 'body',
       title: 'Body',
-      type: 'blockContent' // Using Sanity's rich text format
+      type: 'text',
     }),
 
     // ✅ New field: Approved flag

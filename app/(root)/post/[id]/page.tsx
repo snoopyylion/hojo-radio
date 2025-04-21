@@ -4,9 +4,7 @@ import { PortableText } from '@portabletext/react';
 import type { PortableTextReactComponents } from '@portabletext/react';
 import Image from 'next/image';
 import { formatDate } from "@/lib/utils";
-import markdownIt from "markdown-it";
-
-const md = markdownIt();
+import ReactMarkdown from 'react-markdown'; // Make sure to install this package
 
 const ptComponents: Partial<PortableTextReactComponents> = {
   types: {
@@ -37,7 +35,6 @@ const ptComponents: Partial<PortableTextReactComponents> = {
 };
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
-  // Await the params Promise to get the id
   const resolvedParams = await params;
   const id = resolvedParams.id;
   
@@ -46,14 +43,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   };
 }
 
-// Type the props of the PostPage component to expect an id param
 export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
-  // Await the params Promise to get the id
   const resolvedParams = await params;
   const id = resolvedParams.id;
 
   if (!id) {
-    return notFound(); // Handle the case where there's no id
+    return notFound();
   }
 
   const post = await client.fetch(
@@ -68,17 +63,9 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 
   if (!post) notFound();
 
-  let contentToRender;
-  let isPortableText = false;
-
-  if (typeof post.body === 'object' && post.body !== null) {
-    contentToRender = post.body;
-    isPortableText = true;
-  } else if (typeof post.body === 'string') {
-    contentToRender = md.render(post.body);
-  } else {
-    contentToRender = null;
-  }
+  // Determine what type of content we're working with
+  const isPortableText = post.body && typeof post.body === 'object' && Array.isArray(post.body);
+  const isMarkdown = post.body && typeof post.body === 'string';
 
   return (
     <div className="bg-white dark:bg-black transition-colors duration-300 min-h-screen">
@@ -163,11 +150,13 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
         {/* Post Content */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow border border-gray-100 dark:border-gray-700 transition-colors">
           <div className="text-gray-800 dark:text-gray-200 prose prose-p:leading-7 prose-headings:font-bold prose-img:rounded-xl max-w-none prose-a:text-[#EF3866] dark:prose-a:text-[#ff7a9c] dark:prose-headings:text-white dark:prose-p:text-gray-300 dark:prose-strong:text-white dark:prose-li:text-gray-300 transition-colors">
-            {isPortableText ? (
-              <PortableText value={contentToRender} components={ptComponents} />
-            ) : contentToRender ? (
-              <article dangerouslySetInnerHTML={{ __html: contentToRender }} />
-            ) : (
+            {isPortableText && (
+              <PortableText value={post.body} components={ptComponents} />
+            )}
+            {isMarkdown && (
+              <ReactMarkdown>{post.body}</ReactMarkdown>
+            )}
+            {!isPortableText && !isMarkdown && (
               <p className="text-center text-gray-400 dark:text-gray-500 italic transition-colors">
                 No content available.
               </p>

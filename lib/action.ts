@@ -62,37 +62,6 @@ export const createPostItem = async (state: ActionState, form: FormData) => {
       return parseServerActionResponse({ error: "Author not found in Sanity", status: "ERROR" });
     }
 
-    // Convert markdown to portable text blocks (simplified version)
-    const bodyBlocks = rawBody.split('\n\n')
-      .filter(block => block.trim().length > 0)
-      .map((block, index) => {
-        // Basic parsing for headings
-        let style = 'normal';
-        let text = block;
-
-        if (block.startsWith('# ')) {
-          style = 'h1';
-          text = block.substring(2);
-        } else if (block.startsWith('## ')) {
-          style = 'h2';
-          text = block.substring(3);
-        } else if (block.startsWith('### ')) {
-          style = 'h3';
-          text = block.substring(4);
-        }
-
-        return {
-          _type: 'block',
-          _key: `block_${Date.now()}_${index}`,
-          style,
-          children: [{
-            _type: 'span',
-            _key: `span_${Date.now()}_${index}`,
-            text
-          }]
-        };
-      });
-
     // Upload the image to Sanity with optimized fetching and timeout
     let mainImage = null;
     try {
@@ -106,38 +75,33 @@ export const createPostItem = async (state: ActionState, form: FormData) => {
           const base64Data = imageUrl.split(',')[1];
           const blobData = Buffer.from(base64Data, 'base64');
           
-          // Function to upload with retry
+          // Upload with retry mechanism
           const uploadWithRetry = async (retries = 3) => {
             try {
               return await writeClient.assets.upload('image', blobData, {
-                filename: `${slug}-main-image-${Date.now()}.jpg`, // Add timestamp for uniqueness
+                filename: `${slug}-main-image-${Date.now()}.jpg`,
                 contentType: contentType || 'image/jpeg'
               });
             } catch (err) {
               if (retries > 0) {
                 console.log(`Retrying image upload, ${retries} attempts left`);
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 return uploadWithRetry(retries - 1);
               }
               throw err;
             }
           };
           
-          // Upload with retry mechanism
           imageAsset = await uploadWithRetry();
         } else {
-          // Regular URL handling (not blob: or data:)
-          // Use dynamic import for node-fetch to avoid SSR issues
+          // Regular URL handling
           const fetch = (await import('node-fetch')).default;
-          
-          // Use a unique request URL to avoid caching
           const uniqueUrl = imageUrl.includes('?') 
             ? `${imageUrl}&nocache=${Date.now()}` 
             : `${imageUrl}?nocache=${Date.now()}`;
           
-          // Add a timeout to the fetch operation
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 seconds timeout
+          const timeoutId = setTimeout(() => controller.abort(), 20000);
           
           try {
             const response = await fetch(uniqueUrl, {
@@ -162,24 +126,23 @@ export const createPostItem = async (state: ActionState, form: FormData) => {
             const arrayBuffer = await response.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
             
-            // Function to upload with retry
+            // Upload with retry mechanism
             const uploadWithRetry = async (retries = 3) => {
               try {
                 return await writeClient.assets.upload('image', buffer, {
-                  filename: `${slug}-main-image-${Date.now()}.jpg`, // Add timestamp for uniqueness
+                  filename: `${slug}-main-image-${Date.now()}.jpg`,
                   contentType: contentType || 'image/jpeg'
                 });
               } catch (err) {
                 if (retries > 0) {
                   console.log(`Retrying image upload, ${retries} attempts left`);
-                  await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                  await new Promise(resolve => setTimeout(resolve, 1000));
                   return uploadWithRetry(retries - 1);
                 }
                 throw err;
               }
             };
             
-            // Upload with retry mechanism
             imageAsset = await uploadWithRetry();
           } finally {
             clearTimeout(timeoutId);
@@ -199,18 +162,15 @@ export const createPostItem = async (state: ActionState, form: FormData) => {
       }
     } catch (imageError: unknown) {
       console.error("Image upload error:", imageError);
-    
       const errorMessage =
         imageError instanceof Error
           ? imageError.message
           : "An unknown error occurred during image upload.";
-    
       return parseServerActionResponse({
         error: `Failed to upload image: ${errorMessage}. If using a URL, please use a smaller image or try the file upload option with compression.`,
         status: "ERROR"
       });
     }
-    
     
     if (!mainImage) {
       return parseServerActionResponse({
@@ -219,8 +179,9 @@ export const createPostItem = async (state: ActionState, form: FormData) => {
       });
     }
 
-    // Create post document with unique keys for arrays
+    // Create post document - STORE CONTENT DIRECTLY AS MARKDOWN
     const postItem = {
+      _type: "post",
       title,
       description,
       slug: {
@@ -237,15 +198,13 @@ export const createPostItem = async (state: ActionState, form: FormData) => {
         _key: `category_${Date.now()}_${index}`
       })),
       mainImage,
-      body: bodyBlocks,
+      body: rawBody, // Store the raw markdown directly - you'll update your schema to accommodate this
       publishedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       status: "pending",
     };
-    const result = await writeClient.create({
-      _type: "post",
-      ...postItem,
-    });
+    
+    const result = await writeClient.create(postItem);
 
     return parseServerActionResponse({
       ...result,

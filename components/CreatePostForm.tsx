@@ -52,34 +52,41 @@ const CreatePostForm = () => {
             // Clear previous errors
             setErrors({});
 
-            // Add body and categories to formData
-            formData.append('body', body);
-            categories.forEach(cat => formData.append('categoryIds', cat));
+            // Construct form values for validation
+            const formValues = {
+                title: formData.get("title") as string,
+                description: formData.get("description") as string,
+                body: body, // Include the markdown body
+                imageUrl: imageUrl,
+                categories: categories
+            };
+
+            console.log("Submitting Post:", formValues); // Debug form values
 
             // Validate form data
             let hasErrors = false;
 
-            if (!formData.get('title')) {
+            if (!formValues.title) {
                 setErrors(prev => ({ ...prev, title: "Title is required" }));
                 hasErrors = true;
             }
 
-            if (!formData.get('description')) {
+            if (!formValues.description) {
                 setErrors(prev => ({ ...prev, description: "Description is required" }));
                 hasErrors = true;
             }
 
-            if (!body) {
+            if (!formValues.body) {
                 setErrors(prev => ({ ...prev, body: "Content is required" }));
                 hasErrors = true;
             }
 
-            if (!imageUrl) {
+            if (!formValues.imageUrl) {
                 setErrors(prev => ({ ...prev, imageUrl: "Image URL is required" }));
                 hasErrors = true;
             }
 
-            if (categories.length === 0) {
+            if (formValues.categories.length === 0) {
                 setErrors(prev => ({ ...prev, categories: "At least one category is required" }));
                 hasErrors = true;
             }
@@ -89,7 +96,16 @@ const CreatePostForm = () => {
                 return { ...prevState, error: 'Validation failed', status: 'ERROR' as const };
             }
 
-            // Show a longer toast for the upload process
+            // Add body to formData explicitly
+            formData.append('body', body);
+            
+            // Add categories to formData
+            categories.forEach(cat => formData.append('categoryIds', cat));
+            
+            // Add image URL to formData
+            formData.append('imageUrl', imageUrl);
+
+            // Show a loading toast for the upload process
             const uploadToast = toast.loading("Creating post and uploading image. This may take a moment...");
 
             // Submit to server action
@@ -120,7 +136,7 @@ const CreatePostForm = () => {
         }
     };
 
-    const [, formAction, isPending] = useActionState(handleFormSubmit, {
+    const [state, formAction, isPending] = useActionState(handleFormSubmit, {
         error: "",
         status: "INITIAL" as const,
     });
@@ -128,6 +144,7 @@ const CreatePostForm = () => {
     const handleEditorChange = (value: string | undefined) => {
         if (value !== undefined) {
             setBody(value);
+            console.log("Updated body:", value); // Debug - check content updates
         }
     };
 
@@ -220,8 +237,9 @@ const CreatePostForm = () => {
                     onChange={handleEditorChange}
                     preview="edit"
                     height={300}
-                    style={{ borderRadius: 12 }}
+                    style={{ borderRadius: 12, overflow: "hidden" }}
                     textareaProps={{ placeholder: "Write your content here..." }}
+                    previewOptions={{ disallowedElements: ["style"] }}
                 />
                 {errors.body && <p className="text-sm text-red-500 mt-1">{errors.body}</p>}
             </div>
