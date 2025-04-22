@@ -222,14 +222,6 @@ export default function CommentSection({ postId }: Props) {
 
   return (
     <div className="mt-8">
-      <div className="flex items-center gap-2 mb-6">
-        <span className="inline-block w-8 h-1 bg-[#EF3866] dark:bg-[#ff7a9c]"></span>
-        <h3 className="text-2xl font-serif font-bold text-gray-900 dark:text-white flex items-center">
-          <MessageSquare size={20} className="mr-2" /> 
-          Discussion
-        </h3>
-      </div>
-      
       {/* Comment stats */}
       <div className="flex items-center justify-between mb-6 px-2">
         <p className="text-gray-600 dark:text-gray-400">
@@ -242,7 +234,7 @@ export default function CommentSection({ postId }: Props) {
       
       {/* Comment input */}
       {user ? (
-        <div className="mb-8 bg-white dark:bg-gray-800 p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+        <div className="mb-8 bg-white dark:bg-gray-800  dark:text-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-3 mb-4">
             {user.imageUrl ? (
               <div className="relative h-10 w-10">
@@ -301,6 +293,14 @@ export default function CommentSection({ postId }: Props) {
           <p className="text-gray-700 dark:text-gray-300">Sign in to join the discussion and leave a comment.</p>
         </div>
       )}
+      
+      <div className="flex items-center gap-2 mb-6">
+        <span className="inline-block w-8 h-1 bg-[#EF3866] dark:bg-[#ff7a9c]"></span>
+        <h3 className="text-2xl font-serif font-bold text-gray-900 dark:text-white flex items-center">
+          <MessageSquare size={20} className="mr-2" /> 
+          Discussion
+        </h3>
+      </div>
 
       {/* Display comments */}
       {comments.length === 0 ? (

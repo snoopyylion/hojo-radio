@@ -109,28 +109,10 @@ export default function PostClient({ id }: PostClientProps) {
   const [navigationIntent, setNavigationIntent] = useState<'none' | 'prev' | 'next'>('none');
   const navigationConfirmationCounter = useRef(0);
   const navigationMaxConfirmations = 3; // Increased from 2 to give more time
-  
+
   // Add state for tracking user activity
   const [likes, setLikes] = useState(0);
   const [saved, setSaved] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  
-  // Check system color scheme
-  useEffect(() => {
-    // Check system preference on mount
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setIsDarkMode(true);
-    }
-    
-    // Listen for changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      setIsDarkMode(e.matches);
-    };
-    
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -156,7 +138,7 @@ export default function PostClient({ id }: PostClientProps) {
           notFound();
         }
         setPost(fetchedPost);
-        
+
         // Set initial likes - could be from API in real implementation
         setLikes(Math.floor(Math.random() * 50) + 5);
       } catch (error) {
@@ -217,14 +199,14 @@ export default function PostClient({ id }: PostClientProps) {
           if (scrollAttemptTimer.current) {
             clearTimeout(scrollAttemptTimer.current);
           }
-          
+
           // Capture the prevPost _id before the timeout
           const prevPostId = post.prevPost._id;
-          
+
           // Set new timer with debounce
           scrollAttemptTimer.current = setTimeout(() => {
             navigationConfirmationCounter.current += 1;
-      
+
             if (navigationConfirmationCounter.current >= navigationMaxConfirmations) {
               router.push(`/post/${prevPostId}`);
               setNavigationIntent('none');
@@ -243,14 +225,14 @@ export default function PostClient({ id }: PostClientProps) {
           if (scrollAttemptTimer.current) {
             clearTimeout(scrollAttemptTimer.current);
           }
-          
+
           // Capture the nextPost _id before the timeout
           const nextPostId = post.nextPost._id;
-          
+
           // Set new timer with debounce
           scrollAttemptTimer.current = setTimeout(() => {
             navigationConfirmationCounter.current += 1;
-      
+
             if (navigationConfirmationCounter.current >= navigationMaxConfirmations) {
               router.push(`/post/${nextPostId}`);
               setNavigationIntent('none');
@@ -262,7 +244,7 @@ export default function PostClient({ id }: PostClientProps) {
           navigationConfirmationCounter.current = 1;
         }
       }
-      
+
       // Reset intent if user starts scrolling normally again
       else if (!isAtTop && !isAtBottom) {
         setNavigationIntent('none');
@@ -364,33 +346,33 @@ export default function PostClient({ id }: PostClientProps) {
         </div>
       </section>
 
-      {/* IMPROVED ACTION BUTTONS */}
+      {/* ACTION BUTTONS */}
       <div className="sticky top-4 z-30 mt-6 flex justify-center gap-3 md:gap-4 flex-wrap px-4">
         <div className="flex gap-3 md:gap-4 backdrop-blur-md bg-white/70 dark:bg-black/70 p-2 rounded-full shadow-lg border border-gray-100 dark:border-gray-800">
-          <button 
+          <button
             onClick={() => setLikes(prev => prev + 1)}
             className="bg-gradient-to-r from-[#EF3866] to-[#F06292] text-white px-4 py-2 rounded-full hover:brightness-110 transition flex items-center gap-2 shadow-md text-sm md:text-base"
           >
-            <Heart size={18} className="fill-white" /> 
+            <Heart size={18} className="fill-white" />
             <span className="hidden md:block">Like</span>
             <span className="inline-block bg-white/20 px-2 py-0.5 rounded-full text-xs">{likes}</span>
           </button>
-          
+
           <button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-full hover:brightness-110 transition flex items-center gap-2 shadow-md text-sm md:text-base">
-            <Share2 size={18} /> 
+            <Share2 size={18} />
             <span className="hidden md:block">Share</span>
           </button>
-          
-          <button 
+
+          <button
             onClick={() => setSaved(prev => !prev)}
             className={`${saved ? 'bg-gradient-to-r from-yellow-500 to-amber-500' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'} px-4 py-2 rounded-full hover:brightness-110 transition flex items-center gap-2 shadow-md text-sm md:text-base`}
           >
-            <Bookmark size={18} className={saved ? "fill-white text-white" : ""} /> 
+            <Bookmark size={18} className={saved ? "fill-white text-white" : ""} />
             <span className="hidden md:block">{saved ? 'Saved' : 'Save'}</span>
           </button>
-          
+
           <button className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-full hover:brightness-110 transition flex items-center gap-2 shadow-md text-sm md:text-base">
-            <Volume2 size={18} /> 
+            <Volume2 size={18} />
             <span className="hidden md:block">Listen</span>
           </button>
         </div>
@@ -480,11 +462,11 @@ export default function PostClient({ id }: PostClientProps) {
               <ReactMarkdown>{post.body as string}</ReactMarkdown>
             )}
           </div>
-          
+
           {/* Pull quote for visual interest */}
           <div className="my-8 md:my-12 px-6 py-10 border-l-4 border-[#EF3866] dark:border-[#ff7a9c] bg-gray-50 dark:bg-gray-800/50 rounded-r-xl">
             <p className="text-xl md:text-2xl font-serif italic text-gray-700 dark:text-gray-200">
-              "{post.description || "An interesting perspective on modern journalism and digital media consumption."}."
+              &quot;{post.description || "An interesting perspective on modern journalism and digital media consumption."}&quot;
             </p>
             {post.author && (
               <p className="text-right mt-4 text-[#EF3866] dark:text-[#ff7a9c] font-medium">—{post.author.name}</p>
