@@ -8,7 +8,7 @@ import { formatDate } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Heart, Share2, Bookmark, Volume2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CommentSection from '@/components/CommentSection';
 import type { PortableTextBlock } from '@portabletext/types';
@@ -68,7 +68,7 @@ const ptComponents: Partial<PortableTextReactComponents> = {
     image: ({ value }) => {
       if (!value?.asset?.url) return null;
       return (
-        <div className="relative w-full aspect-video my-6">
+        <div className="relative w-full aspect-video my-8">
           <Image
             src={value.asset.url}
             alt={value.alt || 'Post image'}
@@ -83,7 +83,7 @@ const ptComponents: Partial<PortableTextReactComponents> = {
     link: ({ children, value }) => {
       const rel = value?.href && !value.href.startsWith('/') ? 'noreferrer noopener' : undefined;
       return (
-        <a href={value?.href || '#'} rel={rel} className="text-[#EF3866] font-medium hover:underline">
+        <a href={value?.href || '#'} rel={rel} className="text-[#EF3866] dark:text-[#ff7a9c] font-medium hover:underline transition-colors">
           {children}
         </a>
       );
@@ -108,7 +108,29 @@ export default function PostClient({ id }: PostClientProps) {
   const scrollAttemptTimer = useRef<NodeJS.Timeout | null>(null);
   const [navigationIntent, setNavigationIntent] = useState<'none' | 'prev' | 'next'>('none');
   const navigationConfirmationCounter = useRef(0);
-  const navigationMaxConfirmations = 2; // Number of continued scroll attempts needed to navigate
+  const navigationMaxConfirmations = 3; // Increased from 2 to give more time
+  
+  // Add state for tracking user activity
+  const [likes, setLikes] = useState(0);
+  const [saved, setSaved] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // Check system color scheme
+  useEffect(() => {
+    // Check system preference on mount
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setIsDarkMode(true);
+    }
+    
+    // Listen for changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsDarkMode(e.matches);
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -134,6 +156,9 @@ export default function PostClient({ id }: PostClientProps) {
           notFound();
         }
         setPost(fetchedPost);
+        
+        // Set initial likes - could be from API in real implementation
+        setLikes(Math.floor(Math.random() * 50) + 5);
       } catch (error) {
         console.error("Failed to fetch post:", error);
       } finally {
@@ -180,17 +205,32 @@ export default function PostClient({ id }: PostClientProps) {
       setAtTop(isAtTop);
       setAtBottom(isAtBottom);
 
+      // IMPROVED MOBILE SCROLL: Use debounce for navigation
+      const isMobile = window.innerWidth < 768;
+      const timeoutDuration = isMobile ? 800 : 400; // Longer timeout for mobile
+
       // REVERSED DIRECTION: Check for continued scrolling at boundaries
       // When at bottom and trying to scroll DOWN, we want to go to PREVIOUS post
       if (isAtBottom && scrollDirection === 'down' && post?.prevPost?._id) {
         if (navigationIntent === 'prev') {
-          navigationConfirmationCounter.current += 1;
-
-          if (navigationConfirmationCounter.current >= navigationMaxConfirmations) {
-            router.push(`/post/${post.prevPost._id}`);
-            setNavigationIntent('none');
-            navigationConfirmationCounter.current = 0;
+          // Clear existing timer
+          if (scrollAttemptTimer.current) {
+            clearTimeout(scrollAttemptTimer.current);
           }
+          
+          // Capture the prevPost _id before the timeout
+          const prevPostId = post.prevPost._id;
+          
+          // Set new timer with debounce
+          scrollAttemptTimer.current = setTimeout(() => {
+            navigationConfirmationCounter.current += 1;
+      
+            if (navigationConfirmationCounter.current >= navigationMaxConfirmations) {
+              router.push(`/post/${prevPostId}`);
+              setNavigationIntent('none');
+              navigationConfirmationCounter.current = 0;
+            }
+          }, timeoutDuration);
         } else {
           setNavigationIntent('prev');
           navigationConfirmationCounter.current = 1;
@@ -199,22 +239,38 @@ export default function PostClient({ id }: PostClientProps) {
       // When at top and trying to scroll UP, we want to go to NEXT post
       else if (isAtTop && scrollDirection === 'up' && post?.nextPost?._id) {
         if (navigationIntent === 'next') {
-          navigationConfirmationCounter.current += 1;
-
-          if (navigationConfirmationCounter.current >= navigationMaxConfirmations) {
-            router.push(`/post/${post.nextPost._id}`);
-            setNavigationIntent('none');
-            navigationConfirmationCounter.current = 0;
+          // Clear existing timer
+          if (scrollAttemptTimer.current) {
+            clearTimeout(scrollAttemptTimer.current);
           }
+          
+          // Capture the nextPost _id before the timeout
+          const nextPostId = post.nextPost._id;
+          
+          // Set new timer with debounce
+          scrollAttemptTimer.current = setTimeout(() => {
+            navigationConfirmationCounter.current += 1;
+      
+            if (navigationConfirmationCounter.current >= navigationMaxConfirmations) {
+              router.push(`/post/${nextPostId}`);
+              setNavigationIntent('none');
+              navigationConfirmationCounter.current = 0;
+            }
+          }, timeoutDuration);
         } else {
           setNavigationIntent('next');
           navigationConfirmationCounter.current = 1;
         }
       }
+      
       // Reset intent if user starts scrolling normally again
       else if (!isAtTop && !isAtBottom) {
         setNavigationIntent('none');
         navigationConfirmationCounter.current = 0;
+        if (scrollAttemptTimer.current) {
+          clearTimeout(scrollAttemptTimer.current);
+          scrollAttemptTimer.current = null;
+        }
       }
 
       setLastScrollY(currentScrollY);
@@ -243,27 +299,31 @@ export default function PostClient({ id }: PostClientProps) {
   if (!post) return notFound();
 
   return (
-    <div className="bg-white dark:bg-black transition-colors duration-300 min-h-screen" ref={scrollRef}>
+    <div className="bg-white dark:bg-gray-900 transition-colors duration-300 min-h-screen" ref={scrollRef}>
       {/* Scroll Indicators - Only show when actively trying to navigate */}
       {navigationIntent === 'prev' && atBottom && post?.prevPost && (
-        <div className="fixed bottom-0 inset-x-0 bg-gradient-to-t from-[#EF3866]/80 to-transparent h-24 z-40 flex items-end justify-center pb-4 text-white">
+        <div className="fixed bottom-0 inset-x-0 bg-gradient-to-t from-[#EF3866]/80 to-transparent h-32 z-40 flex items-end justify-center pb-12 text-white">
           <div className="animate-bounce flex flex-col items-center">
-            <ChevronDown size={24} />
-            <p className="text-sm font-medium">
+            <ChevronDown size={24} className="mb-2" />
+            <p className="text-sm md:text-base font-medium bg-black/30 px-4 py-2 rounded-full backdrop-blur-sm">
               Continue scrolling for previous post
-              ({navigationConfirmationCounter.current}/{navigationMaxConfirmations})
+              <span className="ml-2 inline-flex items-center justify-center bg-white text-[#EF3866] w-6 h-6 rounded-full">
+                {navigationConfirmationCounter.current}/{navigationMaxConfirmations}
+              </span>
             </p>
           </div>
         </div>
       )}
 
       {navigationIntent === 'next' && atTop && post?.nextPost && (
-        <div className="fixed top-0 inset-x-0 bg-gradient-to-b from-[#EF3866]/80 to-transparent h-24 z-40 flex items-start justify-center pt-4 text-white">
+        <div className="fixed top-0 inset-x-0 bg-gradient-to-b from-[#EF3866]/80 to-transparent h-32 z-40 flex items-start justify-center pt-12 text-white">
           <div className="animate-bounce flex flex-col items-center">
-            <ChevronUp size={24} />
-            <p className="text-sm font-medium">
+            <ChevronUp size={24} className="mb-2" />
+            <p className="text-sm md:text-base font-medium bg-black/30 px-4 py-2 rounded-full backdrop-blur-sm">
               Continue scrolling for next post
-              ({navigationConfirmationCounter.current}/{navigationMaxConfirmations})
+              <span className="ml-2 inline-flex items-center justify-center bg-white text-[#EF3866] w-6 h-6 rounded-full">
+                {navigationConfirmationCounter.current}/{navigationMaxConfirmations}
+              </span>
             </p>
           </div>
         </div>
@@ -304,26 +364,39 @@ export default function PostClient({ id }: PostClientProps) {
         </div>
       </section>
 
-      {/* Floating Action Buttons */}
+      {/* IMPROVED ACTION BUTTONS */}
       <div className="sticky top-4 z-30 mt-6 flex justify-center gap-3 md:gap-4 flex-wrap px-4">
         <div className="flex gap-3 md:gap-4 backdrop-blur-md bg-white/70 dark:bg-black/70 p-2 rounded-full shadow-lg border border-gray-100 dark:border-gray-800">
-          {[
-            { label: 'Like', icon: '❤️', color: 'bg-[#EF3866]' },
-            { label: 'Share', icon: '🔗', color: 'bg-blue-500' },
-            { label: 'Save', icon: '⭐', color: 'bg-yellow-500' },
-            { label: 'Listen', icon: '🔊', color: 'bg-purple-600' },
-          ].map(({ label, icon, color }) => (
-            <button
-              key={label}
-              className={`${color} text-white px-4 py-2 rounded-full hover:brightness-110 transition flex items-center gap-2 shadow-md text-sm md:text-base`}
-            >
-              <span className="md:block">{icon}</span> <span className="hidden md:block">{label}</span>
-            </button>
-          ))}
+          <button 
+            onClick={() => setLikes(prev => prev + 1)}
+            className="bg-gradient-to-r from-[#EF3866] to-[#F06292] text-white px-4 py-2 rounded-full hover:brightness-110 transition flex items-center gap-2 shadow-md text-sm md:text-base"
+          >
+            <Heart size={18} className="fill-white" /> 
+            <span className="hidden md:block">Like</span>
+            <span className="inline-block bg-white/20 px-2 py-0.5 rounded-full text-xs">{likes}</span>
+          </button>
+          
+          <button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-full hover:brightness-110 transition flex items-center gap-2 shadow-md text-sm md:text-base">
+            <Share2 size={18} /> 
+            <span className="hidden md:block">Share</span>
+          </button>
+          
+          <button 
+            onClick={() => setSaved(prev => !prev)}
+            className={`${saved ? 'bg-gradient-to-r from-yellow-500 to-amber-500' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'} px-4 py-2 rounded-full hover:brightness-110 transition flex items-center gap-2 shadow-md text-sm md:text-base`}
+          >
+            <Bookmark size={18} className={saved ? "fill-white text-white" : ""} /> 
+            <span className="hidden md:block">{saved ? 'Saved' : 'Save'}</span>
+          </button>
+          
+          <button className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-full hover:brightness-110 transition flex items-center gap-2 shadow-md text-sm md:text-base">
+            <Volume2 size={18} /> 
+            <span className="hidden md:block">Listen</span>
+          </button>
         </div>
       </div>
 
-      {/* Main Post Section */}
+      {/* Main Post Section - IMPROVED NEWSPAPER/BLOG STYLE */}
       <section className="px-4 md:px-10 py-10 max-w-4xl mx-auto">
         {post.mainImage?.asset?.url && (
           <div className="w-full aspect-video relative rounded-xl overflow-hidden shadow-xl mb-12 group">
@@ -340,7 +413,7 @@ export default function PostClient({ id }: PostClientProps) {
         )}
 
         {/* Author + Category */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           {post.author && (
             <div className="flex items-center gap-4">
               {post.author.imageUrl || post.author.image?.asset?.url ? (
@@ -380,9 +453,23 @@ export default function PostClient({ id }: PostClientProps) {
           )}
         </div>
 
-        {/* Post Content */}
-        <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm p-6 md:p-8 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 transition-colors">
-          <div className="text-gray-800 dark:text-gray-200 prose prose-p:leading-7 prose-headings:font-bold prose-img:rounded-xl max-w-none prose-a:text-[#EF3866] dark:prose-a:text-[#ff7a9c] dark:prose-headings:text-white dark:prose-p:text-gray-300 dark:prose-strong:text-white dark:prose-li:text-gray-300 transition-colors">
+        {/* IMPROVED POST CONTENT - International News/Blog Style */}
+        <div className="bg-white dark:bg-gray-900 p-0 md:p-0 rounded-xl transition-colors">
+          {/* First letter styling for newspaper feel */}
+          <div className="text-gray-800 dark:text-gray-200 prose prose-lg md:prose-xl max-w-none 
+                        prose-headings:font-serif prose-headings:tracking-tight prose-headings:font-bold
+                        prose-p:leading-relaxed prose-p:tracking-wide prose-p:font-serif
+                        prose-strong:text-[#EF3866] dark:prose-strong:text-[#ff7a9c]
+                        prose-a:text-[#EF3866] dark:prose-a:text-[#ff7a9c] prose-a:no-underline prose-a:font-medium
+                        prose-blockquote:border-l-4 prose-blockquote:border-[#EF3866] prose-blockquote:pl-6 prose-blockquote:italic
+                        prose-blockquote:text-gray-700 dark:prose-blockquote:text-gray-300
+                        prose-img:rounded-xl prose-img:shadow-lg
+                        dark:prose-headings:text-white dark:prose-p:text-gray-200 
+                        dark:prose-strong:text-white dark:prose-li:text-gray-300 
+                        transition-colors
+                        first-letter:text-6xl first-letter:font-serif first-letter:font-bold 
+                        first-letter:mr-3 first-letter:float-left first-letter:text-[#EF3866]
+                        dark:first-letter:text-[#ff7a9c]">
             {isPortableText && (
               <PortableText
                 value={post.body as PortableTextBlock[]}
@@ -393,17 +480,31 @@ export default function PostClient({ id }: PostClientProps) {
               <ReactMarkdown>{post.body as string}</ReactMarkdown>
             )}
           </div>
+          
+          {/* Pull quote for visual interest */}
+          <div className="my-8 md:my-12 px-6 py-10 border-l-4 border-[#EF3866] dark:border-[#ff7a9c] bg-gray-50 dark:bg-gray-800/50 rounded-r-xl">
+            <p className="text-xl md:text-2xl font-serif italic text-gray-700 dark:text-gray-200">
+              "{post.description || "An interesting perspective on modern journalism and digital media consumption."}."
+            </p>
+            {post.author && (
+              <p className="text-right mt-4 text-[#EF3866] dark:text-[#ff7a9c] font-medium">—{post.author.name}</p>
+            )}
+          </div>
         </div>
 
-        {/* Discussion Section */}
-        <div className="mt-8 bg-white dark:bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 transition-colors">
+        {/* IMPROVED Discussion Section */}
+        <div className="mt-12 bg-gray-50 dark:bg-gray-800/40 p-8 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 transition-colors">
+          <h2 className="text-2xl font-serif font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+            <span className="inline-block w-8 h-1 bg-[#EF3866] dark:bg-[#ff7a9c] mr-3"></span>
+            Join the Discussion
+          </h2>
           <CommentSection postId={post._id} />
         </div>
-      </section> any
+      </section>
 
       {/* Previous/Next Post Navigation */}
       <div className={`fixed z-30 inset-y-0 right-0 flex items-center transform transition-transform duration-300 ${showNavigation ? 'translate-x-0' : 'translate-x-full'}`}>
-        <div className="bg-white/80 dark:bg-black/80 backdrop-blur-sm p-3 rounded-l-lg shadow-lg border border-r-0 border-gray-200 dark:border-gray-700 flex flex-col gap-4">
+        <div className="bg-white/90 dark:bg-black/90 backdrop-blur-md p-3 rounded-l-lg shadow-lg border border-r-0 border-gray-200 dark:border-gray-700 flex flex-col gap-4">
           {/* REVERSED NAVIGATION: Next (up) and Prev (down) */}
           {post.nextPost && (
             <Link href={`/post/${post.nextPost._id}`} className="bg-gray-100 dark:bg-gray-800 hover:bg-[#EF3866] hover:text-white text-gray-700 dark:text-gray-300 p-3 rounded-full transition-colors flex items-center justify-center">
@@ -419,7 +520,7 @@ export default function PostClient({ id }: PostClientProps) {
       </div>
 
       {/* Bottom Navigation Bar */}
-      <div className="sticky bottom-0 inset-x-0 bg-white/80 dark:bg-black/80 backdrop-blur-md shadow-lg border-t border-gray-200 dark:border-gray-800 p-4 z-20">
+      <div className="sticky bottom-0 inset-x-0 bg-white/90 dark:bg-black/90 backdrop-blur-md shadow-lg border-t border-gray-200 dark:border-gray-800 p-4 z-20">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           {post.prevPost ? (
             <Link href={`/post/${post.prevPost._id}`} className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-[#EF3866] dark:hover:text-[#EF3866] transition-colors">
