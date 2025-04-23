@@ -19,8 +19,8 @@ const Footer = () => {
             <Image
               src="/img/footerlogo.png"
               alt="Hojo logo"
-              width={120}
-              height={120}
+              width={80}
+              height={80}
               className="mb-3 block dark:hidden"
             />
             {/* Dark mode logo with invert filter for better visibility */}
