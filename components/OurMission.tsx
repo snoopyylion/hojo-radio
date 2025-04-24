@@ -22,7 +22,7 @@ const OurMission = () => {
             {/* Section Header */}
             <div className="flex items-center gap-2 justify-center md:justify-start mb-4">
               <span className="inline-block w-8 h-1 bg-[#EF3866] dark:bg-[#ff7a9c] transition-colors"></span>
-              <h5 className="uppercase tracking-wide text-sm font-medium text-gray-800 dark:text-gray-200">
+              <h5 className="tracking-wide font-medium text-gray-800 dark:text-gray-200">
                 Our Mission
               </h5>
             </div>
@@ -42,7 +42,7 @@ const OurMission = () => {
             <div className="flex items-start gap-3 max-w-[600px] mx-auto md:mx-0">
               <span className="w-2 h-16 bg-[#EF3866] dark:bg-[#ff7a9c] mt-2 rounded transition-colors"></span>
               <p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 transition-colors">
-                We're not here to tell you what to think — we're here to give you the tools to think critically. With <strong>HOJO</strong>, you gain access to credible, transparent insights that help you make informed decisions about the stories that shape our world.
+                We&apos;re not here to tell you what to think — we&apos;re here to give you the tools to think critically. With <strong>HOJO</strong>, you gain access to credible, transparent insights that help you make informed decisions about the stories that shape our world.
               </p>
             </div>
           </div>
