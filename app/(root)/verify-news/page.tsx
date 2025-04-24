@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute"; // make sure this exists and is correctly imported
+import Explanation from "@/components/Explanation";
 
 type VerificationData = {
   source_confidence?: number;
@@ -103,7 +104,9 @@ function InnerVerifyNewsPage() {
   };
 
   return (
-    <section className="px-4 pt-[150px] md:px-8 lg:px-16 py-8 bg-white dark:bg-black transition-colors duration-300 min-h-screen">
+    <div className="bg-white dark:bg-black pt-[150px]">
+      <Explanation />
+      <section className="px-4 pt-[150px] md:px-8 lg:px-16 py-8 bg-white dark:bg-black transition-colors duration-300 min-h-screen">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-center mb-8 text-gray-900 dark:text-white">🧠 AI-Powered News Verifier</h1>
 
@@ -224,6 +227,7 @@ function InnerVerifyNewsPage() {
           </div>
         )}
       </div>
-    </section>
+      </section>
+    </div>
   );
 }
