@@ -42,7 +42,7 @@ const OurMission = () => {
             <div className="flex items-start gap-3 max-w-[600px] mx-auto md:mx-0">
               <span className="w-2 h-16 bg-[#EF3866] dark:bg-[#ff7a9c] mt-2 rounded transition-colors"></span>
               <p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 transition-colors">
-                We&apos;re not here to tell you what to think — we&apos;re here to give you the tools to think critically. With <strong>HOJO</strong>, you gain access to credible, transparent insights that help you make informed decisions about the stories that shape our world.
+                We&apos;re not here to tell you what to think — we&apos;re here to give you the tools to think critically. With HOJO, you gain access to credible, transparent insights that help you make informed decisions about the stories that shape our world.
               </p>
             </div>
           </div>
