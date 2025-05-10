@@ -94,7 +94,7 @@ const ptComponents: Partial<PortableTextReactComponents> = {
 export default function PostClient({ id }: PostClientProps) {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showNavigation, setShowNavigation] = useState(false);
+  const [, setShowNavigation] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [lastScrollY, setLastScrollY] = useState(0);
   const router = useRouter();
