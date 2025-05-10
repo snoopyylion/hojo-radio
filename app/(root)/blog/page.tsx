@@ -7,6 +7,9 @@ import { groq } from "next-sanity";
 import { ChevronUp } from "lucide-react";
 import NewsTile from "@/components/NewsTile";
 
+/**
+ * Post interface used to strongly type Sanity blog post documents.
+ */
 interface Post {
   _id: string;
   title: string;
@@ -31,7 +34,9 @@ interface Post {
   categories: { title: string }[];
 }
 
-// Type guard to check if a document matches the Post interface
+/**
+ * Type guard to ensure fetched documents match expected Post shape.
+ */
 function isPost(doc: unknown): doc is Post {
   if (!doc || typeof doc !== 'object') return false;
   const post = doc as Record<string, unknown>;
@@ -55,6 +60,7 @@ function isPost(doc: unknown): doc is Post {
 }
 
 const NewsPage = () => {
+  // States for post data, filtering, and UI states
   const [posts, setPosts] = useState<Post[]>([]);
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);

@@ -58,7 +58,7 @@ const NewsTile: React.FC<NewsTileProps> = ({ post, view = 'grid' }) => {
                 {post.categories.map((cat, index) => (
                   <span
                     key={index}
-                    className="bg-pink-100 dark:bg-pink-900/40 text-[#EF3866] text-xs font-medium px-2.5 py-1 rounded-full"
+                    className="bg-pink-100 dark:bg-[#EF3866] dark:text-white text-[#EF3866] text-xs font-medium px-2.5 py-1 rounded-full"
                   >
                     {cat.title}
                   </span>
@@ -98,7 +98,7 @@ const NewsTile: React.FC<NewsTileProps> = ({ post, view = 'grid' }) => {
                 </div>
               </div>
               
-              <span className="text-[#EF3866] group-hover:translate-x-1 transition-transform flex items-center text-sm font-medium">
+              <span className="text-[#EF3866] dark:bg-[#EF3866] dark:text-white group-hover:translate-x-1 transition-transform flex items-center text-sm font-medium px-2.5 py-1 rounded-full  ">
                 Read more
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1">
                   <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -134,7 +134,7 @@ const NewsTile: React.FC<NewsTileProps> = ({ post, view = 'grid' }) => {
             {post.categories.slice(0, 2).map((cat, index) => (
               <span
                 key={index}
-                className="bg-pink-100/90 dark:bg-pink-900/80 backdrop-blur-sm text-[#EF3866] text-xs font-medium px-2.5 py-1 rounded-full"
+                className="bg-pink-100/90 dark:bg-[#EF3866] dark:text-white backdrop-blur-sm text-[#EF3866] text-xs font-medium px-2.5 py-1 rounded-full"
               >
                 {cat.title}
               </span>
