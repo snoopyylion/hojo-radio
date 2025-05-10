@@ -484,23 +484,6 @@ export default function PostClient({ id }: PostClientProps) {
         </div>
       </section>
 
-      {/* Previous/Next Post Navigation
-      <div className={`fixed z-30 inset-y-0 right-0 flex items-center transform transition-transform duration-300 ${showNavigation ? 'translate-x-0' : 'translate-x-full'}`}>
-        <div className="bg-white/90 dark:bg-black/90 backdrop-blur-md p-3 rounded-l-lg shadow-lg border border-r-0 border-gray-200 dark:border-gray-700 flex flex-col gap-4">
-          REVERSED NAVIGATION: Next (up) and Prev (down)
-          {post.nextPost && (
-            <Link href={`/post/${post.nextPost._id}`} className="bg-gray-100 dark:bg-gray-800 hover:bg-[#EF3866] hover:text-white text-gray-700 dark:text-gray-300 p-3 rounded-full transition-colors flex items-center justify-center">
-              <ChevronUp size={20} />
-            </Link>
-          )}
-          {post.prevPost && (
-            <Link href={`/post/${post.prevPost._id}`} className="bg-gray-100 dark:bg-gray-800 hover:bg-[#EF3866] hover:text-white text-gray-700 dark:text-gray-300 p-3 rounded-full transition-colors flex items-center justify-center">
-              <ChevronDown size={20} />
-            </Link>
-          )}
-        </div>
-      </div> */}
-
       {/* Bottom Navigation Bar */}
       <div className="sticky bottom-0 inset-x-0 bg-white/90 dark:bg-black/90 backdrop-blur-md shadow-lg border-t border-gray-200 dark:border-gray-800 p-4 z-20">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
