@@ -427,7 +427,7 @@ export default function PostClient({ id }: PostClientProps) {
           {post.categories && post.categories.length > 0 && (
             <div className="flex gap-2 flex-wrap">
               {post.categories.map(category => (
-                <span key={category.title} className="inline-block bg-[#fce7f3] dark:bg-[#4c1d38] text-[#d7325a] dark:text-[#ff5e8a] text-sm font-medium px-4 py-1 rounded-full shadow-sm transition-colors">
+                <span key={category.title} className="inline-block bg-[#fce7f3] dark:bg-[#EF3866] dark:text-white text-[#d7325a] text-sm font-medium px-4 py-1 rounded-full shadow-sm transition-colors">
                   {category.title}
                 </span>
               ))}
@@ -469,7 +469,7 @@ export default function PostClient({ id }: PostClientProps) {
               &quot;{post.description || "An interesting perspective on modern journalism and digital media consumption."}&quot;
             </p>
             {post.author && (
-              <p className="text-right mt-4 text-[#EF3866] dark:text-[#ff7a9c] font-medium">—{post.author.name}</p>
+              <p className="text-right mt-4 text-[#EF3866] dark:text-white font-medium">—{post.author.name}</p>
             )}
           </div>
         </div>
@@ -484,10 +484,10 @@ export default function PostClient({ id }: PostClientProps) {
         </div>
       </section>
 
-      {/* Previous/Next Post Navigation */}
+      {/* Previous/Next Post Navigation
       <div className={`fixed z-30 inset-y-0 right-0 flex items-center transform transition-transform duration-300 ${showNavigation ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="bg-white/90 dark:bg-black/90 backdrop-blur-md p-3 rounded-l-lg shadow-lg border border-r-0 border-gray-200 dark:border-gray-700 flex flex-col gap-4">
-          {/* REVERSED NAVIGATION: Next (up) and Prev (down) */}
+          REVERSED NAVIGATION: Next (up) and Prev (down)
           {post.nextPost && (
             <Link href={`/post/${post.nextPost._id}`} className="bg-gray-100 dark:bg-gray-800 hover:bg-[#EF3866] hover:text-white text-gray-700 dark:text-gray-300 p-3 rounded-full transition-colors flex items-center justify-center">
               <ChevronUp size={20} />
@@ -499,7 +499,7 @@ export default function PostClient({ id }: PostClientProps) {
             </Link>
           )}
         </div>
-      </div>
+      </div> */}
 
       {/* Bottom Navigation Bar */}
       <div className="sticky bottom-0 inset-x-0 bg-white/90 dark:bg-black/90 backdrop-blur-md shadow-lg border-t border-gray-200 dark:border-gray-800 p-4 z-20">
