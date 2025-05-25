@@ -38,20 +38,19 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Upsert user data (removed updated_at field)
+    // update user data (removed updated_at field)
     const { data, error } = await supabaseAdmin
-      .from('users')
-      .upsert({
-        id: userId,
-        username: username.toLowerCase(),
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        profile_completed: true
-      }, {
-        onConflict: 'id'
-      })
-      .select()
-      .single();
+  .from('users')
+  .update({
+    username: username.toLowerCase(),
+    first_name: firstName.trim(),
+    last_name: lastName.trim(),
+    profile_completed: true,
+    updated_at: new Date().toISOString(), // 🔥 Add this back
+  })
+  .eq('id', userId)
+  .select()
+  .single();
     
     if (error) {
       console.error('Error completing profile:', error);

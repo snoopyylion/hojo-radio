@@ -1,3 +1,4 @@
+// app/api/webhooks/clerk/route.ts
 import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -9,25 +10,23 @@ interface ClerkUserEvent {
     id: string;
     first_name?: string;
     last_name?: string;
-    email_addresses?: { email_address: string }[];
+    email_addresses?: { email_address: string; id: string }[];
     profile_image_url?: string;
+    image_url?: string;
     external_accounts?: {
-      provider: string;
+      provider?: string;
       first_name?: string;
       last_name?: string;
-      email_address?: string;
-      firstName?: string;
-      lastName?: string;
       given_name?: string;
       family_name?: string;
-      [key: string]: unknown;
+      email_address?: string;
     }[];
-    public_metadata?: {
-      username?: string;
-    };
     unsafe_metadata?: {
       firstName?: string;
       lastName?: string;
+    };
+    public_metadata?: {
+      username?: string;
     };
   };
 }
@@ -42,8 +41,6 @@ export async function POST(req: Request) {
     "svix-signature": headerPayload.get("svix-signature") ?? "",
   };
 
-  console.log("🔍 Webhook headers:", svixHeaders);
-
   try {
     const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET || "");
     const evt = wh.verify(body, svixHeaders) as ClerkUserEvent;
@@ -51,12 +48,20 @@ export async function POST(req: Request) {
     const { type, data } = evt;
 
     console.log(`📣 Clerk webhook event received: ${type}`);
-    console.log("📦 Event data:", JSON.stringify(data, null, 2));
-    
+    console.log('🔍 Event data:', {
+      id: data.id,
+      emailCount: data.email_addresses?.length || 0,
+      hasFirstName: !!data.first_name,
+      hasLastName: !!data.last_name,
+      hasImage: !!(data.profile_image_url || data.image_url),
+      externalAccountsCount: data.external_accounts?.length || 0
+    });
+
     const {
       id,
       email_addresses,
       profile_image_url,
+      image_url,
       first_name,
       last_name,
       external_accounts,
@@ -64,41 +69,34 @@ export async function POST(req: Request) {
       public_metadata,
     } = data;
 
-    const email = email_addresses?.[0]?.email_address ?? null;
-    const image_url = profile_image_url ?? null;
-    const username = public_metadata?.username ?? null;
+    const email = email_addresses?.find(e => e.email_address)?.email_address ?? null;
+    const imageUrl = profile_image_url || image_url || null;
+    const username = public_metadata?.username || null;
 
-    // Enhanced name resolution for OAuth providers
-    let resolvedFirstName = "";
-    let resolvedLastName = "";
+    // Enhanced name resolution
+    let resolvedFirstName = first_name || "";
+    let resolvedLastName = last_name || "";
 
-    if (first_name && last_name) {
-      // Direct from Clerk (most reliable)
-      resolvedFirstName = first_name;
-      resolvedLastName = last_name;
-      console.log(`📝 Using direct Clerk names: ${resolvedFirstName} ${resolvedLastName}`);
-    } else if (external_accounts && external_accounts.length > 0) {
-      // From OAuth provider - Enhanced extraction
+    // Try external accounts (OAuth providers like Google, Apple)
+    if ((!resolvedFirstName || !resolvedLastName) && external_accounts?.length) {
       const oauthAccount = external_accounts[0];
+      resolvedFirstName = resolvedFirstName || oauthAccount.first_name || oauthAccount.given_name || "";
+      resolvedLastName = resolvedLastName || oauthAccount.last_name || oauthAccount.family_name || "";
       
-      // Try different possible field names for OAuth data
-      resolvedFirstName = oauthAccount.first_name || 
-                         oauthAccount.firstName || 
-                         oauthAccount.given_name || "";
-      resolvedLastName = oauthAccount.last_name || 
-                        oauthAccount.lastName || 
-                        oauthAccount.family_name || "";
-      
-      console.log(`🔍 OAuth account data:`, oauthAccount);
-      console.log(`📝 Extracted OAuth names: ${resolvedFirstName} ${resolvedLastName}`);
-    } else if (unsafe_metadata?.firstName && unsafe_metadata?.lastName) {
-      // From form submission
-      resolvedFirstName = unsafe_metadata.firstName;
-      resolvedLastName = unsafe_metadata.lastName;
-      console.log(`📝 Using unsafe metadata names: ${resolvedFirstName} ${resolvedLastName}`);
+      console.log('🔍 OAuth data used:', {
+        provider: oauthAccount.provider,
+        hasFirstName: !!resolvedFirstName,
+        hasLastName: !!resolvedLastName
+      });
     }
 
-    // If we still don't have names, try to extract from email
+    // Try unsafe metadata as fallback
+    if ((!resolvedFirstName || !resolvedLastName) && unsafe_metadata) {
+      resolvedFirstName = resolvedFirstName || unsafe_metadata.firstName || "";
+      resolvedLastName = resolvedLastName || unsafe_metadata.lastName || "";
+    }
+
+    // Extract from email as last resort
     if (!resolvedFirstName && !resolvedLastName && email) {
       const emailName = email.split('@')[0];
       if (emailName.includes('.')) {
@@ -108,8 +106,16 @@ export async function POST(req: Request) {
       } else {
         resolvedFirstName = emailName;
       }
-      console.log(`📝 Fallback email extraction: ${resolvedFirstName} ${resolvedLastName}`);
+      console.log('📧 Names extracted from email');
     }
+
+    console.log('📝 Final resolved data:', {
+      firstName: resolvedFirstName || 'empty',
+      lastName: resolvedLastName || 'empty',
+      email: email || 'empty',
+      imageUrl: imageUrl || 'empty',
+      username: username || 'empty'
+    });
 
     if (!id) {
       console.warn("⚠️ Missing user ID, skipping...");
@@ -122,50 +128,55 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false }, { status: 400 });
       }
 
-      // For OAuth users, names might be empty initially but will be populated
-      // We'll mark profile as incomplete if username is missing (always the case for OAuth)
-      const needsProfileCompletion = !username || 
-                                   !resolvedFirstName.trim() || 
-                                   !resolvedLastName.trim();
-
-      console.log(`🎯 Profile completion needed: ${needsProfileCompletion}`);
-      console.log(`🎯 Username: ${username || 'MISSING'}`);
-      console.log(`🎯 First name: ${resolvedFirstName || 'MISSING'}`);
-      console.log(`🎯 Last name: ${resolvedLastName || 'MISSING'}`);
+      // Determine if profile needs completion
+      const needsCompletion = !resolvedFirstName.trim() || !resolvedLastName.trim() || !username;
 
       const userData = {
         id,
         email,
         first_name: resolvedFirstName.trim() || null,
         last_name: resolvedLastName.trim() || null,
-        image_url,
+        image_url: imageUrl,
         role: "user",
-        username: username || null,
-        profile_completed: !needsProfileCompletion,
+        username,
+        profile_completed: !needsCompletion,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
 
-      console.log(`💾 Upserting user data:`, userData);
+      console.log('💾 Webhook upserting user:', {
+        id: userData.id,
+        email: userData.email,
+        hasFirstName: !!userData.first_name,
+        hasLastName: !!userData.last_name,
+        hasImageUrl: !!userData.image_url,
+        hasUsername: !!userData.username,
+        profileCompleted: userData.profile_completed
+      });
 
-      const { error } = await supabaseAdmin
+      const { error, data: upsertedData } = await supabaseAdmin
         .from("users")
-        .upsert([userData], { 
+        .upsert([userData], {
           onConflict: 'id',
-          ignoreDuplicates: false 
-        });
+          ignoreDuplicates: false
+        })
+        .select()
+        .single();
 
       if (error) {
         console.error("❌ Supabase upsert error:", error);
         return NextResponse.json({ error: "Supabase upsert failed" }, { status: 500 });
       }
 
-      console.log(`✅ User ${type === "user.created" ? "created" : "updated"} successfully`);
+      console.log('✅ Webhook user upserted successfully:', {
+        id: upsertedData.id,
+        email: upsertedData.email,
+        profileCompleted: upsertedData.profile_completed
+      });
 
       return NextResponse.json({
         message: `✅ User ${type === "user.created" ? "created" : "updated"} in Supabase`,
-        needsProfileCompletion,
-        userData: { ...userData, password: undefined }
+        userData: upsertedData
       });
     }
 
@@ -177,6 +188,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Supabase delete failed" }, { status: 500 });
       }
 
+      console.log('🗑️ User deleted from database:', id);
       return NextResponse.json({ message: "🗑️ User deleted from Supabase" });
     }
 

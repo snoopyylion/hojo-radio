@@ -5,68 +5,71 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function GET() {
   try {
+    // Get auth from Clerk
     const { userId } = await auth();
-
+    
+    console.log('🔍 Check profile API - UserId:', userId || 'none');
+    
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.log('❌ No userId found in check-profile API');
+      return NextResponse.json(
+        { error: 'Unauthorized' }, 
+        { status: 401 }
+      );
     }
 
-    console.log('🔍 Checking profile for user:', userId);
-
+    // Check user in database
     const { data: user, error } = await supabaseAdmin
       .from('users')
-      .select('profile_completed, first_name, last_name, username, email, image_url')
+      .select('id, email, first_name, last_name, username, profile_completed, image_url')
       .eq('id', userId)
       .single();
 
     if (error) {
-      console.error('Error fetching user profile:', error);
-      
-      // If user doesn't exist yet, they definitely need to complete profile
-      if (error.code === 'PGRST116') { // Row not found
-        console.log('User not found in database, needs profile completion');
-        return NextResponse.json({ 
+      if (error.code === 'PGRST116') {
+        // User not found - needs to be created
+        console.log('📝 User not found in database:', userId);
+        return NextResponse.json({
           needsCompletion: true,
-          reason: 'user_not_found'
+          reason: 'user_not_found',
+          userData: null,
+          missingFields: ['first_name', 'last_name', 'username']
         });
       }
       
-      // For other errors, assume they need profile completion to be safe
-      return NextResponse.json({ 
-        needsCompletion: true,
-        reason: 'database_error'
-      });
+      console.error('❌ Database error in check-profile:', error);
+      return NextResponse.json(
+        { error: 'Database error' },
+        { status: 500 }
+      );
     }
 
-    // Check all required fields
+    // Check what fields are missing
     const missingFields = [];
-    
     if (!user.first_name?.trim()) missingFields.push('first_name');
     if (!user.last_name?.trim()) missingFields.push('last_name');
     if (!user.username?.trim()) missingFields.push('username');
 
     const needsCompletion = !user.profile_completed || missingFields.length > 0;
 
-    console.log('Profile check result:', {
-      profile_completed: user.profile_completed,
+    console.log('📊 Profile check result:', {
+      userId,
+      needsCompletion,
       missingFields,
-      needsCompletion
+      profileCompleted: user.profile_completed
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       needsCompletion,
       userData: user,
-      missingFields: needsCompletion ? missingFields : []
+      missingFields,
+      reason: needsCompletion ? 'incomplete_profile' : 'profile_complete'
     });
 
   } catch (error) {
-    console.error('Profile check error:', error);
+    console.error('❌ Check profile API error:', error);
     return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        needsCompletion: true,
-        reason: 'server_error'
-      }, 
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

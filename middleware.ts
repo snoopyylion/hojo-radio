@@ -18,10 +18,19 @@ const isAuthRoute = createRouteMatcher([
   '/authentication/forgot-password',
 ]);
 
+// API routes that should be excluded from middleware auth checks
+const isApiRoute = createRouteMatcher(['/api(.*)']);
+
 export default clerkMiddleware(async (auth, req) => {
   const { userId } = await auth();
   
   console.log(`🔍 Middleware check - Path: ${req.nextUrl.pathname}, UserId: ${userId || 'none'}`);
+  
+  // Allow API routes to handle their own authentication
+  if (isApiRoute(req)) {
+    console.log('🔧 API route detected, allowing through middleware');
+    return NextResponse.next();
+  }
   
   // Allow OAuth callback route to process without any interference
   if (isOAuthCallbackRoute(req)) {
