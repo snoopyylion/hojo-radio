@@ -3,17 +3,30 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
+interface ClerkPublicMetadata {
+  username?: string;
+  [key: string]: unknown;
+}
+
+interface ClerkUnsafeMetadata {
+  firstName?: string;
+  lastName?: string;
+  [key: string]: unknown;
+}
+
+// We'll use the actual Clerk ExternalAccount type and handle it properly
+
 export async function POST() {
   try {
     const { userId } = await auth();
-    
+     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Get full user data from Clerk
     const clerkUser = await currentUser();
-    
+     
     if (!clerkUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -33,7 +46,7 @@ export async function POST() {
 
     const email = emailAddresses?.[0]?.emailAddress ?? null;
     const imageUrl_processed = imageUrl ?? null;
-    const username = (publicMetadata as any)?.username ?? null;
+    const username = (publicMetadata as ClerkPublicMetadata)?.username ?? null;
 
     // Enhanced name resolution for OAuth providers
     let resolvedFirstName = "";
@@ -46,14 +59,19 @@ export async function POST() {
     } else if (externalAccounts && externalAccounts.length > 0) {
       // From OAuth provider
       const oauthAccount = externalAccounts[0];
-      resolvedFirstName = (oauthAccount as any).firstName || "";
-      resolvedLastName = (oauthAccount as any).lastName || "";
-      
+      // Safely access potential OAuth fields
+      const oauthData = oauthAccount as unknown as Record<string, unknown>;
+      resolvedFirstName = (oauthData.firstName as string) || 
+                         (oauthData.given_name as string) || "";
+      resolvedLastName = (oauthData.lastName as string) || 
+                        (oauthData.family_name as string) || "";
+             
       console.log(`🔍 OAuth account data:`, oauthAccount);
-    } else if ((unsafeMetadata as any)?.firstName && (unsafeMetadata as any)?.lastName) {
+    } else if ((unsafeMetadata as ClerkUnsafeMetadata)?.firstName && (unsafeMetadata as ClerkUnsafeMetadata)?.lastName) {
       // From form submission
-      resolvedFirstName = (unsafeMetadata as any).firstName;
-      resolvedLastName = (unsafeMetadata as any).lastName;
+      const metadata = unsafeMetadata as ClerkUnsafeMetadata;
+      resolvedFirstName = metadata.firstName || "";
+      resolvedLastName = metadata.lastName || "";
     }
 
     // If we still don't have names, try to extract from email

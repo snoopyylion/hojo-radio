@@ -16,6 +16,11 @@ interface ClerkUserEvent {
       first_name?: string;
       last_name?: string;
       email_address?: string;
+      firstName?: string;
+      lastName?: string;
+      given_name?: string;
+      family_name?: string;
+      [key: string]: unknown;
     }[];
     public_metadata?: {
       username?: string;
@@ -78,11 +83,11 @@ export async function POST(req: Request) {
       
       // Try different possible field names for OAuth data
       resolvedFirstName = oauthAccount.first_name || 
-                         (oauthAccount as any).firstName || 
-                         (oauthAccount as any).given_name || "";
+                         oauthAccount.firstName || 
+                         oauthAccount.given_name || "";
       resolvedLastName = oauthAccount.last_name || 
-                        (oauthAccount as any).lastName || 
-                        (oauthAccount as any).family_name || "";
+                        oauthAccount.lastName || 
+                        oauthAccount.family_name || "";
       
       console.log(`🔍 OAuth account data:`, oauthAccount);
       console.log(`📝 Extracted OAuth names: ${resolvedFirstName} ${resolvedLastName}`);
