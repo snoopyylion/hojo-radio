@@ -1,6 +1,6 @@
 // app/api/complete-profile/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function POST(req: NextRequest) {
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
-    
+
     const { username, firstName, lastName } = await req.json();
     
     // Validate input
@@ -23,50 +23,108 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    
-    // Check if username is already taken (double-check)
+
+    // Check if username is already taken by another user
     const { data: existingUser } = await supabaseAdmin
       .from('users')
-      .select('username')
+      .select('id, username')
       .eq('username', username.toLowerCase())
-      .single();
+      .maybeSingle();
     
-    if (existingUser) {
+    if (existingUser && existingUser.id !== userId) {
       return NextResponse.json(
         { error: 'Username is already taken' },
         { status: 400 }
       );
     }
-    
-    // update user data (removed updated_at field)
-    const { data, error } = await supabaseAdmin
-  .from('users')
-  .update({
-    username: username.toLowerCase(),
-    first_name: firstName.trim(),
-    last_name: lastName.trim(),
-    profile_completed: true,
-    updated_at: new Date().toISOString(), // 🔥 Add this back
-  })
-  .eq('id', userId)
-  .select()
-  .single();
-    
-    if (error) {
-      console.error('Error completing profile:', error);
-      return NextResponse.json(
-        { error: 'Failed to save profile' },
-        { status: 500 }
-      );
+
+    // First, try to update the existing user record
+    const { data: updatedUser, error: updateError } = await supabaseAdmin
+      .from('users')
+      .update({
+        username: username.toLowerCase(),
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        profile_completed: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    // If update was successful, return the result
+    if (!updateError) {
+      console.log('✅ User profile updated successfully:', updatedUser.id);
+      return NextResponse.json({
+        success: true,
+        user: updatedUser
+      });
     }
-    
-    return NextResponse.json({ 
-      success: true,
-      user: data
-    });
-    
+
+    // If user doesn't exist (PGRST116), create them
+    if (updateError.code === 'PGRST116') {
+      console.log('👤 User not found in database, creating new record for:', userId);
+      
+      // Get user info from Clerk to create complete record
+      const clerkUser = await currentUser();
+      if (!clerkUser) {
+        return NextResponse.json(
+          { error: 'Unable to fetch user information from Clerk' },
+          { status: 400 }
+        );
+      }
+
+      const email = clerkUser.emailAddresses?.[0]?.emailAddress;
+      if (!email) {
+        return NextResponse.json(
+          { error: 'Email is required but not found' },
+          { status: 400 }
+        );
+      }
+
+      // Create new user record
+      const userData = {
+        id: userId,
+        email,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        username: username.toLowerCase(),
+        image_url: clerkUser.imageUrl || null,
+        role: 'user',
+        profile_completed: true,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data: newUser, error: createError } = await supabaseAdmin
+        .from('users')
+        .insert([userData])
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('❌ Failed to create user record:', createError);
+        return NextResponse.json(
+          { error: 'Failed to create user profile' },
+          { status: 500 }
+        );
+      }
+
+      console.log('✅ New user record created successfully:', newUser.id);
+      return NextResponse.json({
+        success: true,
+        user: newUser
+      });
+    }
+
+    // Handle other database errors
+    console.error('❌ Database error in complete-profile:', updateError);
+    return NextResponse.json(
+      { error: 'Failed to save profile' },
+      { status: 500 }
+    );
+
   } catch (error) {
-    console.error('Complete profile error:', error);
+    console.error('❌ Complete profile error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

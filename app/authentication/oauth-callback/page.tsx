@@ -10,7 +10,7 @@ export default function OAuthCallback() {
   const [isProcessing, setIsProcessing] = useState(true);
   const [statusMessage, setStatusMessage] = useState("Setting up your account...");
   const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 5;
+  const maxRetries = 3; // Reduced max retries
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -27,28 +27,31 @@ export default function OAuthCallback() {
         console.log('🔄 Processing OAuth user:', user?.id);
 
         // Give webhook time to process first
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         setStatusMessage("Syncing your account data...");
 
-        // Sync user to ensure they're in the database with latest info
-        const syncResponse = await fetch('/api/sync-user', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+        // Try to sync user to ensure they're in the database with latest info
+        try {
+          const syncResponse = await fetch('/api/sync-user', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
 
-        let syncData = null;
-        if (syncResponse.ok) {
-          syncData = await syncResponse.json();
-          console.log('✅ Sync response:', syncData);
-        } else {
-          console.warn('⚠️ Sync failed, continuing with profile check');
+          if (syncResponse.ok) {
+            const syncData = await syncResponse.json();
+            console.log('✅ Sync response:', syncData);
+          } else {
+            console.warn('⚠️ Sync failed, will continue with profile check');
+          }
+        } catch (syncError) {
+          console.warn('⚠️ Sync request failed, continuing:', syncError);
         }
 
         // Additional delay to ensure all processing is complete
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         setStatusMessage("Checking your profile status...");
 
@@ -61,7 +64,7 @@ export default function OAuthCallback() {
         });
 
         if (profileResponse.ok) {
-          const { needsCompletion, userData, missingFields } = await profileResponse.json();
+          const { needsCompletion, userData, missingFields, reason } = await profileResponse.json();
           
           console.log('📊 Profile check result:', { 
             needsCompletion, 
@@ -71,7 +74,8 @@ export default function OAuthCallback() {
               hasLastName: !!userData.last_name,
               hasUsername: !!userData.username
             } : null,
-            missingFields 
+            missingFields,
+            reason
           });
 
           if (needsCompletion) {
@@ -81,14 +85,14 @@ export default function OAuthCallback() {
               router.replace("/authentication/complete-profile");
             }, 1000);
           } else {
-            setStatusMessage("Welcome! Taking you to the our blog...");
+            setStatusMessage("Welcome! Taking you to our blog...");
             console.log('✅ Profile complete, redirecting to blog');
             setTimeout(() => {
               router.replace("/blog");
             }, 1000);
           }
         } else {
-          console.warn('⚠️ Profile check failed, will retry or fallback');
+          console.warn('⚠️ Profile check failed, status:', profileResponse.status);
           
           // If we haven't hit max retries, try again
           if (retryCount < maxRetries) {
@@ -120,7 +124,7 @@ export default function OAuthCallback() {
           return;
         }
         
-        // Final fallback
+        // Final fallback - always go to complete-profile to ensure user can proceed
         setStatusMessage("Finalizing your account setup...");
         setTimeout(() => {
           router.replace("/authentication/complete-profile");

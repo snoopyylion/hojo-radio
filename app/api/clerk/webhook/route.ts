@@ -128,8 +128,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false }, { status: 400 });
       }
 
-      // Determine if profile needs completion
-      const needsCompletion = !resolvedFirstName.trim() || !resolvedLastName.trim() || !username;
+      // For user.created, always set profile_completed to false to force profile completion
+      // For user.updated, check if essential fields are present
+      const needsCompletion = type === "user.created" || 
+        !resolvedFirstName.trim() || 
+        !resolvedLastName.trim() || 
+        !username;
 
       const userData = {
         id,
@@ -140,7 +144,9 @@ export async function POST(req: Request) {
         role: "user",
         username,
         profile_completed: !needsCompletion,
-        created_at: new Date().toISOString(),
+        ...(type === "user.created" && {
+          created_at: new Date().toISOString(),
+        }),
         updated_at: new Date().toISOString(),
       };
 
@@ -151,7 +157,8 @@ export async function POST(req: Request) {
         hasLastName: !!userData.last_name,
         hasImageUrl: !!userData.image_url,
         hasUsername: !!userData.username,
-        profileCompleted: userData.profile_completed
+        profileCompleted: userData.profile_completed,
+        eventType: type
       });
 
       const { error, data: upsertedData } = await supabaseAdmin
