@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSignUp, useSignIn, useUser } from "@clerk/nextjs";
+import { useState, useEffect, useCallback } from "react";
+import { useSignUp, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -26,17 +26,28 @@ interface ErrorState {
   code?: string;
 }
 
+interface SignUpData {
+  emailAddress: string;
+  password: string;
+  unsafeMetadata: {
+    firstName: string;
+    lastName: string;
+  };
+}
+
 export default function SignUpPage() {
   const { isLoaded, signUp, setActive } = useSignUp();
-  const { signIn } = useSignIn();
   const { isSignedIn } = useUser();
   const router = useRouter();
 
+  // Memoize router to avoid dependency warnings
+  const memoizedRouter = useCallback(() => router, [router]);
+
   useEffect(() => {
     if (isSignedIn) {
-      router.replace("/blog");
+      memoizedRouter().replace("/blog");
     }
-  }, [isSignedIn]);
+  }, [isSignedIn, memoizedRouter]);
 
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
@@ -81,7 +92,7 @@ export default function SignUpPage() {
     setErrors(null);
 
     try {
-      const signUpData: any = {
+      const signUpData: SignUpData = {
         emailAddress: formData.emailAddress,
         password: formData.password,
         // Store first/last name and username in unsafe_metadata so webhook can access it

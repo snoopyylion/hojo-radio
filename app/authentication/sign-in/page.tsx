@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSignIn, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -28,11 +28,16 @@ export default function SignInPage() {
   const { isSignedIn } = useUser();
   const router = useRouter();
 
+  // Memoize the redirect function to avoid useEffect dependency issues
+  const redirectToMain = useCallback(() => {
+    router.replace("/blog");
+  }, [router]);
+
   useEffect(() => {
     if (isSignedIn) {
-      router.replace("/blog");
+      redirectToMain();
     }
-  }, [isSignedIn]);
+  }, [isSignedIn, redirectToMain]);
 
   const [formData, setFormData] = useState<FormData>({
     emailAddress: "",
@@ -122,6 +127,7 @@ export default function SignInPage() {
       setErrors({ message: "Google sign-in failed. Please try again." });
     }
   };
+  
   const signInWithApple = async () => {
     if (!signIn) return;
 
