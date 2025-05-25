@@ -14,6 +14,15 @@ interface ClerkUnsafeMetadata {
   [key: string]: unknown;
 }
 
+interface OAuthAccountData {
+  firstName?: string;
+  lastName?: string;
+  given_name?: string;
+  family_name?: string;
+  provider?: string;
+  [key: string]: unknown;
+}
+
 export async function POST() {
   try {
     console.log('🔄 Sync user API called');
@@ -78,20 +87,21 @@ export async function POST() {
     } else if (externalAccounts && externalAccounts.length > 0) {
       // From OAuth provider
       const oauthAccount = externalAccounts[0];
+      const oauthData = oauthAccount as unknown as OAuthAccountData;
+      
       console.log('🔍 OAuth account:', {
-        provider: oauthAccount.provider,
+        provider: oauthData.provider,
         // Log available fields without sensitive data
-        hasFirstName: !!(oauthAccount as any).firstName,
-        hasLastName: !!(oauthAccount as any).lastName,
-        hasGivenName: !!(oauthAccount as any).given_name,
-        hasFamilyName: !!(oauthAccount as any).family_name
+        hasFirstName: !!oauthData.firstName,
+        hasLastName: !!oauthData.lastName,
+        hasGivenName: !!oauthData.given_name,
+        hasFamilyName: !!oauthData.family_name
       });
       
-      const oauthData = oauthAccount as unknown as Record<string, unknown>;
-      resolvedFirstName = (oauthData.firstName as string) || 
-                         (oauthData.given_name as string) || "";
-      resolvedLastName = (oauthData.lastName as string) || 
-                        (oauthData.family_name as string) || "";
+      resolvedFirstName = oauthData.firstName || 
+                         oauthData.given_name || "";
+      resolvedLastName = oauthData.lastName || 
+                        oauthData.family_name || "";
       
       console.log('✅ Names from OAuth account');
     } else if ((unsafeMetadata as ClerkUnsafeMetadata)?.firstName && (unsafeMetadata as ClerkUnsafeMetadata)?.lastName) {
