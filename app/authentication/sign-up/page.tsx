@@ -184,7 +184,7 @@ export default function SignUpPage() {
     // Use signUp instead of signIn for OAuth
     await signUp.authenticateWithRedirect({
       strategy: 'oauth_google',
-      redirectUrl: '/authentication/sso-callback',
+      redirectUrl: '/authentication/oauth-callback',
       redirectUrlComplete: '/authentication/oauth-callback',
     });
   } catch (err) {
@@ -203,7 +203,7 @@ const signUpWithApple = async () => {
     // Use signUp instead of signIn for OAuth
     await signUp.authenticateWithRedirect({
       strategy: 'oauth_apple',
-      redirectUrl: '/authentication/sso-callback',
+      redirectUrl: '/authentication/oauth-callback',
       redirectUrlComplete: '/authentication/oauth-callback',
     });
   } catch (err) {
