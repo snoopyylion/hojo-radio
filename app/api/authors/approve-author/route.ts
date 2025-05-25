@@ -1,8 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { sanityClient } from "@/lib/sanity/server"; // use server.ts if it has write access
+import { sanityClient } from "@/lib/sanity/server";
 import { NextResponse } from "next/server";
-export const runtime = "nodejs"; // Add this at the top of your file
 
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   const { userId } = await req.json();
@@ -11,10 +11,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing userId" }, { status: 400 });
   }
 
-  // 1. Fetch user from Supabase
+  // 1. Fetch user from Supabase (get current user info without modifying it)
   const { data: user, error: fetchError } = await supabaseAdmin
     .from("users")
-    .select("id, first_name, last_name, email, image_url")
+    .select("id, first_name, last_name, email, image_url, username")
     .eq("id", userId)
     .single();
 
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "User fetch failed" }, { status: 500 });
   }
 
-  // 2. Update user role
+  // 2. Only update role and author_request status (don't modify other user info)
   const { error: updateError } = await supabaseAdmin
     .from("users")
     .update({ role: "author", author_request: false })
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
   let sanityImageAsset = null;
 
-  // 3. Upload image to Sanity if available
+  // 3. Upload image to Sanity if available (using existing user image)
   try {
     if (user.image_url && user.image_url.startsWith("http")) {
       const imageRes = await fetch(user.image_url);
@@ -44,30 +44,35 @@ export async function POST(req: Request) {
       const file = Buffer.from(imageBuffer);
 
       sanityImageAsset = await sanityClient.assets.upload("image", file, {
-        filename: `${user.first_name || "author"}-${userId}.jpg`,
+        filename: `${user.first_name || user.username || "author"}-${userId}.jpg`,
         contentType: "image/jpeg",
       });
     }
   } catch (uploadError) {
     console.warn("Image upload failed:", uploadError); // non-fatal
   }
-  
 
+  // 4. Create author name using existing user data
   const fullName = `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim();
+  const displayName = fullName || user.username || "Unnamed Author";
+  
+  // Create slug from display name or fallback to user ID
   const fallbackSlug = user.id;
-  const slugValue = fullName
-  ? fullName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
-  : fallbackSlug;
-  // 4. Create author document in Sanity
+  const slugValue = displayName !== "Unnamed Author"
+    ? displayName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+    : fallbackSlug;
+
+  // 5. Create author document in Sanity using existing user information
   try {
     const existingAuthor = await sanityClient.fetch(
       `*[_type == "author" && userId == $userId][0]`,
       { userId: user.id }
     );
+
     if (!existingAuthor) {
       await sanityClient.create({
         _type: "author",
-        name: fullName || "Unnamed Author",
+        name: displayName,
         userId: user.id,
         slug: { current: slugValue },
         ...(sanityImageAsset && {
@@ -80,6 +85,9 @@ export async function POST(req: Request) {
           },
         }),
         bio: [],
+        // Store additional user info for reference if needed
+        email: user.email,
+        ...(user.username && { username: user.username }),
       });
     }
   } catch (sanityError) {
@@ -91,17 +99,18 @@ export async function POST(req: Request) {
     success: true,
     userId: user.id,
     sanityAuthor: {
-      name: fullName,
+      name: displayName,
       slug: slugValue,
       image: sanityImageAsset?._id ?? null,
     },
   });
 }
+
 export async function OPTIONS() {
   return NextResponse.json({}, {
     status: 200,
     headers: {
-      "Access-Control-Allow-Origin": "*", // or restrict to your domain
+      "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     },

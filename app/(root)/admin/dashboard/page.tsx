@@ -8,6 +8,10 @@ type PendingUser = {
   email: string;
   role: string;
   author_request: boolean;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  image_url?: string;
 };
 
 type Author = {
@@ -47,6 +51,14 @@ export default function AdminDashboardPage() {
   const pendingPosts = allPosts.filter(post => post.status === 'pending');
   const approvedPosts = allPosts.filter(post => post.status === 'approved');
   const rejectedPosts = allPosts.filter(post => post.status === 'rejected');
+
+  // Helper function to format user display name
+  const formatUserDisplayName = (user: PendingUser) => {
+    const fullName = `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim();
+    if (fullName) return fullName;
+    if (user.username) return user.username;
+    return user.email;
+  };
 
   const fetchPendingAuthors = async () => {
     try {
@@ -314,19 +326,40 @@ export default function AdminDashboardPage() {
         ) : pendingUsers.length === 0 ? (
           <p className="text-gray-600 dark:text-gray-300">No pending requests.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {pendingUsers.map((user) => (
               <li
                 key={user.id}
-                className="flex items-center justify-between border border-gray-200 dark:border-gray-700 p-2 rounded bg-gray-50 dark:bg-gray-700 transition-colors"
+                className="flex items-center justify-between border border-gray-200 dark:border-gray-700 p-4 rounded bg-gray-50 dark:bg-gray-700 transition-colors"
               >
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">{user.email}</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">Role: {user.role}</p>
+                <div className="flex items-center gap-4">
+                  {/* User Avatar */}
+                  {user.image_url && (
+                    <Image
+                      src={user.image_url}
+                      alt={formatUserDisplayName(user)}
+                      className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-600"
+                      width={40}
+                      height={40}
+                    />
+                  )}
+                  
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {formatUserDisplayName(user)}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      {user.email}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Role: {user.role}
+                    </p>
+                  </div>
                 </div>
+                
                 <button
                   onClick={() => handleApprove(user.id)}
-                  className="bg-green-500 text-white px-4 py-1 rounded hover:bg-green-600 transition-colors"
+                  className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors font-medium"
                 >
                   Approve
                 </button>

@@ -3,9 +3,10 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
+    // Fetch all user information including first_name, last_name, and username
     const { data, error } = await supabaseAdmin
       .from("users")
-      .select("id, email, role, author_request")
+      .select("id, email, role, author_request, first_name, last_name, username, image_url")
       .eq("author_request", true);
 
     if (error) {
