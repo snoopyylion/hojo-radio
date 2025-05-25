@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Manrope, Sora } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AppContextProvider } from "@/context/AppContext";
@@ -9,6 +9,18 @@ import { Toaster } from 'react-hot-toast'
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+});
+const manrope = Manrope({
+  subsets: ["latin"],
+  display: 'swap',
+  weight: ['200', '300', '400', '500', '600', '700', '800'],
+  variable: '--font-manrope',
+});
+const sora = Sora({
+  subsets: ['latin'],
+  display: 'swap',
+  weight: ['100', '200', '300', '400', '500', '600', '700', '800'],
+  variable: '--font-sora',
 });
 
 const geistSans = Geist({
@@ -32,11 +44,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+  signInUrl="/authentication/sign-in"
+>
       <AppContextProvider>
         <html lang="en">
           <body
-            className={`${geistSans.variable} ${geistMono.variable} ${inter.className} antialiased`}
+            className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${sora.variable} ${manrope.variable} antialiased`}
           >
             {children}
             <Toaster

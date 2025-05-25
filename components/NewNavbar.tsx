@@ -117,7 +117,7 @@ const NewNavbar = () => {
               )}
             </div>
           ) : (
-            <Link href="/sign-up">
+            <Link href="/authentication/sign-up">
               <button className="flex items-center gap-4 bg-[#EF3866] hover:bg-[#d7325a] text-white px-6 py-4 rounded-full transition-all text-xl">
                 <span className="text-lg">Sign Up</span>
                 <Image
@@ -187,7 +187,7 @@ const NewNavbar = () => {
                     </div>
                   </div>
                 ) : (
-                  <Link href="/sign-up">
+                  <Link href="/authentication/sign-up">
                     <button className="flex items-center gap-3 bg-[#EF3866] hover:bg-[#d7325a] text-white font-semibold px-5 py-2 rounded-full transition-all text-sm md:text-base">
                       <span className="text-lg">Sign Up</span>
                       <Image

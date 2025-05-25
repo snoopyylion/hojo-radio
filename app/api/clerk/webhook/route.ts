@@ -12,9 +12,18 @@ interface ClerkUserEvent {
     email_addresses?: { email_address: string }[];
     profile_image_url?: string;
     external_accounts?: {
+      provider: string;
       first_name?: string;
       last_name?: string;
+      email_address?: string;
     }[];
+    public_metadata?: {
+      username?: string;
+    };
+    unsafe_metadata?: {
+      firstName?: string;
+      lastName?: string;
+    };
   };
 }
 
@@ -28,6 +37,8 @@ export async function POST(req: Request) {
     "svix-signature": headerPayload.get("svix-signature") ?? "",
   };
 
+  console.log("🔍 Webhook headers:", svixHeaders);
+
   try {
     const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET || "");
     const evt = wh.verify(body, svixHeaders) as ClerkUserEvent;
@@ -35,8 +46,8 @@ export async function POST(req: Request) {
     const { type, data } = evt;
 
     console.log(`📣 Clerk webhook event received: ${type}`);
-    console.log(JSON.stringify(data, null, 2));
-
+    console.log("📦 Event data:", JSON.stringify(data, null, 2));
+    
     const {
       id,
       email_addresses,
@@ -44,17 +55,56 @@ export async function POST(req: Request) {
       first_name,
       last_name,
       external_accounts,
+      unsafe_metadata,
+      public_metadata,
     } = data;
 
     const email = email_addresses?.[0]?.email_address ?? null;
     const image_url = profile_image_url ?? null;
+    const username = public_metadata?.username ?? null;
 
-    //fallback and external account because thats where apple stores firstname and last name on clerk
-    const fallbackFirstName = external_accounts?.[0]?.first_name ?? "";
-    const fallbackLastName = external_accounts?.[0]?.last_name ?? "";
+    // Enhanced name resolution for OAuth providers
+    let resolvedFirstName = "";
+    let resolvedLastName = "";
 
-    const resolvedFirstName = first_name || fallbackFirstName;
-    const resolvedLastName = last_name || fallbackLastName;
+    if (first_name && last_name) {
+      // Direct from Clerk (most reliable)
+      resolvedFirstName = first_name;
+      resolvedLastName = last_name;
+      console.log(`📝 Using direct Clerk names: ${resolvedFirstName} ${resolvedLastName}`);
+    } else if (external_accounts && external_accounts.length > 0) {
+      // From OAuth provider - Enhanced extraction
+      const oauthAccount = external_accounts[0];
+      
+      // Try different possible field names for OAuth data
+      resolvedFirstName = oauthAccount.first_name || 
+                         (oauthAccount as any).firstName || 
+                         (oauthAccount as any).given_name || "";
+      resolvedLastName = oauthAccount.last_name || 
+                        (oauthAccount as any).lastName || 
+                        (oauthAccount as any).family_name || "";
+      
+      console.log(`🔍 OAuth account data:`, oauthAccount);
+      console.log(`📝 Extracted OAuth names: ${resolvedFirstName} ${resolvedLastName}`);
+    } else if (unsafe_metadata?.firstName && unsafe_metadata?.lastName) {
+      // From form submission
+      resolvedFirstName = unsafe_metadata.firstName;
+      resolvedLastName = unsafe_metadata.lastName;
+      console.log(`📝 Using unsafe metadata names: ${resolvedFirstName} ${resolvedLastName}`);
+    }
+
+    // If we still don't have names, try to extract from email
+    if (!resolvedFirstName && !resolvedLastName && email) {
+      const emailName = email.split('@')[0];
+      if (emailName.includes('.')) {
+        const parts = emailName.split('.');
+        resolvedFirstName = parts[0];
+        resolvedLastName = parts[1] || "";
+      } else {
+        resolvedFirstName = emailName;
+      }
+      console.log(`📝 Fallback email extraction: ${resolvedFirstName} ${resolvedLastName}`);
+    }
 
     if (!id) {
       console.warn("⚠️ Missing user ID, skipping...");
@@ -67,24 +117,50 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false }, { status: 400 });
       }
 
-      const { error } = await supabaseAdmin.from("users").upsert([
-        {
-          id,
-          email,
-          first_name: resolvedFirstName,
-          last_name: resolvedLastName,
-          image_url,
-          role: "user",
-        },
-      ]);
+      // For OAuth users, names might be empty initially but will be populated
+      // We'll mark profile as incomplete if username is missing (always the case for OAuth)
+      const needsProfileCompletion = !username || 
+                                   !resolvedFirstName.trim() || 
+                                   !resolvedLastName.trim();
+
+      console.log(`🎯 Profile completion needed: ${needsProfileCompletion}`);
+      console.log(`🎯 Username: ${username || 'MISSING'}`);
+      console.log(`🎯 First name: ${resolvedFirstName || 'MISSING'}`);
+      console.log(`🎯 Last name: ${resolvedLastName || 'MISSING'}`);
+
+      const userData = {
+        id,
+        email,
+        first_name: resolvedFirstName.trim() || null,
+        last_name: resolvedLastName.trim() || null,
+        image_url,
+        role: "user",
+        username: username || null,
+        profile_completed: !needsProfileCompletion,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      console.log(`💾 Upserting user data:`, userData);
+
+      const { error } = await supabaseAdmin
+        .from("users")
+        .upsert([userData], { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
 
       if (error) {
         console.error("❌ Supabase upsert error:", error);
         return NextResponse.json({ error: "Supabase upsert failed" }, { status: 500 });
       }
 
+      console.log(`✅ User ${type === "user.created" ? "created" : "updated"} successfully`);
+
       return NextResponse.json({
         message: `✅ User ${type === "user.created" ? "created" : "updated"} in Supabase`,
+        needsProfileCompletion,
+        userData: { ...userData, password: undefined }
       });
     }
 
