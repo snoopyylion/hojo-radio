@@ -397,7 +397,7 @@ export default function SignInPage() {
           {redirectUrl && redirectUrl !== '/blog' && (
             <div className="mb-4 p-3 bg-white border border-[#EF3866] rounded-lg">
               <p className="text-sm text-[#EF3866] text-center">
-                You'll be redirected to <span className="font-medium">{redirectUrl}</span> after signing in
+                You&apos;ll be redirected to <span className="font-medium">{redirectUrl}</span> after signing in
               </p>
             </div>
           )}
