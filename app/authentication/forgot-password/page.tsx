@@ -43,7 +43,6 @@ export default function ForgotPasswordPage() {
     const subtitleRef = useRef<HTMLParagraphElement>(null);
     const inputRefs = useRef<(HTMLDivElement | null)[]>([]);
     const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
-    const [code, setCode] = useState("");
 
     const [step, setStep] = useState<'request' | 'verify' | 'reset'>('request');
     const [formData, setFormData] = useState<FormData>({
