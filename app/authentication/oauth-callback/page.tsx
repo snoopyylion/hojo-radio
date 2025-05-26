@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -10,7 +10,8 @@ interface AuthStatus {
   progress: number;
 }
 
-export default function OAuthCallback() {
+// Separate the component that uses useSearchParams
+function OAuthCallbackContent() {
   const { isLoaded, isSignedIn, user } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -317,5 +318,35 @@ export default function OAuthCallback() {
         )}
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+      <div className="max-w-md w-full p-8 text-center">
+        <div className="mb-6">
+          <div className="w-16 h-16 bg-[#EF3866] rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 border-4 border-gray-200 border-t-[#EF3866] rounded-full animate-spin"></div>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Loading...</h1>
+          <p className="text-gray-600 mb-4">Preparing your authentication...</p>
+          
+          <div className="w-full bg-gray-200 rounded-full h-1">
+            <div className="h-full bg-[#EF3866] rounded-full w-1/4 animate-pulse" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main component with Suspense wrapper
+export default function OAuthCallback() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <OAuthCallbackContent />
+    </Suspense>
   );
 }
