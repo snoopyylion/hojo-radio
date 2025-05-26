@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import ProtectedRoute from "@/components/ProtectedRoute"; // make sure this exists and is correctly imported
 import Explanation from "@/components/Explanation";
 
 type VerificationData = {
@@ -19,14 +18,6 @@ type VerificationResult = {
 };
 
 export default function VerifyNewsPage() {
-  return (
-    <ProtectedRoute>
-      <InnerVerifyNewsPage />
-    </ProtectedRoute>
-  );
-}
-
-function InnerVerifyNewsPage() {
   const [headline, setHeadline] = useState("");
   const [content, setContent] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");

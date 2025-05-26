@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSignIn, useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { gsap } from "gsap";
@@ -28,6 +28,7 @@ export default function SignInPage() {
   const { isLoaded, signIn, setActive } = useSignIn();
   const { isSignedIn } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Animation refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -38,17 +39,24 @@ export default function SignInPage() {
   const subtitleRef = useRef<HTMLParagraphElement>(null);
   const inputRefs = useRef<(HTMLDivElement | null)[]>([]);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  
+  // Get redirect URL from search params
+  const redirectUrl = searchParams.get('redirect_url') || '/blog';
+
+  // State for handling post-signin processing
+  const [isProcessingSignIn, setIsProcessingSignIn] = useState(false);
 
   // Memoize the redirect function to avoid useEffect dependency issues
-  const redirectToMain = useCallback(() => {
-    router.replace("/blog");
-  }, [router]);
+  const redirectToDestination = useCallback(() => {
+    console.log('User already signed in, redirecting to:', redirectUrl);
+    router.replace(redirectUrl);
+  }, [router, redirectUrl]);
 
   useEffect(() => {
-    if (isSignedIn) {
-      redirectToMain();
+    if (isSignedIn && !isProcessingSignIn) {
+      redirectToDestination();
     }
-  }, [isSignedIn, redirectToMain]);
+  }, [isSignedIn, redirectToDestination, isProcessingSignIn]);
 
   const [formData, setFormData] = useState<FormData>({
     emailAddress: "",
@@ -193,6 +201,71 @@ export default function SignInPage() {
     });
   };
 
+  // Function to handle post-signin processing
+  const handlePostSigninProcessing = async () => {
+    setIsProcessingSignIn(true);
+    
+    try {
+      console.log('📧 Email sign-in successful, processing user data...');
+      
+      // Wait a bit for session to fully establish
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Try to sync user data to database
+      try {
+        const syncResponse = await fetch('/api/sync-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (syncResponse.ok) {
+          const syncData = await syncResponse.json();
+          console.log('✅ User sync successful:', syncData);
+        } else {
+          console.warn('⚠️ User sync failed, continuing...');
+        }
+      } catch (syncError) {
+        console.warn('⚠️ Sync request failed:', syncError);
+      }
+
+      // Check profile completion status
+      try {
+        const profileResponse = await fetch('/api/check-profile', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (profileResponse.ok) {
+          const { needsCompletion } = await profileResponse.json();
+          
+          if (needsCompletion) {
+            console.log('📝 Profile needs completion, redirecting...');
+            const completeProfileUrl = `/authentication/complete-profile${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+            router.replace(completeProfileUrl);
+            return;
+          }
+        }
+      } catch (profileError) {
+        console.warn('⚠️ Profile check failed:', profileError);
+      }
+
+      // If we get here, profile should be complete - redirect to destination
+      console.log('✅ Profile complete, redirecting to:', redirectUrl);
+      router.replace(redirectUrl);
+      
+    } catch (error) {
+      console.error('❌ Post-signin processing error:', error);
+      // Fallback - try to redirect anyway
+      router.replace(redirectUrl);
+    } finally {
+      setIsProcessingSignIn(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!isLoaded || !signIn) return;
@@ -220,7 +293,10 @@ export default function SignInPage() {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.push("/blog");
+        
+        // For email/password sign-in, we need to handle the processing ourselves
+        console.log('Email sign-in successful, processing...');
+        await handlePostSigninProcessing();
       } else {
         console.log("Sign in incomplete:", result);
         setErrors({ message: "Sign in incomplete. Please try again." });
@@ -251,12 +327,23 @@ export default function SignInPage() {
 
     try {
       setErrors(null);
-      console.log('Starting Google OAuth sign in flow');
+      console.log('Starting Google OAuth sign in flow with redirect URL:', redirectUrl);
+
+      // Create OAuth callback URL with redirect_url parameter
+      const oauthCallbackUrl = new URL('/authentication/oauth-callback', window.location.origin);
+      
+      // Only add redirect_url if it's not the default /blog
+      if (redirectUrl && redirectUrl !== '/blog') {
+        oauthCallbackUrl.searchParams.set('redirect_url', redirectUrl);
+      }
+
+      const callbackUrlString = oauthCallbackUrl.toString();
+      console.log('Google OAuth callback URL:', callbackUrlString);
 
       await signIn.authenticateWithRedirect({
         strategy: "oauth_google",
-        redirectUrl: `${window.location.origin}/authentication/oauth-callback`,
-        redirectUrlComplete: `${window.location.origin}/authentication/oauth-callback`,
+        redirectUrl: callbackUrlString,
+        redirectUrlComplete: callbackUrlString,
       });
     } catch (err) {
       console.error("Google sign-in error:", err);
@@ -269,12 +356,23 @@ export default function SignInPage() {
 
     try {
       setErrors(null);
-      console.log('Starting Apple OAuth sign in flow');
+      console.log('Starting Apple OAuth sign in flow with redirect URL:', redirectUrl);
+
+      // Create OAuth callback URL with redirect_url parameter
+      const oauthCallbackUrl = new URL('/authentication/oauth-callback', window.location.origin);
+      
+      // Only add redirect_url if it's not the default /blog
+      if (redirectUrl && redirectUrl !== '/blog') {
+        oauthCallbackUrl.searchParams.set('redirect_url', redirectUrl);
+      }
+
+      const callbackUrlString = oauthCallbackUrl.toString();
+      console.log('Apple OAuth callback URL:', callbackUrlString);
 
       await signIn.authenticateWithRedirect({
         strategy: "oauth_apple",
-        redirectUrl: `${window.location.origin}/authentication/oauth-callback`,
-        redirectUrlComplete: `${window.location.origin}/authentication/oauth-callback`,
+        redirectUrl: callbackUrlString,
+        redirectUrlComplete: callbackUrlString,
       });
     } catch (err) {
       console.error("Apple sign-in error:", err);
@@ -295,6 +393,27 @@ export default function SignInPage() {
             <p ref={subtitleRef} className="text-sm font-normal text-[#848484] font-sora" style={{ transform: 'translateY(30px)', opacity: 0 }}>Sign in to your HOJO account</p>
           </div>
 
+          {/* Show redirect destination if not default */}
+          {redirectUrl && redirectUrl !== '/blog' && (
+            <div className="mb-4 p-3 bg-white border border-[#EF3866] rounded-lg">
+              <p className="text-sm text-[#EF3866] text-center">
+                You'll be redirected to <span className="font-medium">{redirectUrl}</span> after signing in
+              </p>
+            </div>
+          )}
+
+          {/* Processing indicator */}
+          {isProcessingSignIn && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-600 text-center flex items-center justify-center gap-2">
+                <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v4m0 8v4m8-8h-4M4 12h4" />
+                </svg>
+                Processing your sign in...
+              </p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div ref={el => { inputRefs.current[0] = el; }} className="flex flex-col gap-2" style={{ transform: 'translateX(-30px)', opacity: 0 }}>
               <label htmlFor="emailAddress" className="text-sm sm:text-base font-medium leading-tight text-gray-700 font-sora">
@@ -311,6 +430,7 @@ export default function SignInPage() {
                 className="text-gray-700 p-3 border border-gray-200 w-full h-10 sm:h-11 rounded-lg text-sm sm:text-base font-normal transition-colors focus:outline-none focus:border-[#EF3866] bg-white"
                 placeholder="Email"
                 required
+                disabled={isProcessingSignIn}
               />
             </div>
 
@@ -329,9 +449,13 @@ export default function SignInPage() {
                 className="text-gray-700 p-3 border border-gray-200 w-full h-10 sm:h-11 rounded-lg text-sm sm:text-base font-normal transition-colors focus:outline-none focus:border-[#EF3866] bg-white"
                 placeholder="Enter your password"
                 required
+                disabled={isProcessingSignIn}
               />
               <div className="text-right">
-                <Link href="/authentication/forgot-password" className="text-sm text-[#EF3866] hover:underline font-sora">
+                <Link 
+                  href={`/authentication/forgot-password${redirectUrl && redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`}
+                  className="text-sm text-[#EF3866] hover:underline font-sora"
+                >
                   Forgot password?
                 </Link>
               </div>
@@ -359,8 +483,9 @@ export default function SignInPage() {
                   onClick={signInWithApple}
                   onMouseEnter={handleButtonHover}
                   onMouseLeave={handleButtonLeave}
-                  className="w-full sm:w-1/2 flex items-center justify-center gap-2 py-3 px-3 bg-white text-black border-2 border-gray-200 rounded-lg text-xs sm:text-sm font-medium cursor-pointer transition-all hover:border-[#EF3866] h-11 sm:h-12"
+                  className="w-full sm:w-1/2 flex items-center justify-center gap-2 py-3 px-3 bg-white text-black border-2 border-gray-200 rounded-lg text-xs sm:text-sm font-medium cursor-pointer transition-all hover:border-[#EF3866] h-11 sm:h-12 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ transform: 'translateY(20px)', opacity: 0 }}
+                  disabled={isProcessingSignIn}
                 >
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" viewBox="0 0 24 24">
                     <path fill="black" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
@@ -375,8 +500,9 @@ export default function SignInPage() {
                   onClick={signInWithGoogle}
                   onMouseEnter={handleButtonHover}
                   onMouseLeave={handleButtonLeave}
-                  className="w-full sm:w-1/2 flex items-center justify-center gap-2 py-3 px-3 border-2 border-gray-200 rounded-lg bg-white text-xs sm:text-sm font-medium cursor-pointer transition-all hover:border-[#EF3866] hover:bg-gray-50 text-gray-700 h-11 sm:h-12"
+                  className="w-full sm:w-1/2 flex items-center justify-center gap-2 py-3 px-3 border-2 border-gray-200 rounded-lg bg-white text-xs sm:text-sm font-medium cursor-pointer transition-all hover:border-[#EF3866] hover:bg-gray-50 text-gray-700 h-11 sm:h-12 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ transform: 'translateY(20px)', opacity: 0 }}
+                  disabled={isProcessingSignIn}
                 >
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -396,17 +522,22 @@ export default function SignInPage() {
                 onMouseEnter={handleButtonHover}
                 onMouseLeave={handleButtonLeave}
                 className="w-full py-3 sm:py-3.5 px-4 bg-[#EF3866] text-white border-none rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-colors hover:bg-[#D53059] disabled:opacity-60 disabled:cursor-not-allowed h-11 sm:h-12"
-                disabled={isLoading}
+                disabled={isLoading || isProcessingSignIn}
                 style={{ transform: 'translateY(20px)', opacity: 0 }}
               >
-                {isLoading ? "Signing In..." : "Sign In"}
+                {isLoading ? "Signing In..." : isProcessingSignIn ? "Processing..." : "Sign In"}
               </button>
 
               {/* Don't have an account */}
               <div className="text-center text-xs sm:text-sm mt-2">
                 <p className="text-gray-600">
                   Don&apos;t have an account?{" "}
-                  <Link href="/authentication/sign-up" className="text-[#EF3866] hover:underline">Sign up</Link>
+                  <Link 
+                    href={`/authentication/sign-up${redirectUrl && redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`}
+                    className="text-[#EF3866] hover:underline"
+                  >
+                    Sign up
+                  </Link>
                 </p>
               </div>
             </div>

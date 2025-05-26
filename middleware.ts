@@ -42,7 +42,10 @@ export default clerkMiddleware(async (auth, req) => {
   // If user is not signed in and trying to access protected routes
   if (!userId && isProtectedRoute(req)) {
     console.log('🚫 Unauthorized access to protected route, redirecting to sign-in');
-    return NextResponse.redirect(new URL('/authentication/sign-in', req.url));
+    const signInUrl = new URL('/authentication/sign-in', req.url);
+    const fullPath = req.nextUrl.pathname + req.nextUrl.search;
+    signInUrl.searchParams.set('redirect_url', fullPath);
+    return NextResponse.redirect(signInUrl);
   }
 
   // If user is signed in and trying to access auth routes (sign-in/sign-up)
@@ -50,93 +53,124 @@ export default clerkMiddleware(async (auth, req) => {
     console.log('👤 Signed-in user accessing auth route, checking profile...');
     
     try {
-      const { data: user, error } = await supabaseAdmin
+      // Check if user profile exists and is complete in database
+      const { data: userProfile, error } = await supabaseAdmin
         .from('users')
-        .select('profile_completed, first_name, last_name, username')
-        .eq('id', userId)
+        .select('name, bio, interests, onboarding_completed')
+        .eq('clerk_user_id', userId)
         .single();
-            
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // User not found in database - redirect to complete profile
-          console.log('📝 User not in database, redirecting to complete-profile');
-          return NextResponse.redirect(new URL('/authentication/complete-profile', req.url));
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+        console.error('❌ Database error checking user profile:', error);
+        // Allow through on database errors to prevent blocking users
+        const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/blog';
+        console.log('🔄 Database error, redirecting to:', redirectUrl);
+        return NextResponse.redirect(new URL(redirectUrl, req.url));
+      }
+
+      // If user doesn't exist in database or profile is incomplete
+      if (!userProfile || !userProfile.onboarding_completed || !userProfile.name) {
+        console.log('📝 User profile needs completion, redirecting to complete-profile');
+        const completeProfileUrl = new URL('/authentication/complete-profile', req.url);
+        const redirectUrl = req.nextUrl.searchParams.get('redirect_url');
+        if (redirectUrl && redirectUrl !== '/blog') {
+          completeProfileUrl.searchParams.set('redirect_url', redirectUrl);
         }
-        console.warn('⚠️ Database error, redirecting to blog as fallback:', error);
-        return NextResponse.redirect(new URL('/blog', req.url));
+        return NextResponse.redirect(completeProfileUrl);
       }
-            
-      // Check if profile is incomplete
-      const missingFields = [];
-      if (!user.first_name?.trim()) missingFields.push('first_name');
-      if (!user.last_name?.trim()) missingFields.push('last_name');
-      if (!user.username?.trim()) missingFields.push('username');
+
+      // Profile is complete, redirect to intended destination
+      const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/blog';
+      console.log('✅ Profile complete, redirecting to:', redirectUrl);
+      return NextResponse.redirect(new URL(redirectUrl, req.url));
       
-      const needsCompletion = !user.profile_completed || missingFields.length > 0;
-      
-      if (needsCompletion) {
-        console.log('📝 Profile incomplete, redirecting to complete-profile. Missing:', missingFields);
-        return NextResponse.redirect(new URL('/authentication/complete-profile', req.url));
-      }
-            
-      // Profile is complete, redirect to blog
-      console.log('✅ Profile complete, redirecting to blog');
-      return NextResponse.redirect(new URL('/blog', req.url));
     } catch (error) {
-      console.error('❌ Middleware profile check error:', error);
-      // On error, redirect to blog as safe fallback
-      return NextResponse.redirect(new URL('/blog', req.url));
+      console.error('❌ Error in middleware profile check:', error);
+      // On error, allow through to prevent blocking users
+      const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/blog';
+      return NextResponse.redirect(new URL(redirectUrl, req.url));
     }
   }
 
-  // Check profile completion for signed-in users accessing protected routes
-  // (excluding the complete-profile page itself to avoid redirect loops)
-  if (userId && isProtectedRoute(req) && !isProfileCompletionRoute(req)) {
-    console.log('🔍 Checking profile completion for protected route access');
+  // If user is signed in and accessing profile completion route
+  if (userId && isProfileCompletionRoute(req)) {
+    console.log('📝 User accessing profile completion route');
     
     try {
-      const { data: user, error } = await supabaseAdmin
+      // Check if profile is already complete
+      const { data: userProfile, error } = await supabaseAdmin
         .from('users')
-        .select('profile_completed, first_name, last_name, username')
-        .eq('id', userId)
+        .select('name, bio, interests, onboarding_completed')
+        .eq('clerk_user_id', userId)
         .single();
-            
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // User not found in database
-          console.log('📝 User not found in database, redirecting to complete-profile');
-          return NextResponse.redirect(new URL('/authentication/complete-profile', req.url));
-        }
-        console.warn('⚠️ Database error during protected route check:', error);
-        return NextResponse.next(); // Allow through on database errors
+
+      if (!error && userProfile?.onboarding_completed && userProfile.name) {
+        console.log('✅ Profile already complete, redirecting away from completion route');
+        const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/blog';
+        return NextResponse.redirect(new URL(redirectUrl, req.url));
       }
-            
-      // Check if profile is incomplete
-      const missingFields = [];
-      if (!user.first_name?.trim()) missingFields.push('first_name');
-      if (!user.last_name?.trim()) missingFields.push('last_name');
-      if (!user.username?.trim()) missingFields.push('username');
+
+      // Profile needs completion, allow access to completion route
+      console.log('📝 Profile needs completion, allowing access to completion route');
+      return NextResponse.next();
       
-      const needsCompletion = !user.profile_completed || missingFields.length > 0;
-      
-      if (needsCompletion) {
-        console.log('📝 Profile incomplete for protected route, redirecting. Missing:', missingFields);
-        return NextResponse.redirect(new URL('/authentication/complete-profile', req.url));
-      }
-      
-      console.log('✅ Profile complete, allowing access to protected route');
     } catch (error) {
-      console.error('❌ Middleware profile check error for protected route:', error);
-      return NextResponse.next(); // Allow through on errors
+      console.error('❌ Error checking profile completion status:', error);
+      // On error, allow access to completion route
+      return NextResponse.next();
     }
   }
 
+  // If user is signed in and accessing other protected routes
+  if (userId && isProtectedRoute(req) && !isProfileCompletionRoute(req)) {
+    console.log('🔒 Signed-in user accessing protected route, checking profile completion...');
+    
+    try {
+      // Check if user profile exists and is complete
+      const { data: userProfile, error } = await supabaseAdmin
+        .from('users')
+        .select('name, bio, interests, onboarding_completed')
+        .eq('clerk_user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('❌ Database error checking user profile:', error);
+        // Allow through on database errors to prevent blocking users
+        return NextResponse.next();
+      }
+
+      // If user doesn't exist or profile is incomplete, redirect to complete profile
+      if (!userProfile || !userProfile.onboarding_completed || !userProfile.name) {
+        console.log('📝 Incomplete profile detected, redirecting to complete-profile');
+        const completeProfileUrl = new URL('/authentication/complete-profile', req.url);
+        const currentPath = req.nextUrl.pathname + req.nextUrl.search;
+        if (currentPath !== '/blog') {
+          completeProfileUrl.searchParams.set('redirect_url', currentPath);
+        }
+        return NextResponse.redirect(completeProfileUrl);
+      }
+
+      // Profile is complete, allow access
+      console.log('✅ Profile complete, allowing access to protected route');
+      return NextResponse.next();
+      
+    } catch (error) {
+      console.error('❌ Error in middleware protected route check:', error);
+      // On error, allow through to prevent blocking users
+      return NextResponse.next();
+    }
+  }
+
+  // Default: allow the request to proceed
+  console.log('✅ Request allowed through middleware');
   return NextResponse.next();
 });
 
 export const config = {
   matcher: [
+    // Skip Next.js internals and all static files, unless found in search params
     '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Always run for API routes
     '/(api|trpc)(.*)',
   ],
 };
