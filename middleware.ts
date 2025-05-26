@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const isProtectedRoute = createRouteMatcher([
   '/blog(.*)',
+  '/verify-news(.*)',
   '/dashboard(.*)',
   '/profile(.*)',
   '/authentication/complete-profile',

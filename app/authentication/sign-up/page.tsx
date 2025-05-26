@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSignUp, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { gsap } from "gsap";
 
 interface FormData {
   firstName: string;
@@ -40,6 +41,17 @@ export default function SignUpPage() {
   const { isSignedIn } = useUser();
   const router = useRouter();
 
+  // Animation refs
+  const containerRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
+  const imageSliderRef = useRef<HTMLDivElement>(null);
+  const logoRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const subtitleRef = useRef<HTMLParagraphElement>(null);
+  const inputRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const modalRef = useRef<HTMLDivElement>(null);
+
   // Memoize router to avoid dependency warnings
   const memoizedRouter = useCallback(() => router, [router]);
 
@@ -69,6 +81,104 @@ export default function SignUpPage() {
     "/img/login3.png",
   ];
 
+  // Initial page load animations
+  useEffect(() => {
+    const tl = gsap.timeline();
+    
+    // Set initial states
+    gsap.set([formRef.current, imageSliderRef.current], { opacity: 0 });
+    gsap.set(logoRef.current, { scale: 0, rotation: -180 });
+    gsap.set([titleRef.current, subtitleRef.current], { y: 30, opacity: 0 });
+    gsap.set(inputRefs.current.filter(Boolean), { x: -30, opacity: 0 });
+    gsap.set(buttonRefs.current.filter(Boolean), { y: 20, opacity: 0 });
+
+    // Animate page entry
+    tl.to([formRef.current, imageSliderRef.current], {
+      opacity: 1,
+      duration: 0.8,
+      ease: "power2.out"
+    })
+    .to(logoRef.current, {
+      scale: 1,
+      rotation: 0,
+      duration: 0.6,
+      ease: "back.out(1.7)"
+    }, "-=0.4")
+    .to([titleRef.current, subtitleRef.current], {
+      y: 0,
+      opacity: 1,
+      duration: 0.5,
+      stagger: 0.1,
+      ease: "power2.out"
+    }, "-=0.2")
+    .to(inputRefs.current.filter(Boolean), {
+      x: 0,
+      opacity: 1,
+      duration: 0.4,
+      stagger: 0.1,
+      ease: "power2.out"
+    }, "-=0.2")
+    .to(buttonRefs.current.filter(Boolean), {
+      y: 0,
+      opacity: 1,
+      duration: 0.4,
+      stagger: 0.05,
+      ease: "power2.out"
+    }, "-=0.2");
+
+  }, []);
+
+  // Modal animation
+  useEffect(() => {
+    if (pendingVerification && modalRef.current) {
+      gsap.fromTo(modalRef.current, 
+        { 
+          scale: 0.8, 
+          opacity: 0,
+          y: 50
+        },
+        { 
+          scale: 1, 
+          opacity: 1,
+          y: 0,
+          duration: 0.4,
+          ease: "power2.out"
+        }
+      );
+    }
+  }, [pendingVerification]);
+
+  // Error animation
+  useEffect(() => {
+    if (errors?.message) {
+      const errorEl = document.querySelector('[data-error]');
+      if (errorEl) {
+        gsap.fromTo(errorEl,
+          { x: -10, opacity: 0 },
+          { 
+            x: 0, 
+            opacity: 1, 
+            duration: 0.3,
+            ease: "power2.out"
+          }
+        );
+        
+        // Shake animation for emphasis
+        gsap.fromTo(errorEl, 
+          { x: 0 },
+          { 
+            x: 5,
+            duration: 0.1,
+            delay: 0.1,
+            repeat: 5,
+            yoyo: true,
+            ease: "power2.inOut"
+          }
+        );
+      }
+    }
+  }, [errors]);
+
   // Auto-slide functionality
   useEffect(() => {
     const interval = setInterval(() => {
@@ -78,15 +188,60 @@ export default function SignUpPage() {
   }, [images.length]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    gsap.to(e.target, {
+      scale: 1.02,
+      duration: 0.2,
+      ease: "power2.out"
+    });
+  };
+
+  const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    gsap.to(e.target, {
+      scale: 1,
+      duration: 0.2,
+      ease: "power2.out"
+    });
+  };
+
+  const handleButtonHover = (e: React.MouseEvent<HTMLButtonElement>) => {
+    gsap.to(e.currentTarget, {
+      scale: 1.05,
+      duration: 0.2,
+      ease: "power2.out"
+    });
+  };
+
+  const handleButtonLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    gsap.to(e.currentTarget, {
+      scale: 1,
+      duration: 0.2,
+      ease: "power2.out"
     });
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!isLoaded || !signUp) return;
+
+    // Button loading animation
+    const submitBtn = e.currentTarget.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      gsap.to(submitBtn, {
+        scale: 0.95,
+        duration: 0.1,
+        yoyo: true,
+        repeat: 1,
+        ease: "power2.inOut"
+      });
+    }
 
     setIsLoading(true);
     setErrors(null);
@@ -95,7 +250,6 @@ export default function SignUpPage() {
       const signUpData: SignUpData = {
         emailAddress: formData.emailAddress,
         password: formData.password,
-        // Store first/last name and username in unsafe_metadata so webhook can access it
         unsafeMetadata: {
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
@@ -148,9 +302,6 @@ export default function SignUpPage() {
 
       if (completeSignUp.status === "complete") {
         await setActive({ session: completeSignUp.createdSessionId });
-
-        // Check if user needs to complete profile
-        // This will be handled by the middleware/dashboard redirect logic
         router.push("/blog");
       }
     } catch (err) {
@@ -175,59 +326,74 @@ export default function SignUpPage() {
   };
 
   const signUpWithGoogle = async () => {
-  if (!signUp) return;
+    if (!signUp) return;
 
-  try {
-    setErrors(null);
-    console.log('Starting Google OAuth sign up flow');
-    
-    // Use signUp instead of signIn for OAuth
-    await signUp.authenticateWithRedirect({
-      strategy: 'oauth_google',
-      redirectUrl: '/authentication/oauth-callback',
-      redirectUrlComplete: '/authentication/oauth-callback',
-    });
-  } catch (err) {
-    console.error("Google sign-up error:", err);
-    setErrors({ message: "Google sign-up failed. Please try again." });
-  }
-};
+    try {
+      setErrors(null);
+      console.log('Starting Google OAuth sign up flow');
+      
+      await signUp.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl: '/authentication/oauth-callback',
+        redirectUrlComplete: '/authentication/oauth-callback',
+      });
+    } catch (err) {
+      console.error("Google sign-up error:", err);
+      setErrors({ message: "Google sign-up failed. Please try again." });
+    }
+  };
 
-const signUpWithApple = async () => {
-  if (!signUp) return;
+  const signUpWithApple = async () => {
+    if (!signUp) return;
 
-  try {
-    setErrors(null);
-    console.log('Starting Apple OAuth sign up flow');
-    
-    // Use signUp instead of signIn for OAuth
-    await signUp.authenticateWithRedirect({
-      strategy: 'oauth_apple',
-      redirectUrl: '/authentication/oauth-callback',
-      redirectUrlComplete: '/authentication/oauth-callback',
-    });
-  } catch (err) {
-    console.error("Apple sign-up error:", err);
-    setErrors({ message: "Apple sign-up failed. Please try again." });
-  }
-};
+    try {
+      setErrors(null);
+      console.log('Starting Apple OAuth sign up flow');
+      
+      await signUp.authenticateWithRedirect({
+        strategy: 'oauth_apple',
+        redirectUrl: '/authentication/oauth-callback',
+        redirectUrlComplete: '/authentication/oauth-callback',
+      });
+    } catch (err) {
+      console.error("Apple sign-up error:", err);
+      setErrors({ message: "Apple sign-up failed. Please try again." });
+    }
+  };
 
   const closeVerificationModal = () => {
-    setPendingVerification(false);
-    setCode("");
-    setErrors(null);
+    if (modalRef.current) {
+      gsap.to(modalRef.current, {
+        scale: 0.8,
+        opacity: 0,
+        y: 50,
+        duration: 0.3,
+        ease: "power2.in",
+        onComplete: () => {
+          setPendingVerification(false);
+          setCode("");
+          setErrors(null);
+        }
+      });
+    } else {
+      setPendingVerification(false);
+      setCode("");
+      setErrors(null);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col lg:flex-row">
+    <div ref={containerRef} className="min-h-screen bg-white flex flex-col lg:flex-row">
       {/* Verification Modal Overlay */}
       {pendingVerification && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-[500px] rounded-2xl border border-white/10 bg-gray-200 shadow-2xl p-6 sm:p-8 text-gray-600 relative">
+          <div ref={modalRef} className="w-full max-w-[500px] rounded-2xl border border-white/10 bg-gray-200 shadow-2xl p-6 sm:p-8 text-gray-600 relative">
             <button
               onClick={closeVerificationModal}
               className="absolute top-4 right-4 text-gray-600 hover:text-white text-2xl font-sora font-bold transition"
               aria-label="Close verification modal"
+              onMouseEnter={handleButtonHover}
+              onMouseLeave={handleButtonLeave}
             >
               ×
             </button>
@@ -254,23 +420,24 @@ const signUpWithApple = async () => {
                         maxLength={1}
                         className="w-12 h-12 sm:w-14 sm:h-14 text-center border border-[#EF3866] rounded-lg text-gray-800 text-xl font-semibold focus:outline-none focus:ring-2 focus:ring-[#EF3866] transition-all"
                         value={code[i] || ''}
+                        onFocus={handleInputFocus}
+                        onBlur={handleInputBlur}
                         onChange={(e) => {
                           const newCode = code.split('');
                           newCode[i] = e.target.value;
-                          setCode(newCode.join(''));
-                          if (e.target.nextElementSibling) {
+                          const updatedCode = newCode.join('');
+                          setCode(updatedCode);
+                          if (e.target.value && e.target.nextElementSibling) {
                             (e.target.nextElementSibling as HTMLInputElement).focus();
                           }
                         }}
                       />
                     ))}
                 </div>
-
-
               </div>
 
               {errors?.message && (
-                <div className="bg-red-100/30 border border-red-300 text-red-700 text-sm p-2 rounded-md text-center">
+                <div data-error className="bg-red-100/30 border border-red-300 text-red-700 text-sm p-2 rounded-md text-center">
                   {errors.message}
                 </div>
               )}
@@ -279,6 +446,8 @@ const signUpWithApple = async () => {
                 type="submit"
                 className="w-full py-3 bg-[#EF3866] hover:bg-[#D53059] text-white font-semibold rounded-lg text-base transition disabled:opacity-60 disabled:cursor-not-allowed"
                 disabled={isLoading}
+                onMouseEnter={handleButtonHover}
+                onMouseLeave={handleButtonLeave}
               >
                 {isLoading ? "Verifying..." : "Verify Email"}
               </button>
@@ -287,18 +456,19 @@ const signUpWithApple = async () => {
         </div>
       )}
 
-
       {/* Left side - Sign Up Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div className="w-full max-w-md bg-white rounded-2xl  p-6 sm:p-8 my-4 sm:my-8">
+        <div ref={formRef} className="w-full max-w-md bg-white rounded-2xl p-6 sm:p-8 my-4 sm:my-8">
           <div className="text-center mb-6">
-            <Image src={"/img/logo.png"} alt="logo" width={100} height={100} className="mx-auto" />
-            <h1 className="text-xl sm:text-2xl font-bold leading-tight text-gray-600 mb-2 font-sora">Create an account</h1>
-            <p className="text-sm font-normal text-[#848484] font-sora">Join the HOJO community!</p>
+            <div ref={logoRef}>
+              <Image src={"/img/logo.png"} alt="logo" width={100} height={100} className="mx-auto" />
+            </div>
+            <h1 ref={titleRef} className="text-xl sm:text-2xl font-bold leading-tight text-gray-600 mb-2 font-sora">Create an account</h1>
+            <p ref={subtitleRef} className="text-sm font-normal text-[#848484] font-sora">Join the HOJO community!</p>
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
+            <div ref={el => { inputRefs.current[0] = el; }} className="flex flex-col gap-2">
               <label htmlFor="emailAddress" className="text-sm sm:text-base font-medium leading-tight text-gray-700 font-sora">
                 Email Address
               </label>
@@ -308,13 +478,15 @@ const signUpWithApple = async () => {
                 type="email"
                 value={formData.emailAddress}
                 onChange={handleInputChange}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
                 className="text-gray-700 p-3 border border-gray-200 w-full h-10 sm:h-11 rounded-lg text-sm sm:text-base font-normal transition-colors focus:outline-none focus:border-[#EF3866] bg-white"
                 placeholder="Email"
                 required
               />
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div ref={el => { inputRefs.current[1] = el; }} className="flex flex-col gap-2">
               <label htmlFor="password" className="text-sm sm:text-base font-medium leading-tight text-gray-700 font-sora">
                 Password
               </label>
@@ -324,6 +496,8 @@ const signUpWithApple = async () => {
                 type="password"
                 value={formData.password}
                 onChange={handleInputChange}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
                 className="text-gray-700 p-3 border border-gray-200 w-full h-10 sm:h-11 rounded-lg text-sm sm:text-base font-normal transition-colors focus:outline-none focus:border-[#EF3866] bg-white"
                 placeholder="Create a strong password"
                 required
@@ -337,7 +511,7 @@ const signUpWithApple = async () => {
             </div>
 
             {errors?.message && (
-              <div className="text-red-600 text-sm text-center py-2 px-4 bg-red-50 rounded border border-red-200">
+              <div data-error className="text-red-600 text-sm text-center py-2 px-4 bg-red-50 rounded border border-red-200">
                 {errors.message}
               </div>
             )}
@@ -349,12 +523,15 @@ const signUpWithApple = async () => {
               <span className="bg-white font-medium font-sora leading-tight px-4 text-gray-700 text-sm sm:text-base">Or</span>
             </div>
 
-            <div className="flex flex-col gap-3 w-full">
-              {/* OAuth Buttons */}
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <div className="flex flex-col gap-3 w-full">
+                {/* OAuth Buttons */}
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <button
+                  ref={el => { buttonRefs.current[0] = el; }}
                   type="button"
                   onClick={signUpWithApple}
+                  onMouseEnter={handleButtonHover}
+                  onMouseLeave={handleButtonLeave}
                   className="w-full sm:w-1/2 flex items-center justify-center gap-2 py-3 px-3 bg-white text-black border-2 border-gray-200 rounded-lg text-xs sm:text-sm font-medium cursor-pointer transition-all hover:border-[#EF3866] h-11 sm:h-12"
                 >
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" viewBox="0 0 24 24">
@@ -365,8 +542,11 @@ const signUpWithApple = async () => {
                 </button>
 
                 <button
+                  ref={el => { buttonRefs.current[1] = el; }}
                   type="button"
                   onClick={signUpWithGoogle}
+                  onMouseEnter={handleButtonHover}
+                  onMouseLeave={handleButtonLeave}
                   className="w-full sm:w-1/2 flex items-center justify-center gap-2 py-3 px-3 border-2 border-gray-200 rounded-lg bg-white text-xs sm:text-sm font-medium cursor-pointer transition-all hover:border-[#EF3866] hover:bg-gray-50 text-gray-700 h-11 sm:h-12"
                 >
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" viewBox="0 0 24 24">
@@ -382,7 +562,10 @@ const signUpWithApple = async () => {
 
               {/* Create Account Button */}
               <button
+                ref={el => { buttonRefs.current[2] = el; }}
                 type="submit"
+                onMouseEnter={handleButtonHover}
+                onMouseLeave={handleButtonLeave}
                 className="w-full py-3 sm:py-3.5 px-4 bg-[#EF3866] text-white border-none rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-colors hover:bg-[#D53059] disabled:opacity-60 disabled:cursor-not-allowed h-11 sm:h-12"
                 disabled={isLoading}
               >
@@ -403,7 +586,7 @@ const signUpWithApple = async () => {
 
       {/* Right side - Image Slider */}
       <div className="hidden lg:block w-1/2 p-4 sm:p-6 lg:p-8">
-        <div className="w-full h-full relative rounded-2xl overflow-hidden shadow-lg">
+        <div ref={imageSliderRef} className="w-full h-full relative rounded-2xl overflow-hidden shadow-lg">
           {images.map((img, index) => (
             <div
               key={index}
@@ -427,6 +610,8 @@ const signUpWithApple = async () => {
                 className={`w-3 h-3 rounded-full border-none cursor-pointer transition-colors duration-300 ${index === currentSlide ? 'bg-white' : 'bg-white/50'
                   }`}
                 onClick={() => setCurrentSlide(index)}
+                onMouseEnter={(e) => gsap.to(e.currentTarget, { scale: 1.2, duration: 0.2 })}
+                onMouseLeave={(e) => gsap.to(e.currentTarget, { scale: 1, duration: 0.2 })}
               />
             ))}
           </div>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSignIn, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { gsap } from "gsap";
 
 interface FormData {
   emailAddress: string;
@@ -27,6 +28,16 @@ export default function SignInPage() {
   const { isLoaded, signIn, setActive } = useSignIn();
   const { isSignedIn } = useUser();
   const router = useRouter();
+
+  // Animation refs
+  const containerRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
+  const imageSliderRef = useRef<HTMLDivElement>(null);
+  const logoRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const subtitleRef = useRef<HTMLParagraphElement>(null);
+  const inputRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Memoize the redirect function to avoid useEffect dependency issues
   const redirectToMain = useCallback(() => {
@@ -54,6 +65,87 @@ export default function SignInPage() {
     "/img/login3.png",
   ];
 
+  // Initial page load animations - Set initial states immediately
+  useEffect(() => {
+    // Set initial states immediately (synchronously)
+    if (formRef.current && imageSliderRef.current && logoRef.current && 
+        titleRef.current && subtitleRef.current) {
+      
+      gsap.set([formRef.current, imageSliderRef.current], { opacity: 0 });
+      gsap.set(logoRef.current, { scale: 0, rotation: -180 });
+      gsap.set([titleRef.current, subtitleRef.current], { y: 30, opacity: 0 });
+      gsap.set(inputRefs.current.filter(Boolean), { x: -30, opacity: 0 });
+      gsap.set(buttonRefs.current.filter(Boolean), { y: 20, opacity: 0 });
+
+      // Small delay to ensure DOM is ready, then animate
+      const tl = gsap.timeline({ delay: 0.1 });
+      
+      tl.to([formRef.current, imageSliderRef.current], {
+        opacity: 1,
+        duration: 0.8,
+        ease: "power2.out"
+      })
+      .to(logoRef.current, {
+        scale: 1,
+        rotation: 0,
+        duration: 0.6,
+        ease: "back.out(1.7)"
+      }, "-=0.4")
+      .to([titleRef.current, subtitleRef.current], {
+        y: 0,
+        opacity: 1,
+        duration: 0.5,
+        stagger: 0.1,
+        ease: "power2.out"
+      }, "-=0.2")
+      .to(inputRefs.current.filter(Boolean), {
+        x: 0,
+        opacity: 1,
+        duration: 0.4,
+        stagger: 0.1,
+        ease: "power2.out"
+      }, "-=0.2")
+      .to(buttonRefs.current.filter(Boolean), {
+        y: 0,
+        opacity: 1,
+        duration: 0.4,
+        stagger: 0.05,
+        ease: "power2.out"
+      }, "-=0.2");
+    }
+  }, []); // Empty dependency array to run only once
+
+  // Error animation
+  useEffect(() => {
+    if (errors?.message) {
+      const errorEl = document.querySelector('[data-error]');
+      if (errorEl) {
+        gsap.fromTo(errorEl,
+          { x: -10, opacity: 0 },
+          { 
+            x: 0, 
+            opacity: 1, 
+            duration: 0.3,
+            ease: "power2.out"
+          }
+        );
+        
+        // Shake animation for emphasis
+        gsap.fromTo(errorEl, 
+          { x: 0 },
+          { 
+            x: 5,
+            duration: 0.1,
+            delay: 0.1,
+            repeat: 5,
+            yoyo: true,
+            ease: "power2.inOut"
+          }
+        );
+      }
+    }
+  }, [errors]);
+
   // Auto-slide functionality
   useEffect(() => {
     const interval = setInterval(() => {
@@ -69,9 +161,53 @@ export default function SignInPage() {
     });
   };
 
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    gsap.to(e.target, {
+      scale: 1.02,
+      duration: 0.2,
+      ease: "power2.out"
+    });
+  };
+
+  const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    gsap.to(e.target, {
+      scale: 1,
+      duration: 0.2,
+      ease: "power2.out"
+    });
+  };
+
+  const handleButtonHover = (e: React.MouseEvent<HTMLButtonElement>) => {
+    gsap.to(e.currentTarget, {
+      scale: 1.05,
+      duration: 0.2,
+      ease: "power2.out"
+    });
+  };
+
+  const handleButtonLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    gsap.to(e.currentTarget, {
+      scale: 1,
+      duration: 0.2,
+      ease: "power2.out"
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!isLoaded || !signIn) return;
+
+    // Button loading animation
+    const submitBtn = e.currentTarget.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      gsap.to(submitBtn, {
+        scale: 0.95,
+        duration: 0.1,
+        yoyo: true,
+        repeat: 1,
+        ease: "power2.inOut"
+      });
+    }
 
     setIsLoading(true);
     setErrors(null);
@@ -147,18 +283,20 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col lg:flex-row">
+    <div ref={containerRef} className="min-h-screen bg-white flex flex-col lg:flex-row">
       {/* Left side - Sign In Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div className="w-full max-w-md bg-white rounded-2xl p-6 sm:p-8 my-4 sm:my-8">
+        <div ref={formRef} className="w-full max-w-md bg-white rounded-2xl p-6 sm:p-8 my-4 sm:my-8" style={{ opacity: 0 }}>
           <div className="text-center mb-6">
-            <Image src={"/img/logo.png"} alt="logo" width={100} height={100} className="mx-auto" />
-            <h1 className="text-xl sm:text-2xl font-bold leading-tight text-gray-600 mb-2 font-sora">Welcome back</h1>
-            <p className="text-sm font-normal text-[#848484] font-sora">Sign in to your HOJO account</p>
+            <div ref={logoRef} style={{ transform: 'scale(0) rotate(-180deg)' }}>
+              <Image src={"/img/logo.png"} alt="logo" width={100} height={100} className="mx-auto" />
+            </div>
+            <h1 ref={titleRef} className="text-xl sm:text-2xl font-bold leading-tight text-gray-600 mb-2 font-sora" style={{ transform: 'translateY(30px)', opacity: 0 }}>Welcome back</h1>
+            <p ref={subtitleRef} className="text-sm font-normal text-[#848484] font-sora" style={{ transform: 'translateY(30px)', opacity: 0 }}>Sign in to your HOJO account</p>
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
+            <div ref={el => { inputRefs.current[0] = el; }} className="flex flex-col gap-2" style={{ transform: 'translateX(-30px)', opacity: 0 }}>
               <label htmlFor="emailAddress" className="text-sm sm:text-base font-medium leading-tight text-gray-700 font-sora">
                 Email Address
               </label>
@@ -168,13 +306,15 @@ export default function SignInPage() {
                 type="email"
                 value={formData.emailAddress}
                 onChange={handleInputChange}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
                 className="text-gray-700 p-3 border border-gray-200 w-full h-10 sm:h-11 rounded-lg text-sm sm:text-base font-normal transition-colors focus:outline-none focus:border-[#EF3866] bg-white"
                 placeholder="Email"
                 required
               />
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div ref={el => { inputRefs.current[1] = el; }} className="flex flex-col gap-2" style={{ transform: 'translateX(-30px)', opacity: 0 }}>
               <label htmlFor="password" className="text-sm sm:text-base font-medium leading-tight text-gray-700 font-sora">
                 Password
               </label>
@@ -184,19 +324,21 @@ export default function SignInPage() {
                 type="password"
                 value={formData.password}
                 onChange={handleInputChange}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
                 className="text-gray-700 p-3 border border-gray-200 w-full h-10 sm:h-11 rounded-lg text-sm sm:text-base font-normal transition-colors focus:outline-none focus:border-[#EF3866] bg-white"
                 placeholder="Enter your password"
                 required
               />
               <div className="text-right">
-                <Link href="/forgot-password" className="text-sm text-[#EF3866] hover:underline font-sora">
+                <Link href="/authentication/forgot-password" className="text-sm text-[#EF3866] hover:underline font-sora">
                   Forgot password?
                 </Link>
               </div>
             </div>
 
             {errors?.message && (
-              <div className="text-red-600 text-sm text-center py-2 px-4 bg-red-50 rounded border border-red-200">
+              <div data-error className="text-red-600 text-sm text-center py-2 px-4 bg-red-50 rounded border border-red-200">
                 {errors.message}
               </div>
             )}
@@ -212,9 +354,13 @@ export default function SignInPage() {
               {/* OAuth Buttons */}
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <button
+                  ref={el => { buttonRefs.current[0] = el; }}
                   type="button"
                   onClick={signInWithApple}
+                  onMouseEnter={handleButtonHover}
+                  onMouseLeave={handleButtonLeave}
                   className="w-full sm:w-1/2 flex items-center justify-center gap-2 py-3 px-3 bg-white text-black border-2 border-gray-200 rounded-lg text-xs sm:text-sm font-medium cursor-pointer transition-all hover:border-[#EF3866] h-11 sm:h-12"
+                  style={{ transform: 'translateY(20px)', opacity: 0 }}
                 >
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" viewBox="0 0 24 24">
                     <path fill="black" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
@@ -224,9 +370,13 @@ export default function SignInPage() {
                 </button>
 
                 <button
+                  ref={el => { buttonRefs.current[1] = el; }}
                   type="button"
                   onClick={signInWithGoogle}
+                  onMouseEnter={handleButtonHover}
+                  onMouseLeave={handleButtonLeave}
                   className="w-full sm:w-1/2 flex items-center justify-center gap-2 py-3 px-3 border-2 border-gray-200 rounded-lg bg-white text-xs sm:text-sm font-medium cursor-pointer transition-all hover:border-[#EF3866] hover:bg-gray-50 text-gray-700 h-11 sm:h-12"
+                  style={{ transform: 'translateY(20px)', opacity: 0 }}
                 >
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -241,9 +391,13 @@ export default function SignInPage() {
 
               {/* Sign In Button */}
               <button
+                ref={el => { buttonRefs.current[2] = el; }}
                 type="submit"
+                onMouseEnter={handleButtonHover}
+                onMouseLeave={handleButtonLeave}
                 className="w-full py-3 sm:py-3.5 px-4 bg-[#EF3866] text-white border-none rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-colors hover:bg-[#D53059] disabled:opacity-60 disabled:cursor-not-allowed h-11 sm:h-12"
                 disabled={isLoading}
+                style={{ transform: 'translateY(20px)', opacity: 0 }}
               >
                 {isLoading ? "Signing In..." : "Sign In"}
               </button>
@@ -262,7 +416,7 @@ export default function SignInPage() {
 
       {/* Right side - Image Slider */}
       <div className="hidden lg:block w-1/2 p-4 sm:p-6 lg:p-8">
-        <div className="w-full h-full relative rounded-2xl overflow-hidden shadow-lg">
+        <div ref={imageSliderRef} className="w-full h-full relative rounded-2xl overflow-hidden shadow-lg" style={{ opacity: 0 }}>
           {images.map((img, index) => (
             <div
               key={index}
@@ -286,6 +440,8 @@ export default function SignInPage() {
                 className={`w-3 h-3 rounded-full border-none cursor-pointer transition-colors duration-300 ${index === currentSlide ? 'bg-white' : 'bg-white/50'
                   }`}
                 onClick={() => setCurrentSlide(index)}
+                onMouseEnter={(e) => gsap.to(e.currentTarget, { scale: 1.2, duration: 0.2 })}
+                onMouseLeave={(e) => gsap.to(e.currentTarget, { scale: 1, duration: 0.2 })}
               />
             ))}
           </div>
