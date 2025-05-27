@@ -20,7 +20,6 @@ interface SignUpFormProps {
 export default function SignUpForm({ onVerificationNeeded }: SignUpFormProps) {
   const { isLoaded, signUp } = useSignUp();
   const { redirectUrl } = useAuthRedirect();
-  const { buttonClick } = useAuthAnimations();
   const { signUpWithGoogle, signUpWithApple, isLoading: isOAuthLoading } = useOAuth();
 
   const [formData, setFormData] = useState<SignUpFormData>({

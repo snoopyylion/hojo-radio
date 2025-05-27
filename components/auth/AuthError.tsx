@@ -19,7 +19,6 @@ interface AuthErrorProps {
 
 export default function AuthError({
   message,
-  code,
   error,
   className = "",
   variant = 'default'

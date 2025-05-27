@@ -3,7 +3,6 @@ import { useSignIn, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useAuthRedirect } from "../../../hooks/auth/useAuthRedirect";
 import { useOAuth } from "../../../hooks/auth/useOAuth";
-import { useAuthAnimations } from "../../../hooks/auth/useAuthAnimations";
 import AuthForm from "../../../components/auth/AuthForm";
 import InputField from "../../../components/auth/InputField";
 import OAuthButtons from "../../../components/auth/OAuthButtons";
