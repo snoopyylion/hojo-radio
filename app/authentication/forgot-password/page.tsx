@@ -491,129 +491,129 @@ export default function ForgotPasswordPage() {
                 };
 
             case 'verify':
-    return {
-        title: "Enter Verification Code",
-        subtitle: "We've sent a 6-digit code to your email address",
-        form: (
-            <form onSubmit={handleVerifyCode} className="flex flex-col gap-4">
-                <div ref={el => { inputRefs.current[0] = el; }} className="flex flex-col gap-2">
-                    <label className="text-sm sm:text-base font-medium leading-tight text-gray-700 font-sora text-center">
-                        Verification Code
-                    </label>
-                    <div className="flex justify-center gap-2 mt-2">
-                        {Array(6)
-                            .fill(0)
-                            .map((_, i) => (
-                                <input
-                                    key={i}
-                                    type="text"
-                                    inputMode="numeric"
-                                    maxLength={1}
-                                    className="w-12 h-12 sm:w-14 sm:h-14 text-center border-2 border-gray-200 rounded-lg text-gray-800 text-xl font-semibold focus:outline-none focus:border-[#EF3866] transition-all"
-                                    value={formData.code[i] || ''}
-                                    onFocus={handleInputFocus}
-                                    onBlur={handleInputBlur}
-                                    placeholder="0"
-                                    onChange={(e) => {
-                                        const newValue = e.target.value;
-                                        
-                                        // Only allow numbers
-                                        if (newValue && !/^\d$/.test(newValue)) {
-                                            return;
-                                        }
-                                        
-                                        const newCode = formData.code.split('');
-                                        
-                                        // Ensure array has 6 elements
-                                        while (newCode.length < 6) {
-                                            newCode.push('');
-                                        }
-                                        
-                                        newCode[i] = newValue;
-                                        const updatedCode = newCode.join('');
-                                        
-                                        setFormData({
-                                            ...formData,
-                                            code: updatedCode
-                                        });
-                                        
-                                        // Auto-focus next input if value entered
-                                        if (newValue && i < 5) {
-                                            const nextInput = (e.target as HTMLInputElement).parentElement?.children[i + 1] as HTMLInputElement;
-                                            if (nextInput) {
-                                                nextInput.focus();
-                                            }
-                                        }
-                                    }}
-                                    onKeyDown={(e) => {
-                                        // Handle backspace to go to previous input
-                                        if (e.key === 'Backspace' && !formData.code[i] && i > 0) {
-                                            const prevInput = (e.target as HTMLInputElement).parentElement?.children[i - 1] as HTMLInputElement;
-                                            if (prevInput) {
-                                                prevInput.focus();
-                                            }
-                                        }
-                                    }}
-                                    onPaste={(e) => {
-                                        e.preventDefault();
-                                        const pastedData = e.clipboardData.getData('text');
-                                        const digits = pastedData.replace(/\D/g, '').slice(0, 6);
-                                        
-                                        setFormData({
-                                            ...formData,
-                                            code: digits
-                                        });
-                                        
-                                        // Focus the next empty input or the last one
-                                        const nextEmptyIndex = Math.min(digits.length, 5);
-                                        const targetInput = (e.target as HTMLInputElement).parentElement?.children[nextEmptyIndex] as HTMLInputElement;
-                                        if (targetInput) {
-                                            targetInput.focus();
-                                        }
-                                    }}
-                                />
-                            ))}
-                    </div>
-                </div>
+                return {
+                    title: "Enter Verification Code",
+                    subtitle: "We've sent a 6-digit code to your email address",
+                    form: (
+                        <form onSubmit={handleVerifyCode} className="flex flex-col gap-4">
+                            <div ref={el => { inputRefs.current[0] = el; }} className="flex flex-col gap-2">
+                                <label className="text-sm sm:text-base font-medium leading-tight text-gray-700 font-sora text-center">
+                                    Verification Code
+                                </label>
+                                <div className="flex justify-center gap-2 mt-2">
+                                    {Array(6)
+                                        .fill(0)
+                                        .map((_, i) => (
+                                            <input
+                                                key={i}
+                                                type="text"
+                                                inputMode="numeric"
+                                                maxLength={1}
+                                                className="w-12 h-12 sm:w-14 sm:h-14 text-center text-xl sm:text-2xl font-semibold text-gray-800 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#EF3866] transition-all placeholder-transparent"
+                                                value={formData.code[i] || ''}
+                                                onFocus={handleInputFocus}
+                                                onBlur={handleInputBlur}
+                                                placeholder="0"
+                                                onChange={(e) => {
+                                                    const newValue = e.target.value;
 
-                <div className="text-center mb-4">
-                    <button
-                        type="button"
-                        onClick={handleResendCode}
-                        onMouseEnter={handleButtonHover}
-                        onMouseLeave={handleButtonLeave}
-                        className="text-[#EF3866] hover:underline text-sm font-medium bg-none border-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                        disabled={isLoading}
-                    >
-                        {isLoading ? "Sending..." : "Resend Code"}
-                    </button>
-                </div>
+                                                    // Only allow numbers
+                                                    if (newValue && !/^\d$/.test(newValue)) {
+                                                        return;
+                                                    }
 
-                <div className="flex gap-3">
-                    <button
-                        ref={el => { buttonRefs.current[1] = el; }}
-                        type="button"
-                        onClick={() => setStep('request')}
-                        onMouseEnter={handleButtonHover}
-                        onMouseLeave={handleButtonLeave}
-                        className="w-1/3 py-3 sm:py-3.5 px-4 bg-gray-100 text-gray-700 border-none rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-colors hover:bg-gray-200"
-                    >
-                        Back
-                    </button>
-                    <button
-                        ref={el => { buttonRefs.current[0] = el; }}
-                        type="submit"
-                        onMouseEnter={handleButtonHover}
-                        onMouseLeave={handleButtonLeave}
-                        className="w-2/3 py-3 sm:py-3.5 px-4 bg-[#EF3866] text-white border-none rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-colors hover:bg-[#D53059] disabled:opacity-60 disabled:cursor-not-allowed h-11 sm:h-12"
-                        disabled={isLoading || formData.code.length < 6}
-                    >
-                        {isLoading ? "Verifying..." : "Verify Code"}
-                    </button>
-                </div>
-            </form>
-        )
-    };
+                                                    const newCode = formData.code.split('');
+
+                                                    // Ensure array has 6 elements
+                                                    while (newCode.length < 6) {
+                                                        newCode.push('');
+                                                    }
+
+                                                    newCode[i] = newValue;
+                                                    const updatedCode = newCode.join('');
+
+                                                    setFormData({
+                                                        ...formData,
+                                                        code: updatedCode
+                                                    });
+
+                                                    // Auto-focus next input if value entered
+                                                    if (newValue && i < 5) {
+                                                        const nextInput = (e.target as HTMLInputElement).parentElement?.children[i + 1] as HTMLInputElement;
+                                                        if (nextInput) {
+                                                            nextInput.focus();
+                                                        }
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    // Handle backspace to go to previous input
+                                                    if (e.key === 'Backspace' && !formData.code[i] && i > 0) {
+                                                        const prevInput = (e.target as HTMLInputElement).parentElement?.children[i - 1] as HTMLInputElement;
+                                                        if (prevInput) {
+                                                            prevInput.focus();
+                                                        }
+                                                    }
+                                                }}
+                                                onPaste={(e) => {
+                                                    e.preventDefault();
+                                                    const pastedData = e.clipboardData.getData('text');
+                                                    const digits = pastedData.replace(/\D/g, '').slice(0, 6);
+
+                                                    setFormData({
+                                                        ...formData,
+                                                        code: digits
+                                                    });
+
+                                                    // Focus the next empty input or the last one
+                                                    const nextEmptyIndex = Math.min(digits.length, 5);
+                                                    const targetInput = (e.target as HTMLInputElement).parentElement?.children[nextEmptyIndex] as HTMLInputElement;
+                                                    if (targetInput) {
+                                                        targetInput.focus();
+                                                    }
+                                                }}
+                                            />
+                                        ))}
+                                </div>
+                            </div>
+
+                            <div className="text-center mb-4">
+                                <button
+                                    type="button"
+                                    onClick={handleResendCode}
+                                    onMouseEnter={handleButtonHover}
+                                    onMouseLeave={handleButtonLeave}
+                                    className="text-[#EF3866] hover:underline text-sm font-medium bg-none border-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? "Sending..." : "Resend Code"}
+                                </button>
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    ref={el => { buttonRefs.current[1] = el; }}
+                                    type="button"
+                                    onClick={() => setStep('request')}
+                                    onMouseEnter={handleButtonHover}
+                                    onMouseLeave={handleButtonLeave}
+                                    className="w-full py-3 sm:py-3.5 px-4 bg-gray-100 text-gray-700 border-none rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-colors hover:bg-gray-200"
+                                >
+                                    Back
+                                </button>
+                                <button
+                                    ref={el => { buttonRefs.current[0] = el; }}
+                                    type="submit"
+                                    onMouseEnter={handleButtonHover}
+                                    onMouseLeave={handleButtonLeave}
+                                    className="w-full py-3 sm:py-3.5 px-4 bg-[#EF3866] text-white border-none rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-colors hover:bg-[#D53059] disabled:opacity-60 disabled:cursor-not-allowed h-11 sm:h-12"
+                                    disabled={isLoading || formData.code.length < 6}
+                                >
+                                    {isLoading ? "Verifying..." : "Verify Code"}
+                                </button>
+                            </div>
+                        </form>
+                    )
+                };
             case 'reset':
                 return {
                     title: "Set New Password",
@@ -741,11 +741,11 @@ export default function ForgotPasswordPage() {
                             />
                         </div>
                     ))}
-                    <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2">
+                    <div className="absolute bottom-8 left-[80%] transform -translate-x-1/2 flex gap-2">
                         {images.map((_, index) => (
                             <button
                                 key={index}
-                                className={`w-3 h-3 rounded-full border-none cursor-pointer transition-colors duration-300 ${index === currentSlide ? 'bg-white' : 'bg-white/50'
+                                className={`w-5 h-2 rounded-full border-none cursor-pointer transition-colors duration-300 ${index === currentSlide ? 'bg-white' : 'bg-white/50'
                                     }`}
                                 onClick={() => setCurrentSlide(index)}
                                 onMouseEnter={(e) => gsap.to(e.currentTarget, { scale: 1.2, duration: 0.2 })}

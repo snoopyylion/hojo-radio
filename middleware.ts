@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 const isProtectedRoute = createRouteMatcher([
   '/blog(.*)',
   '/verify-news(.*)',
+  '/hashedpage(.*)',
   '/dashboard(.*)',
   '/profile(.*)',
   '/authentication/complete-profile',
@@ -21,6 +22,29 @@ const isAuthRoute = createRouteMatcher([
 
 // API routes that should be excluded from middleware auth checks
 const isApiRoute = createRouteMatcher(['/api(.*)']);
+
+// Helper function to check if profile is complete
+function isProfileComplete(userProfile: any): boolean {
+  if (!userProfile) return false;
+  
+  // Check all required fields are present and not empty
+  const hasFirstName = userProfile.first_name && userProfile.first_name.trim().length > 0;
+  const hasLastName = userProfile.last_name && userProfile.last_name.trim().length > 0;
+  const hasUsername = userProfile.username && userProfile.username.trim().length > 0;
+  const isMarkedComplete = userProfile.profile_completed === true;
+  
+  const isComplete = hasFirstName && hasLastName && hasUsername && isMarkedComplete;
+  
+  console.log('📋 Profile completion check:', {
+    hasFirstName,
+    hasLastName,
+    hasUsername,
+    isMarkedComplete,
+    isComplete,
+  });
+  
+  return isComplete;
+}
 
 export default clerkMiddleware(async (auth, req) => {
   const { userId } = await auth();
@@ -56,8 +80,8 @@ export default clerkMiddleware(async (auth, req) => {
       // Check if user profile exists and is complete in database
       const { data: userProfile, error } = await supabaseAdmin
         .from('users')
-        .select('name, bio, interests, onboarding_completed')
-        .eq('clerk_user_id', userId)
+        .select('id, first_name, last_name, username, profile_completed')
+        .eq('id', userId)
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
@@ -69,7 +93,7 @@ export default clerkMiddleware(async (auth, req) => {
       }
 
       // If user doesn't exist in database or profile is incomplete
-      if (!userProfile || !userProfile.onboarding_completed || !userProfile.name) {
+      if (!userProfile || !isProfileComplete(userProfile)) {
         console.log('📝 User profile needs completion, redirecting to complete-profile');
         const completeProfileUrl = new URL('/authentication/complete-profile', req.url);
         const redirectUrl = req.nextUrl.searchParams.get('redirect_url');
@@ -100,11 +124,12 @@ export default clerkMiddleware(async (auth, req) => {
       // Check if profile is already complete
       const { data: userProfile, error } = await supabaseAdmin
         .from('users')
-        .select('name, bio, interests, onboarding_completed')
-        .eq('clerk_user_id', userId)
+        .select('id, first_name, last_name, username, profile_completed')
+        .eq('id', userId)
         .single();
 
-      if (!error && userProfile?.onboarding_completed && userProfile.name) {
+      // If profile is complete, redirect away from completion route
+      if (!error && userProfile && isProfileComplete(userProfile)) {
         console.log('✅ Profile already complete, redirecting away from completion route');
         const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/blog';
         return NextResponse.redirect(new URL(redirectUrl, req.url));
@@ -129,8 +154,8 @@ export default clerkMiddleware(async (auth, req) => {
       // Check if user profile exists and is complete
       const { data: userProfile, error } = await supabaseAdmin
         .from('users')
-        .select('name, bio, interests, onboarding_completed')
-        .eq('clerk_user_id', userId)
+        .select('id, first_name, last_name, username, profile_completed')
+        .eq('id', userId)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -140,7 +165,7 @@ export default clerkMiddleware(async (auth, req) => {
       }
 
       // If user doesn't exist or profile is incomplete, redirect to complete profile
-      if (!userProfile || !userProfile.onboarding_completed || !userProfile.name) {
+      if (!userProfile || !isProfileComplete(userProfile)) {
         console.log('📝 Incomplete profile detected, redirecting to complete-profile');
         const completeProfileUrl = new URL('/authentication/complete-profile', req.url);
         const currentPath = req.nextUrl.pathname + req.nextUrl.search;

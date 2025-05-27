@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useEffect, useState, Suspense, useCallback, useRef } from "react";
+import { useUser, useAuth, useClerk } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface AuthStatus {
@@ -13,8 +13,15 @@ interface AuthStatus {
 // Separate the component that uses useSearchParams
 function OAuthCallbackContent() {
   const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut, getToken } = useAuth();
+  const { setActive } = useClerk();
   const router = useRouter();
   const searchParams = useSearchParams();
+  
+  // Use refs to prevent multiple executions
+  const processingRef = useRef(false);
+  const userProcessedRef = useRef(false);
+  
   const [authStatus, setAuthStatus] = useState<AuthStatus>({
     stage: 'authenticating',
     message: 'Completing your authentication...',
@@ -24,198 +31,310 @@ function OAuthCallbackContent() {
   const maxRetries = 3;
 
   // Get the intended redirect URL from search params
-  const getRedirectUrl = () => {
+  const getRedirectUrl = useCallback(() => {
     const redirectFromUrl = searchParams.get('redirect_url');
     if (redirectFromUrl && redirectFromUrl !== '/') {
       return redirectFromUrl;
     }
     return '/blog'; // Default fallback
-  };
+  }, [searchParams]);
 
+  // Fixed session activation with proper timing and error handling
+  const activateEmailSession = useCallback(async (sessionId: string): Promise<boolean> => {
+    try {
+      console.log('🔄 Starting email session activation:', sessionId);
+      
+      // Clear any existing session first
+      try {
+        await signOut();
+        console.log('✅ Previous session cleared');
+        // Wait for signOut to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (signOutError) {
+        console.log('ℹ️ No previous session to clear:', signOutError);
+      }
+      
+      // Activate the new session
+      console.log('🔄 Calling setActive with session ID...');
+      await setActive({ session: sessionId });
+      console.log('✅ setActive completed successfully');
+      
+      // Wait for Clerk's internal state to update - this is crucial
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Session activation error:', error);
+      return false;
+    }
+  }, [signOut, setActive]);
+
+  // Improved user state verification with proper type handling
+  const waitForUserState = useCallback(async (maxWaitTime = 10000): Promise<boolean> => {
+    const startTime = Date.now();
+    const checkInterval = 300;
+    
+    console.log('⏳ Starting user state verification...');
+    
+    while (Date.now() - startTime < maxWaitTime) {
+      try {
+        // Fix TypeScript error - handle undefined isSignedIn properly
+        const currentIsSignedIn = Boolean(isSignedIn);
+        
+        // Check if user state is ready
+        const userReady = isLoaded && currentIsSignedIn && user?.id;
+        
+        // Check if token is available
+        let tokenReady = false;
+        try {
+          const token = await getToken({ skipCache: true });
+          tokenReady = Boolean(token);
+        } catch (tokenError) {
+          tokenReady = false;
+        }
+        
+        console.log('🔍 State check:', {
+          isLoaded,
+          isSignedIn: currentIsSignedIn,
+          hasUser: Boolean(user?.id),
+          hasToken: tokenReady,
+          timeElapsed: Date.now() - startTime
+        });
+        
+        // Success condition: both user and token must be ready
+        if (userReady && tokenReady) {
+          console.log('✅ User state fully verified');
+          return true;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, checkInterval));
+      } catch (error) {
+        console.error('❌ Error during user state check:', error);
+        await new Promise(resolve => setTimeout(resolve, checkInterval));
+      }
+    }
+    
+    console.log('❌ User state verification timeout');
+    return false;
+  }, [isLoaded, isSignedIn, user, getToken]);
+
+  // Check if user is properly signed in with type safety
+  const isUserAuthenticated = useCallback(() => {
+    const currentIsSignedIn = Boolean(isSignedIn);
+    return isLoaded && currentIsSignedIn && Boolean(user?.id);
+  }, [isLoaded, isSignedIn, user]);
+
+  // Main processing effect
   useEffect(() => {
-    if (!isLoaded) return;
-
-    if (!isSignedIn) {
-      console.log("User not signed in, redirecting to sign-in");
-      setAuthStatus({
-        stage: 'error',
-        message: 'Authentication failed. Redirecting to sign in...',
-        progress: 0
+    if (!isLoaded || processingRef.current || userProcessedRef.current) {
+      console.log('⏳ Waiting for conditions:', { 
+        isLoaded, 
+        processing: processingRef.current,
+        userProcessed: userProcessedRef.current
       });
-      setTimeout(() => {
-        router.replace("/authentication/sign-in");
-      }, 2000);
       return;
     }
 
-    const processOAuthUser = async () => {
+    const processAuthentication = async () => {
+      if (processingRef.current || userProcessedRef.current) return;
+      processingRef.current = true;
+      
       try {
-        setAuthStatus({
-          stage: 'authenticating',
-          message: 'Verifying your authentication...',
-          progress: 20
-        });
+        const source = searchParams.get('source');
+        const pendingSessionId = sessionStorage.getItem('pendingSessionId');
         
-        console.log('🔄 Processing OAuth user:', user?.id);
+        console.log('🔍 Processing authentication:', {
+          source,
+          hasPendingSession: Boolean(pendingSessionId),
+          isSignedIn: Boolean(isSignedIn),
+          userId: user?.id,
+          isLoaded
+        });
 
-        // Give webhook time to process first
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Handle email/password sign-in that needs session activation
+        if (source === 'email-signin' && pendingSessionId) {
+          console.log('📧 Processing email sign-in session activation');
+          
+          setAuthStatus({
+            stage: 'authenticating',
+            message: 'Activating your session...',
+            progress: 25
+          });
+
+          const activationSuccess = await activateEmailSession(pendingSessionId);
+          
+          if (!activationSuccess) {
+            throw new Error('Session activation failed');
+          }
+          
+          setAuthStatus({
+            stage: 'authenticating',
+            message: 'Verifying your account...',
+            progress: 50
+          });
+          
+          // Wait for user state to be ready
+          const userStateReady = await waitForUserState(12000);
+          
+          if (!userStateReady) {
+            throw new Error('User verification failed after session activation');
+          }
+          
+          // Clean up session storage after successful activation
+          sessionStorage.removeItem('pendingSessionId');
+          sessionStorage.removeItem('pendingSessionTimestamp');
+          console.log('✅ Email session processed successfully');
+        }
+
+        // For OAuth or existing sessions, just verify the user is signed in
+        if (!isUserAuthenticated()) {
+          console.log('⚠️ User not authenticated');
+          
+          // For OAuth flows, wait a bit longer as they might still be processing
+          if (source?.startsWith('oauth-')) {
+            console.log('🔄 Waiting for OAuth completion...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            const finalCheck = await waitForUserState(8000);
+            if (!finalCheck) {
+              throw new Error('OAuth authentication verification failed');
+            }
+          } else {
+            throw new Error('User authentication verification failed');
+          }
+        }
+
+        console.log('✅ User authenticated successfully');
 
         setAuthStatus({
           stage: 'syncing',
-          message: 'Synchronizing your account data...',
-          progress: 40
+          message: 'Synchronizing your account...',
+          progress: 65
         });
 
-        // Try to sync user to ensure they're in the database with latest info
+        // Sync user to database
         try {
           const syncResponse = await fetch('/api/sync-user', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
           });
 
           if (syncResponse.ok) {
-            const syncData = await syncResponse.json();
-            console.log('✅ Sync response:', syncData);
+            console.log('✅ User sync successful');
           } else {
-            console.warn('⚠️ Sync failed, will continue with profile check');
+            console.warn('⚠️ User sync failed, continuing anyway');
           }
         } catch (syncError) {
           console.warn('⚠️ Sync request failed, continuing:', syncError);
         }
 
-        // Additional delay to ensure all processing is complete
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
         setAuthStatus({
           stage: 'checking',
           message: 'Preparing your account...',
-          progress: 70
+          progress: 80
         });
 
-        // Check profile completion status
-        const profileResponse = await fetch('/api/check-profile', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (profileResponse.ok) {
-          const { needsCompletion, userData, missingFields, reason } = await profileResponse.json();
-          
-          console.log('📊 Profile check result:', { 
-            needsCompletion, 
-            userData: userData ? {
-              ...userData,
-              hasFirstName: !!userData.first_name,
-              hasLastName: !!userData.last_name,
-              hasUsername: !!userData.username
-            } : null,
-            missingFields,
-            reason
+        // Check profile completion
+        try {
+          const profileResponse = await fetch('/api/check-profile', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
           });
 
-          if (needsCompletion) {
-            setAuthStatus({
-              stage: 'completing',
-              message: 'Setting up your profile...',
-              progress: 90
-            });
-            console.log('📝 Profile incomplete, redirecting to complete-profile');
-            
+          if (profileResponse.ok) {
+            const { needsCompletion } = await profileResponse.json();
             const redirectUrl = getRedirectUrl();
-            const completeProfileUrl = `/authentication/complete-profile${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
-            
-            setTimeout(() => {
-              router.replace(completeProfileUrl);
-            }, 1500);
+
+            if (needsCompletion) {
+              setAuthStatus({
+                stage: 'completing',
+                message: 'Setting up your profile...',
+                progress: 95
+              });
+              
+              const completeProfileUrl = `/authentication/complete-profile${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+              
+              userProcessedRef.current = true;
+              setTimeout(() => {
+                router.replace(completeProfileUrl);
+              }, 1500);
+            } else {
+              setAuthStatus({
+                stage: 'redirecting',
+                message: 'Welcome back! Taking you to your destination...',
+                progress: 100
+              });
+              
+              userProcessedRef.current = true;
+              setTimeout(() => {
+                router.replace(redirectUrl);
+              }, 1500);
+            }
           } else {
-            const redirectUrl = getRedirectUrl();
-            setAuthStatus({
-              stage: 'redirecting',
-              message: 'Welcome back! Taking you to your destination...',
-              progress: 100
-            });
-            console.log('✅ Profile complete, redirecting to:', redirectUrl);
-            setTimeout(() => {
-              router.replace(redirectUrl);
-            }, 1500);
+            throw new Error('Profile check failed');
           }
-        } else {
-          console.warn('⚠️ Profile check failed, status:', profileResponse.status);
-          
-          // If we haven't hit max retries, try again
-          if (retryCount < maxRetries) {
-            setRetryCount(prev => prev + 1);
-            setAuthStatus({
-              stage: 'checking',
-              message: `Retrying connection... (${retryCount + 1}/${maxRetries})`,
-              progress: 60
-            });
-            setTimeout(() => {
-              processOAuthUser();
-            }, 2000);
-            return;
-          }
-          
-          // Fallback: redirect to profile completion for safety
-          console.log('❌ Max retries reached, redirecting to complete-profile as fallback');
-          setAuthStatus({
-            stage: 'completing',
-            message: 'Finalizing your account setup...',
-            progress: 90
-          });
+        } catch (profileError) {
+          console.warn('⚠️ Profile check failed, redirecting to complete-profile');
           
           const redirectUrl = getRedirectUrl();
           const completeProfileUrl = `/authentication/complete-profile${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
           
+          userProcessedRef.current = true;
           setTimeout(() => {
             router.replace(completeProfileUrl);
-          }, 2000);
+          }, 1500);
         }
+
       } catch (error) {
-        console.error('❌ Error processing OAuth user:', error);
+        console.error('❌ Error processing authentication:', error);
         
-        // If we haven't hit max retries, try again
+        // Clean up session storage on error
+        if (searchParams.get('source') === 'email-signin') {
+          sessionStorage.removeItem('pendingSessionId');
+          sessionStorage.removeItem('pendingSessionTimestamp');
+        }
+        
         if (retryCount < maxRetries) {
           setRetryCount(prev => prev + 1);
           setAuthStatus({
             stage: 'error',
-            message: `Connection issue detected. Retrying... (${retryCount + 1}/${maxRetries})`,
-            progress: 50
+            message: `Connection issue. Retrying... (${retryCount + 1}/${maxRetries})`,
+            progress: 30
           });
+          processingRef.current = false;
+          
           setTimeout(() => {
-            processOAuthUser();
+            processingRef.current = false;
           }, 3000);
           return;
         }
         
-        // Final fallback - always go to complete-profile to ensure user can proceed
+        // Final error handling
         setAuthStatus({
-          stage: 'completing',
-          message: 'Securing your account access...',
-          progress: 85
+          stage: 'error',
+          message: error instanceof Error ? error.message : 'Authentication failed. Please try signing in again.',
+          progress: 0
         });
         
-        const redirectUrl = getRedirectUrl();
-        const completeProfileUrl = `/authentication/complete-profile${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
-        
         setTimeout(() => {
-          router.replace(completeProfileUrl);
-        }, 2500);
+          const redirectUrl = getRedirectUrl();
+          const signInUrl = `/authentication/sign-in${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+          const errorParam = error instanceof Error && error.message.includes('activation') ? 'activation_failed' : 'auth_failed';
+          router.replace(signInUrl + (signInUrl.includes('?') ? '&' : '?') + `error=${errorParam}`);
+        }, 3000);
+      } finally {
+        processingRef.current = false;
       }
     };
 
-    // Start processing after component mounts
+    // Start processing with a small delay to ensure everything is ready
     const timeoutId = setTimeout(() => {
-      processOAuthUser();
-    }, 800);
+      processAuthentication();
+    }, 100);
 
     return () => clearTimeout(timeoutId);
-  }, [isLoaded, isSignedIn, router, user, retryCount, searchParams]);
+  }, [isLoaded, router, user, retryCount, getRedirectUrl, isUserAuthenticated, searchParams, isSignedIn, activateEmailSession, waitForUserState]);
 
   const getStatusIcon = () => {
     const iconProps = "w-8 h-8 text-white";
@@ -224,7 +343,7 @@ function OAuthCallbackContent() {
       case 'authenticating':
         return (
           <svg className={`${iconProps} animate-spin`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v4m0 8v4m8-8h-4M4 12h4m11.314-7.314l-2.828 2.828M8.686 8.686L5.858 5.858m12.728 12.728l-2.828-2.828M8.686 15.314l-2.828 2.828" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v4m0 8v4m8-8h-4M4 12h4" />
           </svg>
         );
       case 'syncing':
@@ -281,7 +400,7 @@ function OAuthCallbackContent() {
           <p className="text-gray-600 mb-4">{authStatus.message}</p>
           
           {/* Progress indicator */}
-          <div className="w-full bg-gray-200 rounded-full h-1 mb-4">
+          <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
             <div 
               className="h-full bg-[#EF3866] rounded-full transition-all duration-500 ease-out"
               style={{ width: `${authStatus.progress}%` }}
@@ -289,16 +408,6 @@ function OAuthCallbackContent() {
           </div>
         </div>
 
-        {/* Loading spinner - only show when not completed or errored */}
-        {authStatus.stage !== 'error' && authStatus.stage !== 'redirecting' && (
-          <div className="flex justify-center mb-4">
-            <div className="relative">
-              <div className="w-12 h-12 border-4 border-gray-200 border-t-[#EF3866] rounded-full animate-spin"></div>
-            </div>
-          </div>
-        )}
-
-        {/* Success animation */}
         {authStatus.stage === 'redirecting' && (
           <div className="mb-4">
             <div className="inline-flex items-center space-x-2 text-[#EF3866] font-medium">
@@ -310,10 +419,15 @@ function OAuthCallbackContent() {
           </div>
         )}
 
-        {/* Retry information */}
         {retryCount > 0 && (
           <div className="text-sm text-gray-500">
             Retry attempt: {retryCount}/{maxRetries}
+          </div>
+        )}
+
+        {searchParams.get('source') === 'email-signin' && authStatus.stage === 'authenticating' && (
+          <div className="text-xs text-gray-500 mt-2">
+            Email sign-in processing...
           </div>
         )}
       </div>
@@ -328,12 +442,12 @@ function LoadingFallback() {
       <div className="max-w-md w-full p-8 text-center">
         <div className="mb-6">
           <div className="w-16 h-16 bg-[#EF3866] rounded-full flex items-center justify-center mx-auto mb-4">
-            <div className="w-12 h-12 border-4 border-gray-200 border-t-[#EF3866] rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Loading...</h1>
           <p className="text-gray-600 mb-4">Preparing your authentication...</p>
           
-          <div className="w-full bg-gray-200 rounded-full h-1">
+          <div className="w-full bg-gray-200 rounded-full h-2">
             <div className="h-full bg-[#EF3866] rounded-full w-1/4 animate-pulse" />
           </div>
         </div>

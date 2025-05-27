@@ -158,7 +158,6 @@ export async function POST() {
       role: "user",
       username,
       profile_completed: !needsProfileCompletion,
-      created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
