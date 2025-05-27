@@ -7,7 +7,6 @@ import AuthForm from "./../../../components/auth/AuthForm";
 import OAuthButtons from "./../../../components/auth/OAuthButtons";
 import InputField from "./../../../components/auth/InputField";
 import AuthError from "./../../../components/auth/AuthError";
-import { useAuthAnimations } from "@/hooks/auth/useAuthAnimations";
 import { useAuthRedirect } from "../../../hooks/auth/useAuthRedirect";
 import { useOAuth } from "@/hooks/auth/useOAuth";
 import { SignUpFormData, ErrorState } from "@/utils/auth/types";
