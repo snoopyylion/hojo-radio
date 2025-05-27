@@ -196,7 +196,7 @@ export function SignInForm() {
       <button
         ref={submitButtonRef}
         type="submit"
-        className="w-full py-3 sm:py-3.5 px-4 bg-[#EF3866] text-white border-none rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-colors hover:bg-[#D53059] disabled:opacity-60 disabled:cursor-not-allowed h-11 sm:h-12"
+        className="w-full mt-[18px] py-3 sm:py-3.5 px-4 bg-[#EF3866] text-white border-none rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-colors hover:bg-[#D53059] disabled:opacity-60 disabled:cursor-not-allowed h-11 sm:h-12"
         disabled={isLoading || isProcessingSignIn || oauthLoading}
         data-animate="button"
       >

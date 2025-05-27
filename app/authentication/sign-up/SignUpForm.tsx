@@ -162,7 +162,7 @@ export default function SignUpForm({ onVerificationNeeded }: SignUpFormProps) {
         <div className="flex-grow h-px bg-gray-200" />
       </div>
 
-      <div className="flex flex-col gap-3 w-full" data-animate="oauth">
+      <div className="flex flex-col gap-[18px] w-full" data-animate="oauth">
         <OAuthButtons
           onGoogleSignIn={signUpWithGoogle}
           onAppleSignIn={signUpWithApple}
