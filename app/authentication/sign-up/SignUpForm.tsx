@@ -1,30 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { useSignUp, useClerk } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useSignUp } from "@clerk/nextjs";
 import Link from "next/link";
 import AuthForm from "./../../../components/auth/AuthForm";
 import OAuthButtons from "./../../../components/auth/OAuthButtons";
 import InputField from "./../../../components/auth/InputField";
 import AuthError from "./../../../components/auth/AuthError";
-import LoadingSpinner from "./../../../components/auth/LoadingSpinner";
 import { useAuthAnimations } from "@/hooks/auth/useAuthAnimations";
-import { useAuthRedirect } from "../../../hooks/auth/useAuthRedirect"; // Add this import
+import { useAuthRedirect } from "../../../hooks/auth/useAuthRedirect";
 import { useOAuth } from "@/hooks/auth/useOAuth";
 import { SignUpFormData, ErrorState } from "@/utils/auth/types";
 import { validateSignUpForm } from "@/utils/auth/authHelpers";
 
 interface SignUpFormProps {
-  onVerificationNeeded: (email: string, redirectUrl?: string) => void; // Add redirectUrl parameter
+  onVerificationNeeded: (email: string, redirectUrl?: string) => void;
 }
 
 export default function SignUpForm({ onVerificationNeeded }: SignUpFormProps) {
   const { isLoaded, signUp } = useSignUp();
-  const { setActive } = useClerk(); // Add this hook for session management
-  const router = useRouter();
-  const { redirectUrl, buildOAuthCallbackUrl } = useAuthRedirect(); // Add redirect hook
-  const { inputFocus, inputBlur, buttonHover, buttonLeave, buttonClick } = useAuthAnimations();
+  const { redirectUrl } = useAuthRedirect();
+  const { buttonClick } = useAuthAnimations();
   const { signUpWithGoogle, signUpWithApple, isLoading: isOAuthLoading } = useOAuth();
 
   const [formData, setFormData] = useState<SignUpFormData>({
@@ -61,8 +57,7 @@ export default function SignUpForm({ onVerificationNeeded }: SignUpFormProps) {
       return;
     }
 
-    // Animate form submit
-    buttonClick(e as any);
+    // Don't call buttonClick here since it expects a button click event
     setIsLoading(true);
     setErrors(null);
 
@@ -82,12 +77,13 @@ export default function SignUpForm({ onVerificationNeeded }: SignUpFormProps) {
     } catch (err) {
       console.error("Sign up error:", err);
       
+      // Fix the 'any' type issue here
       if (err && typeof err === "object" && "errors" in err) {
-        const clerkErrors = (err as any).errors;
-        if (clerkErrors?.length) {
+        const clerkError = err as { errors: Array<{ message?: string; code?: string }> };
+        if (clerkError.errors?.length) {
           setErrors({
-            message: clerkErrors[0].message || "An error occurred during sign up",
-            code: clerkErrors[0].code,
+            message: clerkError.errors[0].message || "An error occurred during sign up",
+            code: clerkError.errors[0].code,
           });
         } else {
           setErrors({ message: "An unexpected error occurred" });
@@ -109,7 +105,7 @@ export default function SignUpForm({ onVerificationNeeded }: SignUpFormProps) {
       {showRedirectInfo && (
         <div className="mb-4 p-3 bg-white border border-[#EF3866] rounded-lg" data-animate="input">
           <p className="text-sm text-[#EF3866] text-center">
-            You'll be redirected to <span className="font-medium">{redirectUrl}</span> after signing up
+            You&apos;ll be redirected to <span className="font-medium">{redirectUrl}</span> after signing up
           </p>
         </div>
       )}

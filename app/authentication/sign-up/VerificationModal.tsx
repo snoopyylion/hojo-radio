@@ -4,8 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useSignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { gsap } from "gsap";
-import AuthError  from "./../../../components/auth/AuthError";
-import  LoadingSpinner  from "./../../../components/auth/LoadingSpinner";
+import AuthError from "./../../../components/auth/AuthError";
 import { useAuthAnimations } from "@/hooks/auth/useAuthAnimations";
 import { AuthErrorState } from "@/utils/auth/types";
 
@@ -93,7 +92,7 @@ export default function VerificationModal({ isOpen, onClose, email }: Verificati
       console.error("Verification error:", err);
 
       if (err && typeof err === 'object' && 'errors' in err) {
-        const clerkErrors = (err as any).errors;
+        const clerkErrors = (err as { errors: Array<{ message?: string; code?: string }> }).errors;
         if (clerkErrors && clerkErrors.length > 0) {
           setErrors({
             message: clerkErrors[0].message || "Verification failed",
@@ -143,7 +142,7 @@ export default function VerificationModal({ isOpen, onClose, email }: Verificati
       setErrors(null);
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
       // Show success message or toast here if needed
-    } catch (err) {
+    } catch {
       setErrors({ message: "Failed to resend code. Please try again." });
     }
   };
@@ -220,7 +219,7 @@ export default function VerificationModal({ isOpen, onClose, email }: Verificati
 
             <div className="text-center">
               <p className="text-sm text-gray-600">
-                Didn't receive the code?{" "}
+                Didn&apos;t receive the code?{" "}
                 <button
                   type="button"
                   onClick={resendCode}

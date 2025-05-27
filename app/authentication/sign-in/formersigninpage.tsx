@@ -26,7 +26,7 @@ interface ErrorState {
 
 // Separate component that uses useSearchParams
 function SignInContent() {
-  const { isLoaded, signIn, setActive } = useSignIn();
+  const { isLoaded, signIn } = useSignIn();
   const { isSignedIn } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();

@@ -28,7 +28,6 @@ export default function AuthError({
   
   // Determine the actual message and code to display
   const displayMessage = message || error?.message || '';
-  const displayCode = code || error?.code;
 
   useEffect(() => {
     if (errorRef.current && displayMessage) {

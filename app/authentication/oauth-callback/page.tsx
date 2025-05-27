@@ -17,11 +17,11 @@ function OAuthCallbackContent() {
   const { setActive } = useClerk();
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // Use refs to prevent multiple executions
   const processingRef = useRef(false);
   const userProcessedRef = useRef(false);
-  
+
   const [authStatus, setAuthStatus] = useState<AuthStatus>({
     stage: 'authenticating',
     message: 'Completing your authentication...',
@@ -43,7 +43,7 @@ function OAuthCallbackContent() {
   const activateEmailSession = useCallback(async (sessionId: string): Promise<boolean> => {
     try {
       console.log('🔄 Starting email session activation:', sessionId);
-      
+
       // Clear any existing session first
       try {
         await signOut();
@@ -53,17 +53,17 @@ function OAuthCallbackContent() {
       } catch (signOutError) {
         console.log('ℹ️ No previous session to clear:', signOutError);
       }
-      
+
       // Activate the new session
       console.log('🔄 Calling setActive with session ID...');
       await setActive({ session: sessionId });
       console.log('✅ setActive completed successfully');
-      
+
       // Wait for Clerk's internal state to update - this is crucial
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       return true;
-      
+
     } catch (error) {
       console.error('❌ Session activation error:', error);
       return false;
@@ -74,26 +74,27 @@ function OAuthCallbackContent() {
   const waitForUserState = useCallback(async (maxWaitTime = 10000): Promise<boolean> => {
     const startTime = Date.now();
     const checkInterval = 300;
-    
+
     console.log('⏳ Starting user state verification...');
-    
+
     while (Date.now() - startTime < maxWaitTime) {
       try {
         // Fix TypeScript error - handle undefined isSignedIn properly
         const currentIsSignedIn = Boolean(isSignedIn);
-        
+
         // Check if user state is ready
         const userReady = isLoaded && currentIsSignedIn && user?.id;
-        
+
         // Check if token is available
         let tokenReady = false;
         try {
           const token = await getToken({ skipCache: true });
           tokenReady = Boolean(token);
         } catch (tokenError) {
+          console.log('Token check failed:', tokenError); // <- Now we're using tokenError
           tokenReady = false;
         }
-        
+
         console.log('🔍 State check:', {
           isLoaded,
           isSignedIn: currentIsSignedIn,
@@ -101,20 +102,20 @@ function OAuthCallbackContent() {
           hasToken: tokenReady,
           timeElapsed: Date.now() - startTime
         });
-        
+
         // Success condition: both user and token must be ready
         if (userReady && tokenReady) {
           console.log('✅ User state fully verified');
           return true;
         }
-        
+
         await new Promise(resolve => setTimeout(resolve, checkInterval));
       } catch (error) {
         console.error('❌ Error during user state check:', error);
         await new Promise(resolve => setTimeout(resolve, checkInterval));
       }
     }
-    
+
     console.log('❌ User state verification timeout');
     return false;
   }, [isLoaded, isSignedIn, user, getToken]);
@@ -128,8 +129,8 @@ function OAuthCallbackContent() {
   // Main processing effect
   useEffect(() => {
     if (!isLoaded || processingRef.current || userProcessedRef.current) {
-      console.log('⏳ Waiting for conditions:', { 
-        isLoaded, 
+      console.log('⏳ Waiting for conditions:', {
+        isLoaded,
         processing: processingRef.current,
         userProcessed: userProcessedRef.current
       });
@@ -139,11 +140,11 @@ function OAuthCallbackContent() {
     const processAuthentication = async () => {
       if (processingRef.current || userProcessedRef.current) return;
       processingRef.current = true;
-      
+
       try {
         const source = searchParams.get('source');
         const pendingSessionId = sessionStorage.getItem('pendingSessionId');
-        
+
         console.log('🔍 Processing authentication:', {
           source,
           hasPendingSession: Boolean(pendingSessionId),
@@ -155,7 +156,7 @@ function OAuthCallbackContent() {
         // Handle email/password sign-in that needs session activation
         if (source === 'email-signin' && pendingSessionId) {
           console.log('📧 Processing email sign-in session activation');
-          
+
           setAuthStatus({
             stage: 'authenticating',
             message: 'Activating your session...',
@@ -163,24 +164,24 @@ function OAuthCallbackContent() {
           });
 
           const activationSuccess = await activateEmailSession(pendingSessionId);
-          
+
           if (!activationSuccess) {
             throw new Error('Session activation failed');
           }
-          
+
           setAuthStatus({
             stage: 'authenticating',
             message: 'Verifying your account...',
             progress: 50
           });
-          
+
           // Wait for user state to be ready
           const userStateReady = await waitForUserState(12000);
-          
+
           if (!userStateReady) {
             throw new Error('User verification failed after session activation');
           }
-          
+
           // Clean up session storage after successful activation
           sessionStorage.removeItem('pendingSessionId');
           sessionStorage.removeItem('pendingSessionTimestamp');
@@ -190,12 +191,12 @@ function OAuthCallbackContent() {
         // For OAuth or existing sessions, just verify the user is signed in
         if (!isUserAuthenticated()) {
           console.log('⚠️ User not authenticated');
-          
+
           // For OAuth flows, wait a bit longer as they might still be processing
           if (source?.startsWith('oauth-')) {
             console.log('🔄 Waiting for OAuth completion...');
             await new Promise(resolve => setTimeout(resolve, 2000));
-            
+
             const finalCheck = await waitForUserState(8000);
             if (!finalCheck) {
               throw new Error('OAuth authentication verification failed');
@@ -252,9 +253,9 @@ function OAuthCallbackContent() {
                 message: 'Setting up your profile...',
                 progress: 95
               });
-              
+
               const completeProfileUrl = `/authentication/complete-profile${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
-              
+
               userProcessedRef.current = true;
               setTimeout(() => {
                 router.replace(completeProfileUrl);
@@ -265,7 +266,7 @@ function OAuthCallbackContent() {
                 message: 'Welcome back! Taking you to your destination...',
                 progress: 100
               });
-              
+
               userProcessedRef.current = true;
               setTimeout(() => {
                 router.replace(redirectUrl);
@@ -275,11 +276,11 @@ function OAuthCallbackContent() {
             throw new Error('Profile check failed');
           }
         } catch (profileError) {
-          console.warn('⚠️ Profile check failed, redirecting to complete-profile');
-          
+          console.warn('⚠️ Profile check failed, redirecting to complete-profile:', profileError); // <- Now we're using profileError
+
           const redirectUrl = getRedirectUrl();
           const completeProfileUrl = `/authentication/complete-profile${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
-          
+
           userProcessedRef.current = true;
           setTimeout(() => {
             router.replace(completeProfileUrl);
@@ -288,13 +289,13 @@ function OAuthCallbackContent() {
 
       } catch (error) {
         console.error('❌ Error processing authentication:', error);
-        
+
         // Clean up session storage on error
         if (searchParams.get('source') === 'email-signin') {
           sessionStorage.removeItem('pendingSessionId');
           sessionStorage.removeItem('pendingSessionTimestamp');
         }
-        
+
         if (retryCount < maxRetries) {
           setRetryCount(prev => prev + 1);
           setAuthStatus({
@@ -303,20 +304,20 @@ function OAuthCallbackContent() {
             progress: 30
           });
           processingRef.current = false;
-          
+
           setTimeout(() => {
             processingRef.current = false;
           }, 3000);
           return;
         }
-        
+
         // Final error handling
         setAuthStatus({
           stage: 'error',
           message: error instanceof Error ? error.message : 'Authentication failed. Please try signing in again.',
           progress: 0
         });
-        
+
         setTimeout(() => {
           const redirectUrl = getRedirectUrl();
           const signInUrl = `/authentication/sign-in${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
@@ -338,7 +339,7 @@ function OAuthCallbackContent() {
 
   const getStatusIcon = () => {
     const iconProps = "w-8 h-8 text-white";
-    
+
     switch (authStatus.stage) {
       case 'authenticating':
         return (
@@ -398,10 +399,10 @@ function OAuthCallbackContent() {
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">{getTitle()}</h1>
           <p className="text-gray-600 mb-4">{authStatus.message}</p>
-          
+
           {/* Progress indicator */}
           <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-            <div 
+            <div
               className="h-full bg-[#EF3866] rounded-full transition-all duration-500 ease-out"
               style={{ width: `${authStatus.progress}%` }}
             />
@@ -446,7 +447,7 @@ function LoadingFallback() {
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Loading...</h1>
           <p className="text-gray-600 mb-4">Preparing your authentication...</p>
-          
+
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div className="h-full bg-[#EF3866] rounded-full w-1/4 animate-pulse" />
           </div>

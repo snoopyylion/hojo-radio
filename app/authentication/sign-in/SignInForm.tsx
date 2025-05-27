@@ -10,12 +10,6 @@ import OAuthButtons from "../../../components/auth/OAuthButtons";
 import AuthError from "../../../components/auth/AuthError";
 import Link from "next/link";
 
-interface ClerkError {
-  code: string;
-  message: string;
-  longMessage?: string;
-  meta?: Record<string, unknown>;
-}
 
 interface FormData {
   emailAddress: string;
@@ -31,7 +25,7 @@ export function SignInForm() {
   const { isLoaded, signIn } = useSignIn();
   const { setActive } = useClerk(); // Add this hook
   const router = useRouter();
-  const { redirectUrl, buildOAuthCallbackUrl } = useAuthRedirect();
+  const { redirectUrl } = useAuthRedirect();
   const { signInWithGoogle, signInWithApple, isLoading: oauthLoading, error: oauthError } = useOAuth();
   
   const [formData, setFormData] = useState<FormData>({
@@ -40,10 +34,8 @@ export function SignInForm() {
   });
   
   const [isLoading, setIsLoading] = useState(false);
-  const [isProcessingSignIn, setIsProcessingSignIn] = useState(false);
+  const [ isProcessingSignIn ] = useState(false);
   const [errors, setErrors] = useState<ErrorState | null>(null);
-  
-  const { animateButtonClick } = useAuthAnimations();
   
   const submitButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -118,7 +110,7 @@ export function SignInForm() {
       {showRedirectInfo && (
         <div className="mb-4 p-3 bg-white border border-[#EF3866] rounded-lg" data-animate="input">
           <p className="text-sm text-[#EF3866] text-center">
-            You'll be redirected to <span className="font-medium">{redirectUrl}</span> after signing in
+            You&apos;ll be redirected to <span className="font-medium">{redirectUrl}</span> after signing in
           </p>
         </div>
       )}
@@ -215,7 +207,7 @@ export function SignInForm() {
       {/* Sign Up Link */}
       <div className="text-center text-xs sm:text-sm mt-2" data-animate="button">
         <p className="text-gray-600">
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link
             href={`/authentication/sign-up${redirectUrl && redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`}
             className="text-[#EF3866] hover:underline"
