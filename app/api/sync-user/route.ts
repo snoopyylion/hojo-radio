@@ -113,7 +113,13 @@ async function checkExistingUser(userId: string) {
 }
 
 // Helper function to determine if profile needs completion
-function determineProfileCompletion(userData: any): { needsCompletion: boolean; missingFields: string[] } {
+function determineProfileCompletion(userData: {
+  first_name?: string | null;
+  last_name?: string | null;
+  username?: string | null;
+  email?: string | null;
+  profile_completed?: boolean | null;
+}): { needsCompletion: boolean; missingFields: string[] } {
   const missingFields: string[] = [];
   
   // Check required fields
@@ -273,7 +279,14 @@ export async function POST() {
         console.log('👤 Existing user found, updating...');
         
         // Prepare update data - only update fields that have values
-        const updateData: any = {
+        const updateData: {
+          email: string;
+          updated_at: string;
+          first_name?: string;
+          last_name?: string;
+          username?: string;
+          image_url?: string;
+        } = {
           email,
           updated_at: new Date().toISOString(),
         };
