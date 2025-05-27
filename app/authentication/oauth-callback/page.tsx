@@ -91,7 +91,7 @@ function OAuthCallbackContent() {
           const token = await getToken({ skipCache: true });
           tokenReady = Boolean(token);
         } catch (tokenError) {
-          console.log('Token check failed:', tokenError); // <- Now we're using tokenError
+          console.log('Token check failed:', tokenError);
           tokenReady = false;
         }
 
@@ -125,6 +125,108 @@ function OAuthCallbackContent() {
     const currentIsSignedIn = Boolean(isSignedIn);
     return isLoaded && currentIsSignedIn && Boolean(user?.id);
   }, [isLoaded, isSignedIn, user]);
+
+  // Enhanced sync and profile check function
+  const syncUserAndCheckProfile = useCallback(async () => {
+    console.log('🔄 Starting user sync and profile check...');
+    
+    setAuthStatus({
+      stage: 'syncing',
+      message: 'Synchronizing your account...',
+      progress: 65
+    });
+
+    // Step 1: Sync user to database (this will determine if profile is complete)
+    try {
+      const syncResponse = await fetch('/api/sync-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!syncResponse.ok) {
+        console.warn('⚠️ User sync failed');
+        throw new Error('User sync failed');
+      }
+
+      const syncData = await syncResponse.json();
+      console.log('✅ User sync response:', syncData);
+
+      setAuthStatus({
+        stage: 'checking',
+        message: 'Checking your profile...',
+        progress: 80
+      });
+
+      // Step 2: Wait a moment for database to be consistent
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Step 3: Check profile completion status
+      const profileResponse = await fetch('/api/check-profile', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!profileResponse.ok) {
+        console.warn('⚠️ Profile check failed, assuming completion needed');
+        throw new Error('Profile check failed');
+      }
+
+      const profileData = await profileResponse.json();
+      console.log('📊 Profile check response:', profileData);
+
+      const redirectUrl = getRedirectUrl();
+
+      // Step 4: Handle based on profile completion status
+      if (profileData.needsCompletion) {
+        console.log('📝 Profile needs completion, redirecting to complete-profile');
+        console.log('📝 Missing fields:', profileData.missingFields);
+        
+        setAuthStatus({
+          stage: 'completing',
+          message: 'Setting up your profile...',
+          progress: 95
+        });
+
+        const completeProfileUrl = `/authentication/complete-profile${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+
+        userProcessedRef.current = true;
+        setTimeout(() => {
+          router.replace(completeProfileUrl);
+        }, 1500);
+      } else {
+        console.log('✅ Profile is complete, redirecting to intended destination');
+        
+        setAuthStatus({
+          stage: 'redirecting',
+          message: 'Welcome back! Taking you to your destination...',
+          progress: 100
+        });
+
+        userProcessedRef.current = true;
+        setTimeout(() => {
+          router.replace(redirectUrl);
+        }, 1500);
+      }
+
+    } catch (error) {
+      console.error('❌ Error in sync and profile check:', error);
+      
+      // On error, assume profile completion is needed to be safe
+      const redirectUrl = getRedirectUrl();
+      const completeProfileUrl = `/authentication/complete-profile${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+
+      setAuthStatus({
+        stage: 'completing',
+        message: 'Setting up your profile...',
+        progress: 95
+      });
+
+      userProcessedRef.current = true;
+      setTimeout(() => {
+        router.replace(completeProfileUrl);
+      }, 1500);
+    }
+  }, [getRedirectUrl, router]);
 
   // Main processing effect
   useEffect(() => {
@@ -208,84 +310,8 @@ function OAuthCallbackContent() {
 
         console.log('✅ User authenticated successfully');
 
-        setAuthStatus({
-          stage: 'syncing',
-          message: 'Synchronizing your account...',
-          progress: 65
-        });
-
-        // Sync user to database
-        try {
-          const syncResponse = await fetch('/api/sync-user', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-          });
-
-          if (syncResponse.ok) {
-            console.log('✅ User sync successful');
-          } else {
-            console.warn('⚠️ User sync failed, continuing anyway');
-          }
-        } catch (syncError) {
-          console.warn('⚠️ Sync request failed, continuing:', syncError);
-        }
-
-        setAuthStatus({
-          stage: 'checking',
-          message: 'Preparing your account...',
-          progress: 80
-        });
-
-        // Check profile completion
-        try {
-          const profileResponse = await fetch('/api/check-profile', {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-          });
-
-          if (profileResponse.ok) {
-            const { needsCompletion } = await profileResponse.json();
-            const redirectUrl = getRedirectUrl();
-
-            if (needsCompletion) {
-              setAuthStatus({
-                stage: 'completing',
-                message: 'Setting up your profile...',
-                progress: 95
-              });
-
-              const completeProfileUrl = `/authentication/complete-profile${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
-
-              userProcessedRef.current = true;
-              setTimeout(() => {
-                router.replace(completeProfileUrl);
-              }, 1500);
-            } else {
-              setAuthStatus({
-                stage: 'redirecting',
-                message: 'Welcome back! Taking you to your destination...',
-                progress: 100
-              });
-
-              userProcessedRef.current = true;
-              setTimeout(() => {
-                router.replace(redirectUrl);
-              }, 1500);
-            }
-          } else {
-            throw new Error('Profile check failed');
-          }
-        } catch (profileError) {
-          console.warn('⚠️ Profile check failed, redirecting to complete-profile:', profileError); // <- Now we're using profileError
-
-          const redirectUrl = getRedirectUrl();
-          const completeProfileUrl = `/authentication/complete-profile${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
-
-          userProcessedRef.current = true;
-          setTimeout(() => {
-            router.replace(completeProfileUrl);
-          }, 1500);
-        }
+        // Now sync user and check profile in the correct order
+        await syncUserAndCheckProfile();
 
       } catch (error) {
         console.error('❌ Error processing authentication:', error);
@@ -335,7 +361,7 @@ function OAuthCallbackContent() {
     }, 100);
 
     return () => clearTimeout(timeoutId);
-  }, [isLoaded, router, user, retryCount, getRedirectUrl, isUserAuthenticated, searchParams, isSignedIn, activateEmailSession, waitForUserState]);
+  }, [isLoaded, router, user, retryCount, getRedirectUrl, isUserAuthenticated, searchParams, isSignedIn, activateEmailSession, waitForUserState, syncUserAndCheckProfile]);
 
   const getStatusIcon = () => {
     const iconProps = "w-8 h-8 text-white";

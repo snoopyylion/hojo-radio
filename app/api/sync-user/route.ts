@@ -23,6 +23,47 @@ interface OAuthAccountData {
   [key: string]: unknown;
 }
 
+// Helper function to generate username from name/email
+async function generateUsername(firstName: string, lastName: string, email: string): Promise<string> {
+  // Try different username formats
+  const baseOptions = [
+    `${firstName.toLowerCase()}${lastName.toLowerCase()}`,
+    `${firstName.toLowerCase()}.${lastName.toLowerCase()}`,
+    `${firstName.toLowerCase()}_${lastName.toLowerCase()}`,
+    email.split('@')[0].toLowerCase(),
+  ].filter(option => option.length >= 3);
+
+  for (const base of baseOptions) {
+    // Check if base username is available
+    const { data: existing } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('username', base)
+      .single();
+
+    if (!existing) {
+      return base;
+    }
+
+    // Try with numbers appended
+    for (let i = 1; i <= 99; i++) {
+      const candidate = `${base}${i}`;
+      const { data: existingNumbered } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('username', candidate)
+        .single();
+
+      if (!existingNumbered) {
+        return candidate;
+      }
+    }
+  }
+
+  // Fallback to email-based with timestamp
+  return `${email.split('@')[0].toLowerCase()}${Date.now().toString().slice(-4)}`;
+}
+
 export async function POST() {
   try {
     console.log('🔄 Sync user API called');
@@ -73,7 +114,7 @@ export async function POST() {
 
     const email = emailAddresses?.[0]?.emailAddress ?? null;
     const imageUrl_processed = imageUrl ?? null;
-    const username = (publicMetadata as ClerkPublicMetadata)?.username ?? null;
+    let username = (publicMetadata as ClerkPublicMetadata)?.username ?? null;
 
     // Enhanced name resolution for OAuth providers
     let resolvedFirstName = "";
@@ -91,7 +132,6 @@ export async function POST() {
       
       console.log('🔍 OAuth account:', {
         provider: oauthData.provider,
-        // Log available fields without sensitive data
         hasFirstName: !!oauthData.firstName,
         hasLastName: !!oauthData.lastName,
         hasGivenName: !!oauthData.given_name,
@@ -139,8 +179,24 @@ export async function POST() {
       );
     }
 
+    // Generate username if not provided (for OAuth users)
+    if (!username && resolvedFirstName.trim() && resolvedLastName.trim()) {
+      console.log('🔄 Generating username for OAuth user...');
+      try {
+        username = await generateUsername(resolvedFirstName.trim(), resolvedLastName.trim(), email);
+        console.log('✅ Generated username:', username);
+      } catch (error) {
+        console.error('❌ Error generating username:', error);
+        // Fallback to email-based username
+        username = `${email.split('@')[0].toLowerCase()}${Date.now().toString().slice(-4)}`;
+      }
+    }
+
     // Determine if user needs to complete profile
-    const needsProfileCompletion = !resolvedFirstName.trim() || !resolvedLastName.trim() || !username;
+    const needsProfileCompletion = 
+      !resolvedFirstName.trim() || 
+      !resolvedLastName.trim() || 
+      !username;
 
     console.log('🎯 Profile completion analysis:', {
       hasFirstName: !!resolvedFirstName.trim(),
@@ -156,7 +212,7 @@ export async function POST() {
       last_name: resolvedLastName.trim() || null,
       image_url: imageUrl_processed,
       role: "user",
-      username,
+      username: username?.toLowerCase() || null,
       profile_completed: !needsProfileCompletion,
       updated_at: new Date().toISOString(),
     };
@@ -191,7 +247,8 @@ export async function POST() {
     console.log('✅ User synced successfully to database:', {
       id: data.id,
       email: data.email,
-      profileCompleted: data.profile_completed
+      profileCompleted: data.profile_completed,
+      username: data.username
     });
 
     return NextResponse.json({
