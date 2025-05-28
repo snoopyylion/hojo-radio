@@ -511,7 +511,7 @@ export default function UserDashboard() {
                   <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Crown className="w-8 h-8 text-green-600" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 font-sora">You're an Author!</h3>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 font-sora">You&apos;re an Author!</h3>
                   <p className="text-gray-600 font-sora">You can now create and publish posts on HOJO.</p>
                   <button className="mt-4 px-6 py-3 bg-[#EF3866] text-white rounded-lg font-semibold font-sora hover:bg-[#D53059] transition-colors">
                     Create New Post
@@ -532,7 +532,7 @@ export default function UserDashboard() {
                       <div className="flex items-center justify-center space-x-2">
                         <CheckCircle className="w-5 h-5 text-green-600" />
                         <span className="text-green-800 font-medium font-sora">
-                          Request submitted successfully! We'll review your application shortly.
+                          Request submitted successfully! We&apos;ll review your application shortly.
                         </span>
                       </div>
                     </div>

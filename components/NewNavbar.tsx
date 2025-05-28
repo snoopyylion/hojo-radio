@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import React, { useEffect, useState, useRef } from "react";
-import { Menu, X, Bell, Loader2 } from "lucide-react";
+import { Menu, X, Bell } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useAppContext } from "@/context/AppContext";
 import Link from "next/link";
