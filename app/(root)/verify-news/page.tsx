@@ -131,7 +131,7 @@ export default function VerifyNewsPage() {
           <div className="max-w-4xl mx-auto">
             <form 
               onSubmit={handleSubmit} 
-              className="bg-white dark:bg-gray-900 p-6 sm:p-8 lg:p-10 transition-colors duration-300 mb-8"
+              className="bg-white dark:bg-black p-6 sm:p-8 lg:p-10 transition-colors duration-300 mb-8"
             >
               <div className="space-y-6">
                 <div>
@@ -147,7 +147,7 @@ export default function VerifyNewsPage() {
                     value={headline}
                     onChange={(e) => setHeadline(e.target.value)}
                     required
-                    className="w-full px-4 py-3 sm:px-6 sm:py-4 border border-gray-300 dark:border-gray-600 rounded-2xl focus:ring-4 focus:ring-[#EF3866]/20 focus:border-[#EF3866] outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-300 font-sora text-sm sm:text-base"
+                    className="w-full px-4 py-3 sm:px-6 sm:py-4 border border-gray-300 dark:border-gray-600 rounded-2xl focus:ring-4 focus:ring-[#EF3866]/20 focus:border-[#EF3866] outline-none bg-white dark:bg-black text-gray-900 dark:text-white transition-all duration-300 font-sora text-sm sm:text-base"
                     placeholder="Enter the news headline you want to verify..."
                   />
                 </div>
@@ -164,7 +164,7 @@ export default function VerifyNewsPage() {
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     required
-                    className="w-full px-4 py-3 sm:px-6 sm:py-4 border border-gray-300 dark:border-gray-600 rounded-2xl focus:ring-4 focus:ring-[#EF3866]/20 focus:border-[#EF3866] outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-300 min-h-[150px] sm:min-h-[200px] font-sora text-sm sm:text-base resize-vertical"
+                    className="w-full px-4 py-3 sm:px-6 sm:py-4 border border-gray-300 dark:border-gray-600 rounded-2xl focus:ring-4 focus:ring-[#EF3866]/20 focus:border-[#EF3866] outline-none bg-white dark:bg-black text-gray-900 dark:text-white transition-all duration-300 min-h-[150px] sm:min-h-[200px] font-sora text-sm sm:text-base resize-vertical"
                     placeholder="Paste the full article content here for comprehensive analysis..."
                   />
                 </div>
@@ -181,7 +181,7 @@ export default function VerifyNewsPage() {
                     type="url"
                     value={sourceUrl}
                     onChange={(e) => setSourceUrl(e.target.value)}
-                    className="w-full px-4 py-3 sm:px-6 sm:py-4 border border-gray-300 dark:border-gray-600 rounded-2xl focus:ring-4 focus:ring-[#EF3866]/20 focus:border-[#EF3866] outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-300 font-sora text-sm sm:text-base"
+                    className="w-full px-4 py-3 sm:px-6 sm:py-4 border border-gray-300 dark:border-gray-600 rounded-2xl focus:ring-4 focus:ring-[#EF3866]/20 focus:border-[#EF3866] outline-none bg-white dark:bg-black text-gray-900 dark:text-white transition-all duration-300 font-sora text-sm sm:text-base"
                     placeholder="https://example.com/news-article"
                   />
                 </div>
@@ -235,7 +235,7 @@ export default function VerifyNewsPage() {
             {result && (
               <div className="space-y-8">
                 {/* Main Verdict Card */}
-                <div className="bg-white dark:bg-gray-900 p-6 sm:p-8 lg:p-10 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                <div className="bg-white dark:bg-black p-6 sm:p-8 lg:p-10 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
                   <div className="text-center mb-8">
                     <h2 className="font-sora text-2xl sm:text-3xl font-bold mb-4 text-gray-900 dark:text-white">
                       Verification Complete
@@ -277,7 +277,7 @@ export default function VerifyNewsPage() {
 
                 {/* Status Message */}
                 {result.status_message && (
-                  <div className="bg-white dark:bg-gray-900 p-6 sm:p-8 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                  <div className="bg-white dark:bg-black p-6 sm:p-8 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
                     <h3 className="font-sora text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-3">
                       <span className="w-8 h-8 bg-[#EF3866] rounded-full flex items-center justify-center text-white text-sm">📋</span>
                       Status Summary
@@ -292,12 +292,12 @@ export default function VerifyNewsPage() {
 
                 {/* AI Analysis */}
                 {result.llm_response && (
-                  <div className="bg-white dark:bg-gray-900 p-6 sm:p-8 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                  <div className="bg-white dark:bg-black p-6 sm:p-8 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
                     <h3 className="font-sora text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-3">
                       <span className="w-8 h-8 bg-[#EF3866] rounded-full flex items-center justify-center text-white text-sm">🤖</span>
                       AI Analysis
                     </h3>
-                    <div className="bg-gray-50 dark:bg-gray-800 p-4 sm:p-6 rounded-2xl transition-colors duration-300">
+                    <div className="bg-gray-50 dark:bg-black p-4 sm:p-6 rounded-2xl transition-colors duration-300">
                       <pre className="font-sora text-sm sm:text-base text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
                         {result.llm_response}
                       </pre>
@@ -307,7 +307,7 @@ export default function VerifyNewsPage() {
 
                 {/* Matched Sources */}
                 {result.verification_data?.matched_sources && result.verification_data.matched_sources.length > 0 && (
-                  <div className="bg-white dark:bg-gray-900 p-6 sm:p-8 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                  <div className="bg-white dark:bg-black p-6 sm:p-8 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
                     <h3 className="font-sora text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-3">
                       <span className="w-8 h-8 bg-[#EF3866] rounded-full flex items-center justify-center text-white text-sm">🔗</span>
                       Matched Sources
@@ -325,7 +325,7 @@ export default function VerifyNewsPage() {
                 )}
 
                 {/* Full Verification Details */}
-                <div className="bg-white dark:bg-gray-900 p-6 sm:p-8 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                <div className="bg-white dark:bg-black p-6 sm:p-8 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 transition-colors duration-300">
                   <h3 className="font-sora text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-3">
                     <span className="w-8 h-8 bg-[#EF3866] rounded-full flex items-center justify-center text-white text-sm">📊</span>
                     Complete Verification Data

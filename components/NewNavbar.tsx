@@ -329,7 +329,7 @@ const NewNavbar = () => {
 
               <div className="mt-auto pt-[60px] border-t border-gray-200 dark:border-gray-700">
                 {user ? (
-                  <div className="flex flex-col gap-4 bg-gray-100 dark:bg-gray-800 rounded-lg p-4 text-gray-800 dark:text-white">
+                  <div className="flex flex-col gap-4 bg-gray-100 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-gray-800 dark:text-white">
                     <span className="text-base font-semibold border-b border-gray-300 dark:border-gray-600 pb-2 font-sora">
                       Account
                     </span>
