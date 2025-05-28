@@ -552,7 +552,7 @@ export default function UserDashboard() {
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 font-sora transition-colors">You&apos;re an Author!</h3>
                   <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">You can now create and publish posts on HOJO.</p>
                   <div className="mt-4 items-center justify-center flex space-x-4">
-                    <LinkButton title="Verify News" href="/post/create-post" />
+                    <LinkButton title="Create Blog" href="/post/create-post" />
                   </div>
                 </div>
               ) : (
