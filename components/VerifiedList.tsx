@@ -141,7 +141,7 @@ const VerifiedList = () => {
     toast.custom(
       (t) => (
         <div
-          className="max-w-sm w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0 sm:space-x-4 transition-colors"
+          className="max-w-sm w-full bg-white dark:bg-black rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0 sm:space-x-4 transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="text-center sm:text-left text-sm text-gray-800 dark:text-gray-200 font-medium font-sora">
@@ -230,7 +230,7 @@ const VerifiedList = () => {
       {/* Header Section */}
       <div ref={headerRef} className="mb-8 opacity-0">
         {/* Stats Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 mb-6 transition-colors duration-300">
+        <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 mb-6 transition-colors duration-300">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-gradient-to-br from-[#EF3866] to-[#D53059] rounded-lg flex items-center justify-center shadow-sm">
@@ -254,7 +254,7 @@ const VerifiedList = () => {
 
         {/* Search and Filter */}
         {data.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 mb-6 transition-colors duration-300">
+          <div className="bg-white dark:bg-black rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 mb-6 transition-colors duration-300">
             <div className="flex flex-col sm:flex-row gap-4">
               {/* Search */}
               <div className="flex-1 relative">
@@ -264,7 +264,7 @@ const VerifiedList = () => {
                   placeholder="Search headlines or content..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#EF3866] focus:border-[#EF3866] transition-colors font-sora"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-black text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#EF3866] focus:border-[#EF3866] transition-colors font-sora"
                 />
               </div>
 
@@ -274,7 +274,7 @@ const VerifiedList = () => {
                 <select
                   value={filterVerdict}
                   onChange={(e) => setFilterVerdict(e.target.value)}
-                  className="pl-10 pr-8 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#EF3866] focus:border-[#EF3866] transition-colors font-sora appearance-none cursor-pointer"
+                  className="pl-10 pr-8 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-black text-gray-900 dark:text-white focus:ring-2 focus:ring-[#EF3866] focus:border-[#EF3866] transition-colors font-sora appearance-none cursor-pointer"
                 >
                   <option value="all">All Verdicts</option>
                   <option value="true">Verified/True</option>
@@ -290,7 +290,7 @@ const VerifiedList = () => {
       {/* Content Section */}
       <div ref={listRef} className="opacity-0">
         {filteredData.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-12 shadow-sm border border-gray-200 dark:border-gray-700 text-center transition-colors duration-300">
+          <div className="bg-white dark:bg-black rounded-xl p-12 shadow-sm border border-gray-200 dark:border-gray-700 text-center transition-colors duration-300">
             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
               <Shield className="w-8 h-8 text-gray-400" />
             </div>
@@ -310,7 +310,7 @@ const VerifiedList = () => {
               <div
                 key={item.id}
                 data-item-id={item.id}
-                className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-md group"
+                className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-md group"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
