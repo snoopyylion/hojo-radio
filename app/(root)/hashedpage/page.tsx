@@ -255,10 +255,10 @@ export default function UserDashboard() {
 
   if (!isLoaded || loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center transition-colors duration-300">
         <div className="text-center">
           <Loader2 className="animate-spin h-8 w-8 text-[#EF3866] mx-auto mb-4" />
-          <p className="text-gray-600 font-sora">Loading your dashboard...</p>
+          <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Loading your dashboard...</p>
         </div>
       </div>
     );
@@ -266,37 +266,37 @@ export default function UserDashboard() {
 
   if (!user || !userProfile) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center transition-colors duration-300">
         <div className="text-center">
-          <p className="text-gray-600 font-sora">Unable to load user data</p>
+          <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Unable to load user data</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-white pt-[80px]">
+    <div ref={containerRef} className="min-h-screen bg-white dark:bg-black pt-[80px] transition-colors duration-300">
       {/* Header Section */}
-      <div ref={headerRef} className="bg-white opacity-0">
+      <div ref={headerRef} className="bg-white dark:bg-black opacity-0 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#EF3866] to-[#D53059] rounded-full flex items-center justify-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-[#EF3866] to-[#D53059] rounded-full flex items-center justify-center shadow-lg">
                 <span className="text-white text-xl font-bold font-sora">
                   {userProfile.first_name?.[0]}{userProfile.last_name?.[0]}
                 </span>
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 font-sora">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
                   Welcome back, {userProfile.first_name}!
                 </h1>
-                <p className="text-gray-600 font-sora">
+                <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">
                   @{userProfile.username} • {userProfile.role}
                 </p>
               </div>
             </div>
             <div className="mt-4 sm:mt-0">
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 transition-colors">
                 <Mail className="w-4 h-4" />
                 <span className="font-sora">{userProfile.email}</span>
               </div>
@@ -308,56 +308,56 @@ export default function UserDashboard() {
       {/* Stats Section */}
       <div ref={statsRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 opacity-0">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
             <div className="flex items-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <BarChart3 className="w-6 h-6 text-blue-600" />
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center transition-colors">
+                <BarChart3 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 font-sora">Total Views</p>
-                <p className="text-2xl font-bold text-gray-900 font-sora">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">Total Views</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
                   {topPosts.reduce((sum, post) => sum + post.views, 0).toLocaleString()}
                 </p>
               </div>
             </div>
           </div>
           
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
             <div className="flex items-center">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <Heart className="w-6 h-6 text-green-600" />
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center transition-colors">
+                <Heart className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 font-sora">Total Likes</p>
-                <p className="text-2xl font-bold text-gray-900 font-sora">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">Total Likes</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
                   {topPosts.reduce((sum, post) => sum + post.likes, 0).toLocaleString()}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
             <div className="flex items-center">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <MessageCircle className="w-6 h-6 text-purple-600" />
+              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center transition-colors">
+                <MessageCircle className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 font-sora">Comments</p>
-                <p className="text-2xl font-bold text-gray-900 font-sora">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">Comments</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
                   {topPosts.reduce((sum, post) => sum + post.comments, 0)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
             <div className="flex items-center">
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Shield className="w-6 h-6 text-orange-600" />
+              <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center transition-colors">
+                <Shield className="w-6 h-6 text-orange-600 dark:text-orange-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 font-sora">Verified News</p>
-                <p className="text-2xl font-bold text-gray-900 font-sora">-</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">Verified News</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">-</p>
               </div>
             </div>
           </div>
@@ -366,8 +366,8 @@ export default function UserDashboard() {
 
       {/* Navigation Tabs */}
       <div ref={tabsRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 opacity-0">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+        <div className="border-b border-gray-200 dark:border-gray-700 transition-colors">
+          <nav className="-mb-px flex space-x-2 sm:space-x-8 overflow-x-auto scrollbar-hide">
             {[
               { id: 'overview', label: 'Overview', icon: BarChart3 },
               { id: 'posts', label: 'Top Posts', icon: TrendingUp },
@@ -379,14 +379,15 @@ export default function UserDashboard() {
                 <button
                   key={tab.id}
                   onClick={(e) => handleTabClick(tab.id as typeof activeTab, e)}
-                  className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors font-sora ${
+                  className={`flex items-center space-x-2 py-4 px-1 sm:px-3 border-b-2 font-medium text-sm transition-colors font-sora whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'border-[#EF3866] text-[#EF3866]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
                 </button>
               );
             })}
@@ -394,50 +395,53 @@ export default function UserDashboard() {
         </div>
       </div>
 
-      {/* Content Section */}
-      <div ref={contentRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 opacity-0">
+      {/* Content Section - Enhanced for responsiveness */}
+      <div 
+        ref={contentRef} 
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 opacity-0 overflow-y-auto max-h-[calc(100vh-400px)] scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+      >
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Quick Stats */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-4 font-sora">Account Overview</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 font-sora transition-colors">Account Overview</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600 font-sora">Role</span>
+                  <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Role</span>
                   <span className={`px-3 py-1 rounded-full text-xs font-medium font-sora ${
                     userProfile.role === 'author' 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-blue-100 text-blue-800'
-                  }`}>
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' 
+                      : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'
+                  } transition-colors`}>
                     {userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600 font-sora">Username</span>
-                  <span className="text-gray-900 font-sora">@{userProfile.username}</span>
+                  <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Username</span>
+                  <span className="text-gray-900 dark:text-white font-sora transition-colors">@{userProfile.username}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600 font-sora">Member Since</span>
-                  <span className="text-gray-900 font-sora">Nov 2024</span>
+                  <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Member Since</span>
+                  <span className="text-gray-900 dark:text-white font-sora transition-colors">Nov 2024</span>
                 </div>
               </div>
             </div>
 
             {/* Recent Activity */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900 mb-4 font-sora">Recent Activity</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 font-sora transition-colors">Recent Activity</h3>
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600 font-sora">Viewed 5 verified articles today</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">Viewed 5 verified articles today</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600 font-sora">Dashboard accessed</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">Dashboard accessed</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600 font-sora">Profile updated</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">Profile updated</span>
                 </div>
               </div>
             </div>
@@ -447,22 +451,22 @@ export default function UserDashboard() {
         {activeTab === 'posts' && (
           <div>
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 font-sora">Top 5 Posts</h2>
-              <p className="text-gray-600 font-sora">Most popular content on the platform</p>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">Top 5 Posts</h2>
+              <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Most popular content on the platform</p>
             </div>
             <div className="space-y-6">
               {topPosts.map((post, index) => (
-                <div key={post.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                <div key={post.id} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300 hover:shadow-md">
                   <div className="flex items-start space-x-4">
                     <div className="flex-shrink-0">
-                      <div className="w-12 h-12 bg-gradient-to-br from-[#EF3866] to-[#D53059] rounded-lg flex items-center justify-center">
+                      <div className="w-12 h-12 bg-gradient-to-br from-[#EF3866] to-[#D53059] rounded-lg flex items-center justify-center shadow-sm">
                         <span className="text-white font-bold font-sora">#{index + 1}</span>
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-bold text-gray-900 font-sora">{post.title}</h3>
-                      <p className="text-gray-600 mt-1 font-sora">{post.excerpt}</p>
-                      <div className="flex items-center space-x-6 mt-4 text-sm text-gray-500">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white font-sora transition-colors">{post.title}</h3>
+                      <p className="text-gray-600 dark:text-gray-400 mt-1 font-sora transition-colors">{post.excerpt}</p>
+                      <div className="flex items-center flex-wrap gap-4 mt-4 text-sm text-gray-500 dark:text-gray-400 transition-colors">
                         <div className="flex items-center space-x-1">
                           <Eye className="w-4 h-4" />
                           <span className="font-sora">{post.views.toLocaleString()}</span>
@@ -480,7 +484,7 @@ export default function UserDashboard() {
                           <span className="font-sora">{formatDate(post.created_at)}</span>
                         </div>
                       </div>
-                      <p className="text-sm text-gray-500 mt-2 font-sora">by {post.author}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 font-sora transition-colors">by {post.author}</p>
                     </div>
                   </div>
                 </div>
@@ -492,8 +496,8 @@ export default function UserDashboard() {
         {activeTab === 'verified' && (
           <div>
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 font-sora">HOJO AI Verified News</h2>
-              <p className="text-gray-600 font-sora">AI-powered fact-checking and verification results</p>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">HOJO AI Verified News</h2>
+              <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">AI-powered fact-checking and verification results</p>
             </div>
             <VerifiedList />
           </div>
@@ -502,36 +506,36 @@ export default function UserDashboard() {
         {activeTab === 'author' && (
           <div>
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 font-sora">Author Access</h2>
-              <p className="text-gray-600 font-sora">Apply to become a content author on HOJO</p>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">Author Access</h2>
+              <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Apply to become a content author on HOJO</p>
             </div>
-            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
               {userProfile.role === 'author' ? (
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Crown className="w-8 h-8 text-green-600" />
+                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
+                    <Crown className="w-8 h-8 text-green-600 dark:text-green-400" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 font-sora">You&apos;re an Author!</h3>
-                  <p className="text-gray-600 font-sora">You can now create and publish posts on HOJO.</p>
-                  <button className="mt-4 px-6 py-3 bg-[#EF3866] text-white rounded-lg font-semibold font-sora hover:bg-[#D53059] transition-colors">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 font-sora transition-colors">You&apos;re an Author!</h3>
+                  <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">You can now create and publish posts on HOJO.</p>
+                  <button className="mt-4 px-6 py-3 bg-[#EF3866] text-white rounded-lg font-semibold font-sora hover:bg-[#D53059] transition-colors shadow-sm">
                     Create New Post
                   </button>
                 </div>
               ) : (
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <User className="w-8 h-8 text-blue-600" />
+                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
+                    <User className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 font-sora">Become an Author</h3>
-                  <p className="text-gray-600 mb-6 font-sora">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 font-sora transition-colors">Become an Author</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-6 font-sora transition-colors">
                     Join our community of content creators and share your expertise with the world.
                   </p>
                   
                   {requestSent ? (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 transition-colors">
                       <div className="flex items-center justify-center space-x-2">
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                        <span className="text-green-800 font-medium font-sora">
+                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        <span className="text-green-800 dark:text-green-400 font-medium font-sora transition-colors">
                           Request submitted successfully! We&apos;ll review your application shortly.
                         </span>
                       </div>
@@ -540,15 +544,15 @@ export default function UserDashboard() {
                     <button
                       data-author-request
                       onClick={handleRequestAuthorAccess}
-                      className="px-6 py-3 bg-[#EF3866] text-white rounded-lg font-semibold font-sora hover:bg-[#D53059] transition-colors"
+                      className="px-6 py-3 bg-[#EF3866] text-white rounded-lg font-semibold font-sora hover:bg-[#D53059] transition-colors shadow-sm"
                     >
                       Request Author Access
                     </button>
                   )}
                   
                   <div className="mt-6 text-left">
-                    <h4 className="font-semibold text-gray-900 mb-3 font-sora">Author Benefits:</h4>
-                    <ul className="space-y-2 text-sm text-gray-600">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3 font-sora transition-colors">Author Benefits:</h4>
+                    <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400 transition-colors">
                       <li className="flex items-center space-x-2">
                         <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                         <span className="font-sora">Publish articles and blog posts</span>
