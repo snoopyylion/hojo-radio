@@ -124,28 +124,28 @@ const VerifiedList = () => {
       transition={{ duration: 0.5, delay: 0.2 }}
       className="max-w-4xl mx-auto mt-10 px-4"
     >
-      <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 text-center">
+      <h2 className="text-xl sm:text-2xl font-bold text-black mb-2 text-center">
         Your Verified News History
       </h2>
 
-      <p className="text-center text-sm text-gray-400 mb-6">
+      <p className="text-center text-sm text-black mb-6">
         You’ve verified <strong>{data.length}</strong> news item{data.length === 1 ? '' : 's'} so far.
       </p>
 
       {data.length === 0 ? (
-        <p className="text-center text-gray-300">No verifications yet.</p>
+        <p className="text-center text-black">No verifications yet.</p>
       ) : (
         <div className="space-y-4">
           {data.map((item) => (
             <div
               key={item.id}
-              className="bg-white/10 border border-white/20 rounded-lg p-4 shadow-sm backdrop-blur-md"
+              className="bg-[#EF3866] border border-white/20 rounded-lg p-4 shadow-sm backdrop-blur-md"
             >
               <div className="flex justify-between items-start">
                 <div>
                   <div className="text-white font-semibold text-lg mb-1">{item.headline}</div>
-                  <div className="text-teal-300 text-sm">Verdict: {item.verdict}</div>
-                  <div className="text-gray-400 text-xs mt-1">
+                  <div className="text-white text-sm">Verdict: {item.verdict}</div>
+                  <div className="text-gray-200 text-xs mt-1">
                     Submitted on: {new Date(item.created_at).toLocaleString()}
                   </div>
                 </div>
