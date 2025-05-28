@@ -241,7 +241,7 @@ const VerifiedList = () => {
                   Verification History
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">
-                  You've verified <strong>{data.length}</strong> news item{data.length === 1 ? '' : 's'} so far
+                  You&apos;ve verified <strong>{data.length}</strong> news item{data.length === 1 ? '' : 's'} so far
                 </p>
               </div>
             </div>

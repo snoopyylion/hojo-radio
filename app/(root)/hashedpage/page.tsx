@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { supabase } from "@/lib/supabaseClient";
 import { gsap } from "gsap";
 import { 
@@ -43,6 +43,8 @@ export default function UserDashboard() {
   const { user, isLoaded } = useUser();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [topPosts, setTopPosts] = useState<TopPost[]>([]);
+  const { getToken } = useAuth();
+  const [verifiedNewsCount, setVerifiedNewsCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [requestSent, setRequestSent] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'verified' | 'author'>('overview');
@@ -103,6 +105,32 @@ export default function UserDashboard() {
     }
   }, [loading]);
 
+   // Function to fetch verified news count
+  const fetchVerifiedNewsCount = async () => {
+    try {
+      const token = await getToken();
+      const res = await fetch('/api/news-verification/verification-list?page=1&limit=1000', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.verifications)) {
+          setVerifiedNewsCount(json.verifications.length);
+        } else {
+          setVerifiedNewsCount(0);
+        }
+      } else {
+        console.error('Failed to fetch verified news count');
+        setVerifiedNewsCount(0);
+      }
+    } catch (error) {
+      console.error('Error fetching verified news count:', error);
+      setVerifiedNewsCount(0);
+    }
+  };
   const fetchUserData = async () => {
     if (!user?.id) return;
 
@@ -122,6 +150,9 @@ export default function UserDashboard() {
       } else {
         console.error('❌ Failed to fetch profile:', profileError);
       }
+
+      // Fetch verified news count
+      await fetchVerifiedNewsCount();
 
       // Fetch top 5 posts (mock data for now)
       const mockTopPosts: TopPost[] = [
@@ -357,7 +388,9 @@ export default function UserDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">Verified News</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">-</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
+                  {verifiedNewsCount}
+                  </p>
               </div>
             </div>
           </div>
