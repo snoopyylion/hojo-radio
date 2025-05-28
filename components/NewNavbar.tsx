@@ -340,14 +340,14 @@ const NewNavbar = () => {
                       </div>
                       
                       {/* User Profile Info */}
-                      <div className="flex flex-col justify-center h-8 text-sm font-sora flex-1">
+                      <Link href="/hashedpage" className="flex flex-col justify-center h-8 text-sm font-sora flex-1">
                         <span className="text-gray-500 dark:text-gray-400 text-xs leading-tight capitalize">
                           {loading ? 'Loading...' : (userProfile?.role || 'Member')}
                         </span>
                         <span className="text-gray-800 dark:text-white font-medium leading-tight">
                           {loading ? 'Loading...' : (userProfile?.first_name || user?.firstName || 'User')}
                         </span>
-                      </div>
+                      </Link>
                       
                       {/* User Button */}
                       <div className="w-8 h-8">
