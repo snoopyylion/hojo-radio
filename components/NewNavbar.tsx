@@ -1,14 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import React, { useEffect, useState } from "react";
-import { Menu, X, Bell } from "lucide-react";
+import React, { useEffect, useState, useRef } from "react";
+import { Menu, X, Bell, Loader2 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useAppContext } from "@/context/AppContext";
 import Link from "next/link";
 import SignOutBtn from "@/components/SignOutBtn";
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@supabase/supabase-js';
+import { gsap } from 'gsap';
 
 // Initialize Supabase client with proper type checking
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -35,7 +36,80 @@ const NewNavbar = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Refs for GSAP animations
+  const navRef = useRef<HTMLElement>(null);
+  const logoRef = useRef<HTMLDivElement>(null);
+  const navLinksRef = useRef<HTMLUListElement>(null);
+  const authSectionRef = useRef<HTMLDivElement>(null);
+  const mobileButtonRef = useRef<HTMLDivElement>(null);
+
   const toggleSidebar = () => setIsOpen(!isOpen);
+
+  // GSAP Animation on component mount
+  useEffect(() => {
+    const tl = gsap.timeline();
+
+    // Set initial states - but keep nav links visible on desktop
+    gsap.set([logoRef.current, authSectionRef.current, mobileButtonRef.current], {
+      opacity: 0,
+      y: -20
+    });
+
+    // Set nav links initial state only if they exist
+    if (navLinksRef.current?.children) {
+      gsap.set(navLinksRef.current.children, {
+        opacity: 0,
+        y: -20
+      });
+    }
+
+    // Animate navbar background
+    tl.fromTo(navRef.current, 
+      { 
+        opacity: 0,
+        y: -100 
+      },
+      { 
+        opacity: 1,
+        y: 0,
+        duration: 0.8,
+        ease: "power2.out"
+      }
+    )
+    // Animate logo
+    .to(logoRef.current, {
+      opacity: 1,
+      y: 0,
+      duration: 0.6,
+      ease: "power2.out"
+    }, "-=0.4")
+    // Animate nav links with stagger
+    .to(navLinksRef.current?.children || [], {
+      opacity: 1,
+      y: 0,
+      duration: 0.5,
+      stagger: 0.1,
+      ease: "power2.out"
+    }, "-=0.3")
+    // Animate auth section
+    .to(authSectionRef.current, {
+      opacity: 1,
+      y: 0,
+      duration: 0.6,
+      ease: "power2.out"
+    }, "-=0.4")
+    // Animate mobile button
+    .to(mobileButtonRef.current, {
+      opacity: 1,
+      y: 0,
+      duration: 0.5,
+      ease: "power2.out"
+    }, "-=0.3");
+
+    return () => {
+      tl.kill();
+    };
+  }, []);
 
   // Fetch user profile data from Supabase
   useEffect(() => {
@@ -100,11 +174,12 @@ const NewNavbar = () => {
 
   return (
     <nav
+      ref={navRef}
       className={`px-6 md:px-28 h-[92px] flex items-center bg-white/70 backdrop-blur-sm shadow-sm fixed top-0 left-0 w-full transition-transform duration-300 z-50 font-sora ${isVisible ? "translate-y-0" : "-translate-y-full"}`}
     >
       <div className="flex items-center justify-between w-full">
         {/* Logo */}
-        <div className="flex-shrink-0 flex items-center">
+        <div ref={logoRef} className="flex-shrink-0 flex items-center">
           <Link href="/">
             <Image src="/img/logo.png" alt="logo" width={100} height={100} />
           </Link>
@@ -112,7 +187,7 @@ const NewNavbar = () => {
 
         {/* Desktop Nav Links - Centered vertically */}
         <div className="hidden md:flex items-center space-x-14 text-sm font-medium text-gray-700 font-sora">
-          <ul className="flex items-center space-x-14">
+          <ul ref={navLinksRef} className="flex items-center space-x-14">
             <li className="flex items-center">
               <Link href="/" className="hover:text-[#d7325a] transition font-sora">
                 Home
@@ -142,7 +217,7 @@ const NewNavbar = () => {
         </div>
 
         {/* Sign Up / User Button - Centered vertically */}
-        <div className="hidden md:flex items-center">
+        <div ref={authSectionRef} className="hidden md:flex items-center">
           {user ? (
             <div className="flex items-center gap-4">
               <div
@@ -154,7 +229,13 @@ const NewNavbar = () => {
                 <div className="flex items-center gap-[2px] w-[212px] h-[50px]">
                   {/* Alarm Icon */}
                   <div className="w-[22.5px] h-[25.37px] flex items-center justify-center">
-                    <Image src="/icons/bell.png" alt="alarm" width={16} height={25.37} className=" hover:text-[#d7325a] cursor-pointer transition" />
+                    <Image 
+                      src="/icons/bell.png" 
+                      alt="alarm" 
+                      width={16} 
+                      height={25.37} 
+                      className="hover:text-[#d7325a] cursor-pointer transition" 
+                    />
                   </div>
 
                   <div className="flex w-[161.5px] h-[50px] gap-[5px] items-center">
@@ -206,7 +287,7 @@ const NewNavbar = () => {
         </div>
 
         {/* Mobile Hamburger */}
-        <div className="md:hidden flex items-center">
+        <div ref={mobileButtonRef} className="md:hidden flex items-center">
           <button onClick={toggleSidebar} className="flex items-center justify-center">
             {isOpen ? <X size={28} /> : <Menu size={28} />}
           </button>
@@ -264,7 +345,7 @@ const NewNavbar = () => {
                           {loading ? 'Loading...' : (userProfile?.role || 'Member')}
                         </span>
                         <span className="text-gray-800 dark:text-white font-medium leading-tight">
-                          {loading ? 'Loading...' : (userProfile?.first_name || user?.firstName|| 'User')}
+                          {loading ? 'Loading...' : (userProfile?.first_name || user?.firstName || 'User')}
                         </span>
                       </div>
                       

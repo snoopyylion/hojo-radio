@@ -6,6 +6,11 @@ import { ALL_POSTS_QUERY } from "@/sanity/lib/queries";
 import { groq } from "next-sanity";
 import { ChevronUp } from "lucide-react";
 import NewsTile from "@/components/NewsTile";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+// Register GSAP plugins
+gsap.registerPlugin(ScrollTrigger);
 
 /**
  * Post interface used to strongly type Sanity blog post documents.
@@ -74,6 +79,12 @@ const NewsPage = () => {
   const [visiblePosts, setVisiblePosts] = useState(postsPerPage);
   const loaderRef = useRef<HTMLDivElement>(null);
 
+  // Animation refs
+  const heroRef = useRef<HTMLDivElement>(null);
+  const filtersRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const scrollTopRef = useRef<HTMLButtonElement>(null);
+
   // Use useMemo to calculate filtered posts to avoid the "used before declaration" error
   const filteredPosts = useMemo(() => {
     return posts.filter(post => {
@@ -85,6 +96,89 @@ const NewsPage = () => {
       return matchesSearch && matchesCategory;
     });
   }, [posts, search, activeCategory]);
+
+  // Initial page load animations
+  useEffect(() => {
+    const tl = gsap.timeline();
+
+    // Hero section animation
+    if (heroRef.current) {
+      gsap.set(heroRef.current, { opacity: 0, y: 50 });
+      tl.to(heroRef.current, {
+        opacity: 1,
+        y: 0,
+        duration: 1,
+        ease: "power3.out"
+      });
+    }
+
+    // Filters animation
+    if (filtersRef.current) {
+      gsap.set(filtersRef.current, { opacity: 0, y: 30 });
+      tl.to(filtersRef.current, {
+        opacity: 1,
+        y: 0,
+        duration: 0.8,
+        ease: "power2.out"
+      }, "-=0.5");
+    }
+
+    // Scroll top button animation setup
+    if (scrollTopRef.current) {
+      gsap.set(scrollTopRef.current, { scale: 0, rotation: -180 });
+    }
+
+    return () => {
+      tl.kill();
+    };
+  }, []);
+
+  // Animate content when posts load or filters change
+  useEffect(() => {
+    if (!isLoading && contentRef.current) {
+      const posts = contentRef.current.querySelectorAll('.news-tile');
+      
+      gsap.set(posts, { opacity: 0, y: 30, scale: 0.95 });
+      
+      gsap.to(posts, {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        duration: 0.6,
+        stagger: 0.1,
+        ease: "power2.out"
+      });
+    }
+  }, [filteredPosts, visiblePosts, isLoading, view]);
+
+  // Scroll top button animation
+  useEffect(() => {
+    const handleScroll = () => {
+      const shouldShow = window.scrollY > 300;
+      setShowScrollTop(shouldShow);
+
+      if (scrollTopRef.current) {
+        if (shouldShow && !showScrollTop) {
+          gsap.to(scrollTopRef.current, {
+            scale: 1,
+            rotation: 0,
+            duration: 0.3,
+            ease: "back.out(1.7)"
+          });
+        } else if (!shouldShow && showScrollTop) {
+          gsap.to(scrollTopRef.current, {
+            scale: 0,
+            rotation: -180,
+            duration: 0.3,
+            ease: "back.in(1.7)"
+          });
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [showScrollTop]);
 
   useEffect(() => {
     // Initial fetch of all posts
@@ -142,17 +236,9 @@ const NewsPage = () => {
         }
       });
 
-    // Set up scroll listener
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 300);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-
     // Clean up
     return () => {
       subscription.unsubscribe();
-      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
@@ -185,18 +271,62 @@ const NewsPage = () => {
       }
     };
   }, [loaderRef, visiblePosts, filteredPosts.length]);
-  // Scroll to top function
+
+  // Scroll to top function with animation
   const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
+    gsap.to(window, {
+      scrollTo: { y: 0 },
+      duration: 1,
+      ease: "power2.out"
     });
+  };
+
+  // Animate filter changes
+  const handleCategoryChange = (category: string | null) => {
+    // Animate out current content
+    if (contentRef.current) {
+      const posts = contentRef.current.querySelectorAll('.news-tile');
+      gsap.to(posts, {
+        opacity: 0,
+        y: -20,
+        duration: 0.3,
+        stagger: 0.05,
+        ease: "power2.in",
+        onComplete: () => {
+          setActiveCategory(category);
+        }
+      });
+    } else {
+      setActiveCategory(category);
+    }
+  };
+
+  // Animate search changes
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    
+    if (contentRef.current) {
+      const posts = contentRef.current.querySelectorAll('.news-tile');
+      gsap.fromTo(posts, 
+        { opacity: 1 },
+        {
+          opacity: 0.3,
+          duration: 0.2,
+          yoyo: true,
+          repeat: 1,
+          ease: "power2.inOut"
+        }
+      );
+    }
   };
 
   return (
     <section className="px-4 pt-[120px] md:pt-[150px] md:px-8 lg:px-16 py-8 bg-white dark:bg-black transition-colors duration-300 min-h-screen">
       {/* Hero Section */}
-      <div className="relative mb-10 bg-gradient-to-r from-pink-100 via-white to-purple-100 dark:from-pink-950 dark:via-gray-950 dark:to-purple-950 rounded-xl overflow-hidden">
+      <div 
+        ref={heroRef}
+        className="relative mb-10 bg-gradient-to-r from-pink-100 via-white to-purple-100 dark:from-pink-950 dark:via-gray-950 dark:to-purple-950 rounded-xl overflow-hidden"
+      >
         <div className="absolute inset-0 bg-[url('/img/heroimg.png')] opacity-5"></div>
         <div className="relative p-6 md:p-10 lg:p-16">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
@@ -209,15 +339,18 @@ const NewsPage = () => {
       </div>
 
       {/* Search and Filters */}
-      <div className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-md pt-4 pb-4 mb-6 border-b border-gray-100 dark:border-gray-800">
+      <div 
+        ref={filtersRef}
+        className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-md pt-4 pb-4 mb-6 border-b border-gray-100 dark:border-gray-800"
+      >
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
           <div className="relative w-full md:w-auto md:flex-1 max-w-md">
             <input
               type="text"
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => handleSearchChange(e.target.value)}
               placeholder="Search articles..."
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-full px-5 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-colors pl-10"
+              className="w-full border border-gray-300 dark:border-gray-700 rounded-full px-5 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-300 pl-10 focus:border-[#EF3866] focus:ring-2 focus:ring-[#EF3866]/20"
             />
             <span className="absolute left-3 top-2.5 text-gray-400">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -230,7 +363,7 @@ const NewsPage = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setView('grid')}
-              className={`p-2 rounded ${view === 'grid' ? 'bg-[#EF3866] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}
+              className={`p-2 rounded transition-all duration-300 hover:scale-105 ${view === 'grid' ? 'bg-[#EF3866] text-white shadow-lg' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
               aria-label="Grid view"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -242,7 +375,7 @@ const NewsPage = () => {
             </button>
             <button
               onClick={() => setView('list')}
-              className={`p-2 rounded ${view === 'list' ? 'bg-[#EF3866] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}
+              className={`p-2 rounded transition-all duration-300 hover:scale-105 ${view === 'list' ? 'bg-[#EF3866] text-white shadow-lg' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
               aria-label="List view"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -260,9 +393,9 @@ const NewsPage = () => {
         {/* Category Pills */}
         <div className="flex gap-2 pb-1 overflow-x-auto scrollbar-hide">
           <button
-            onClick={() => setActiveCategory(null)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors duration-200 ${!activeCategory
-                ? 'bg-[#EF3866] text-white'
+            onClick={() => handleCategoryChange(null)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-300 hover:scale-105 ${!activeCategory
+                ? 'bg-[#EF3866] text-white shadow-lg'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
           >
@@ -271,9 +404,9 @@ const NewsPage = () => {
           {categories.map(category => (
             <button
               key={category}
-              onClick={() => setActiveCategory(category)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors duration-200 ${activeCategory === category
-                  ? 'bg-[#EF3866] text-white'
+              onClick={() => handleCategoryChange(category)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-300 hover:scale-105 ${activeCategory === category
+                  ? 'bg-[#EF3866] text-white shadow-lg'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
             >
@@ -284,62 +417,70 @@ const NewsPage = () => {
       </div>
 
       {/* Content Section */}
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="relative w-16 h-16">
-            <div className="absolute top-0 left-0 w-full h-full border-4 border-[#EF3866]/20 rounded-full"></div>
-            <div className="absolute top-0 left-0 w-full h-full border-4 border-transparent border-t-[#EF3866] rounded-full animate-spin"></div>
+      <div ref={contentRef}>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="relative w-16 h-16">
+              <div className="absolute top-0 left-0 w-full h-full border-4 border-[#EF3866]/20 rounded-full"></div>
+              <div className="absolute top-0 left-0 w-full h-full border-4 border-transparent border-t-[#EF3866] rounded-full animate-spin"></div>
+            </div>
           </div>
-        </div>
-      ) : (
-        <>
-          {filteredPosts.length > 0 ? (
-            <div className={view === 'grid'
-              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-              : "flex flex-col gap-4"
-            }>
-              {filteredPosts.slice(0, visiblePosts).map(post => (
-                <NewsTile key={post._id} post={post} view={view} />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="text-[#EF3866] mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
+        ) : (
+          <>
+            {filteredPosts.length > 0 ? (
+              <div className={view === 'grid'
+                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                : "flex flex-col gap-4"
+              }>
+                {filteredPosts.slice(0, visiblePosts).map(post => (
+                  <div key={post._id} className="news-tile">
+                    <NewsTile post={post} view={view} />
+                  </div>
+                ))}
               </div>
-              <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">No posts found</h3>
-              <p className="text-gray-600 dark:text-gray-300 max-w-md mb-4">
-                We couldn&apos;t find any posts matching your search criteria. Try adjusting your filters or explore different categories.
-              </p>
-              <button
-                onClick={() => { setSearch(""); setActiveCategory(null); }}
-                className="bg-[#EF3866] hover:bg-[#d72955] text-white px-6 py-2 rounded-full transition shadow-md"
-              >
-                Reset Filters
-              </button>
-            </div>
-          )}
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="text-[#EF3866] mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">No posts found</h3>
+                <p className="text-gray-600 dark:text-gray-300 max-w-md mb-4">
+                  We couldn&apos;t find any posts matching your search criteria. Try adjusting your filters or explore different categories.
+                </p>
+                <button
+                  onClick={() => { 
+                    setSearch(""); 
+                    handleCategoryChange(null); 
+                  }}
+                  className="bg-[#EF3866] hover:bg-[#d72955] text-white px-6 py-2 rounded-full transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105"
+                >
+                  Reset Filters
+                </button>
+              </div>
+            )}
 
-          {/* Infinite Scroll Loader */}
-          {filteredPosts.length > visiblePosts && (
-            <div
-              ref={loaderRef}
-              className="flex justify-center items-center py-8"
-            >
-              <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-2 w-16 rounded-full"></div>
-            </div>
-          )}
-        </>
-      )}
+            {/* Infinite Scroll Loader */}
+            {filteredPosts.length > visiblePosts && (
+              <div
+                ref={loaderRef}
+                className="flex justify-center items-center py-8"
+              >
+                <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-2 w-16 rounded-full"></div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Scroll to top button */}
       <button
+        ref={scrollTopRef}
         onClick={scrollToTop}
-        className={`fixed bottom-6 right-6 bg-[#EF3866] hover:bg-[#d72955] text-white p-3 rounded-full shadow-lg z-50 transition-opacity duration-300 ${showScrollTop ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
+        className="fixed bottom-6 right-6 bg-[#EF3866] hover:bg-[#d72955] text-white p-3 rounded-full shadow-lg z-50 transition-colors duration-300"
+        style={{ opacity: showScrollTop ? 1 : 0, pointerEvents: showScrollTop ? 'auto' : 'none' }}
         aria-label="Scroll to top"
       >
         <ChevronUp size={20} />
@@ -349,4 +490,3 @@ const NewsPage = () => {
 };
 
 export default NewsPage;
-
