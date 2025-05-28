@@ -306,7 +306,7 @@ export default function UserDashboard() {
   }
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-white dark:bg-black pt-[80px] transition-colors duration-300">
+    <div ref={containerRef} className="min-h-screen bg-white dark:bg-black pt-[80px] transition-colors duration-300 pb-[100px]">
       {/* Header Section */}
       <div ref={headerRef} className="bg-white dark:bg-black opacity-0 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
