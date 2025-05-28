@@ -431,7 +431,7 @@ export default function UserDashboard() {
       {/* Content Section - Enhanced for responsiveness */}
       <div 
         ref={contentRef} 
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 opacity-0 overflow-y-auto max-h-[calc(100vh-400px)] scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 opacity-0 overflow-y-auto max-h-[calc(100vh-200px)] scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
       >
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -455,7 +455,7 @@ export default function UserDashboard() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Member Since</span>
-                  <span className="text-gray-900 dark:text-white font-sora transition-colors">Nov 2024</span>
+                  <span className="text-gray-900 dark:text-white font-sora transition-colors">Apr 2025</span>
                 </div>
               </div>
             </div>
