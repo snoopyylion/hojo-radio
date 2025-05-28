@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useAuth, UserButton, useUser } from "@clerk/nextjs";
 import { supabase } from "@/lib/supabaseClient";
 import { gsap } from "gsap";
 import { 
@@ -19,6 +19,7 @@ import {
   Shield,
 } from "lucide-react";
 import VerifiedList from '@/components/VerifiedList';
+import LinkButton from "@/components/LinkButton";
 
 interface UserProfile {
   first_name: string;
@@ -312,11 +313,11 @@ export default function UserDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#EF3866] to-[#D53059] rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-white text-xl font-bold font-sora">
-                  {userProfile.first_name?.[0]}{userProfile.last_name?.[0]}
-                </span>
-              </div>
+              <div className="relative">
+          <UserButton/>
+          {/* Optional: Add a decorative ring around the avatar */}
+          <div className="absolute inset-0 rounded-full border-2 border-[#EF3866]/20 animate-pulse pointer-events-none"></div>
+        </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
                   Welcome back, {userProfile.first_name}!
@@ -550,9 +551,7 @@ export default function UserDashboard() {
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 font-sora transition-colors">You&apos;re an Author!</h3>
                   <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">You can now create and publish posts on HOJO.</p>
-                  <button className="mt-4 px-6 py-3 bg-[#EF3866] text-white rounded-lg font-semibold font-sora hover:bg-[#D53059] transition-colors shadow-sm">
-                    Create New Post
-                  </button>
+                  <LinkButton title="Verify News" href="/post/create-post" />
                 </div>
               ) : (
                 <div className="text-center">
