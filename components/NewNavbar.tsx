@@ -10,7 +10,7 @@ import SignOutBtn from "@/components/SignOutBtn";
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@supabase/supabase-js';
 import { gsap } from 'gsap';
-import { useRouter, usePathname } from 'next/navigation';
+import {  usePathname } from 'next/navigation';
 
 // Initialize Supabase client with proper type checking
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -67,7 +67,6 @@ const useDarkMode = () => {
 
 const NewNavbar = () => {
   const { user } = useAppContext();
-  const router = useRouter();
   const pathname = usePathname();
   const isDarkMode = useDarkMode();
   const [isOpen, setIsOpen] = useState(false);
