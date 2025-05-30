@@ -5,7 +5,6 @@ import { useAuth, UserButton, useUser } from "@clerk/nextjs";
 import { supabase } from "@/lib/supabaseClient";
 import { gsap } from "gsap";
 import { 
-  Loader2, 
   TrendingUp, 
   CheckCircle, 
   User, 
@@ -20,6 +19,7 @@ import {
 } from "lucide-react";
 import VerifiedList from '@/components/VerifiedList';
 import LinkButton from "@/components/LinkButton";
+import PageLoader, { InlineLoader } from '@/components/PageLoader';
 
 interface UserProfile {
   first_name: string;
@@ -40,6 +40,12 @@ interface TopPost {
   author: string;
 }
 
+interface LoadingState {
+  stage: 'loading' | 'syncing' | 'finalizing' | 'complete';
+  message: string;
+  progress: number;
+}
+
 export default function UserDashboard() {
   const { user, isLoaded } = useUser();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -47,8 +53,14 @@ export default function UserDashboard() {
   const { getToken } = useAuth();
   const [verifiedNewsCount, setVerifiedNewsCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [loadingState, setLoadingState] = useState<LoadingState>({
+    stage: 'loading',
+    message: 'Initializing your dashboard...',
+    progress: 0
+  });
   const [requestSent, setRequestSent] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'verified' | 'author'>('overview');
+  const [tabLoading, setTabLoading] = useState(false);
 
   // Animation refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -106,9 +118,15 @@ export default function UserDashboard() {
     }
   }, [loading]);
 
-   // Function to fetch verified news count
+  // Function to fetch verified news count
   const fetchVerifiedNewsCount = async () => {
     try {
+      setLoadingState({
+        stage: 'syncing',
+        message: 'Fetching verified news data...',
+        progress: 60
+      });
+
       const token = await getToken();
       const res = await fetch('/api/news-verification/verification-list?page=1&limit=1000', {
         headers: {
@@ -132,11 +150,19 @@ export default function UserDashboard() {
       setVerifiedNewsCount(0);
     }
   };
+
   const fetchUserData = async () => {
     if (!user?.id) return;
 
     setLoading(true);
     try {
+      // Stage 1: Loading user profile
+      setLoadingState({
+        stage: 'loading',
+        message: 'Loading your profile...',
+        progress: 25
+      });
+
       // Fix: Use 'id' instead of 'clerk_id'
       const { data: profileData, error: profileError } = await supabase
         .from('users')
@@ -152,8 +178,15 @@ export default function UserDashboard() {
         console.error('❌ Failed to fetch profile:', profileError);
       }
 
-      // Fetch verified news count
+      // Stage 2: Fetch verified news count
       await fetchVerifiedNewsCount();
+
+      // Stage 3: Finalizing
+      setLoadingState({
+        stage: 'finalizing',
+        message: 'Preparing your dashboard...',
+        progress: 85
+      });
 
       // Fetch top 5 posts (mock data for now)
       const mockTopPosts: TopPost[] = [
@@ -210,9 +243,20 @@ export default function UserDashboard() {
       ];
       setTopPosts(mockTopPosts);
 
+      // Complete loading
+      setLoadingState({
+        stage: 'complete',
+        message: 'Dashboard ready!',
+        progress: 100
+      });
+
+      // Small delay to show completion state
+      setTimeout(() => {
+        setLoading(false);
+      }, 500);
+
     } catch (error) {
       console.error('Error fetching user data:', error);
-    } finally {
       setLoading(false);
     }
   };
@@ -254,7 +298,19 @@ export default function UserDashboard() {
     }
   };
 
-  const handleTabClick = (tab: typeof activeTab, event: React.MouseEvent) => {
+  const handleTabClick = async (tab: typeof activeTab, event: React.MouseEvent) => {
+    if (tab === activeTab) return;
+
+    // Show tab loading for certain tabs that might need data fetching
+    if (tab === 'verified' || tab === 'posts') {
+      setTabLoading(true);
+      
+      // Simulate async operation (replace with actual data fetching if needed)
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      setTabLoading(false);
+    }
+
     setActiveTab(tab);
     
     // Animate tab switch - check if element exists
@@ -285,27 +341,31 @@ export default function UserDashboard() {
     });
   };
 
+  // Show PageLoader during initial loading
   if (!isLoaded || loading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center transition-colors duration-300">
-        <div className="text-center">
-          <Loader2 className="animate-spin h-8 w-8 text-[#EF3866] mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Loading your dashboard...</p>
-        </div>
-      </div>
+      <PageLoader
+        message={loadingState.message}
+        stage={loadingState.stage}
+        progress={loadingState.progress}
+        showProgress={true}
+        showSteps={true}
+        size="md"
+      />
     );
   }
 
   if (!user || !userProfile) {
     return (
-      <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center transition-colors duration-300">
-        <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Unable to load user data</p>
-        </div>
-      </div>
+      <PageLoader
+        message="Unable to load user data"
+        stage="loading"
+        progress={0}
+        showProgress={false}
+        size="md"
+      />
     );
   }
-
   return (
     <div ref={containerRef} className="min-h-screen bg-white dark:bg-black pt-[80px] transition-colors duration-300 pb-[100px]">
       {/* Header Section */}
