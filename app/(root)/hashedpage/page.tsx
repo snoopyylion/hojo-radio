@@ -709,7 +709,7 @@ export default function UserDashboard() {
                 <div className="text-center py-8">
                   <MessageCircle className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
                   <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">
-                    You haven't made any comments yet. Start engaging with posts to see your comments here!
+                    You haven&apos;t made any comments yet. Start engaging with posts to see your comments here!
                   </p>
                 </div>
               )}

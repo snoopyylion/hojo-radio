@@ -3,12 +3,6 @@ import { auth } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 
-interface LikeData {
-  id: string;
-  user_id: string;
-  post_id: string;
-  created_at: string;
-}
 
 export async function POST(
   request: NextRequest,

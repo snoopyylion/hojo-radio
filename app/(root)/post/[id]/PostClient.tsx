@@ -8,7 +8,7 @@ import { formatDate } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Heart, Share2, Bookmark, Volume2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Heart, Bookmark, Volume2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CommentSection from '@/components/CommentSection';
 import type { PortableTextBlock } from '@portabletext/types';
@@ -65,10 +65,6 @@ interface PostClientProps {
   id: string;
 }
 
-interface LikeButtonProps {
-  postId: string;
-  className?: string;
-}
 
 const ptComponents: Partial<PortableTextReactComponents> = {
   types: {

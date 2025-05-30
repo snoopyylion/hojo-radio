@@ -93,7 +93,7 @@ export async function GET() {
             `)
             .eq("user_id", userId)
             .order("created_at", { ascending: false })
-            .limit(10) as { data: SimpleComment[] | null, error: any };
+            .limit(10) as unknown as { data: SimpleComment[] | null; error: { message: string } | null };
 
         console.log("🔍 Recent comments result:", { 
             recentComments, 
