@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import VerifiedList from '@/components/VerifiedList';
 import LinkButton from "@/components/LinkButton";
-import PageLoader, { InlineLoader } from '@/components/PageLoader';
+import PageLoader from '@/components/PageLoader';
 
 interface UserProfile {
   first_name: string;
@@ -60,7 +60,7 @@ export default function UserDashboard() {
   });
   const [requestSent, setRequestSent] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'verified' | 'author'>('overview');
-  const [tabLoading, setTabLoading] = useState(false);
+  const [, setTabLoading] = useState(false);
 
   // Animation refs
   const containerRef = useRef<HTMLDivElement>(null);
