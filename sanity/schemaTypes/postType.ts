@@ -102,8 +102,39 @@ export const postType = defineType({
       name: 'likes',
       title: 'Likes',
       type: 'array',
-      of: [{ type: 'string' }],
-      readOnly: true,
+      of: [
+        {
+          type: 'object',
+          fields: [
+            {
+              name: 'userId',
+              title: 'User ID',
+              type: 'string',
+              description: 'Anonymous user identifier or authenticated user ID'
+            },
+            {
+              name: 'timestamp',
+              title: 'Timestamp',
+              type: 'datetime',
+              initialValue: () => new Date().toISOString()
+            },
+            {
+              name: 'ipAddress',
+              title: 'IP Address',
+              type: 'string',
+              description: 'For preventing spam (optional)'
+            }
+          ]
+        }
+      ]
+    }),
+    
+    defineField({
+      name: 'likeCount',
+      title: 'Like Count',
+      type: 'number',
+      initialValue: 0,
+      description: 'Cached like count for performance'
     }),
 
     // ✅ Comments (array of objects)

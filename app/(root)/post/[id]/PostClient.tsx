@@ -12,6 +12,8 @@ import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Heart, Share2, Bookm
 import { useRouter } from 'next/navigation';
 import CommentSection from '@/components/CommentSection';
 import type { PortableTextBlock } from '@portabletext/types';
+import { useLikes } from '../../../../hooks/likes/useLikes';
+import { useUserLikes } from '../../../../hooks/user-likes/useUserLikes';
 
 // Define interfaces for type safety
 interface PostImage {
@@ -63,6 +65,11 @@ interface PostClientProps {
   id: string;
 }
 
+interface LikeButtonProps {
+  postId: string;
+  className?: string;
+}
+
 const ptComponents: Partial<PortableTextReactComponents> = {
   types: {
     image: ({ value }) => {
@@ -93,11 +100,13 @@ const ptComponents: Partial<PortableTextReactComponents> = {
 
 export default function PostClient({ id }: PostClientProps) {
   const [post, setPost] = useState<Post | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // ✅ Renamed to avoid conflict
   const [, setShowNavigation] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [lastScrollY, setLastScrollY] = useState(0);
   const router = useRouter();
+  const { likeCount, hasLiked, toggleLike, loading, isSignedIn } = useLikes(id);
+  const { refreshUserLikes } = useUserLikes();
 
   // States for scroll tracking and boundaries
   const [atTop, setAtTop] = useState(true);
@@ -110,8 +119,6 @@ export default function PostClient({ id }: PostClientProps) {
   const navigationConfirmationCounter = useRef(0);
   const navigationMaxConfirmations = 3; // Increased from 2 to give more time
 
-  // Add state for tracking user activity
-  const [likes, setLikes] = useState(0);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -138,13 +145,10 @@ export default function PostClient({ id }: PostClientProps) {
           notFound();
         }
         setPost(fetchedPost);
-
-        // Set initial likes - could be from API in real implementation
-        setLikes(Math.floor(Math.random() * 50) + 5);
       } catch (error) {
         console.error("Failed to fetch post:", error);
       } finally {
-        setLoading(false);
+        setIsLoading(false); // ✅ Updated to use renamed variable
       }
     };
 
@@ -161,6 +165,12 @@ export default function PostClient({ id }: PostClientProps) {
       scrollAttemptTimer.current = null;
     }
   }, [navigationIntent]);
+
+   const handleLikeClick = async () => {
+    await toggleLike();
+    // Refresh user's total likes count after liking/unliking
+    refreshUserLikes();
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -266,7 +276,7 @@ export default function PostClient({ id }: PostClientProps) {
   const isPortableText = post?.body && typeof post.body === 'object' && Array.isArray(post.body);
   const isMarkdown = post?.body && typeof post.body === 'string';
 
-  if (loading) {
+  if (isLoading) { // ✅ Updated to use renamed variable
     return (
       <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center">
@@ -350,18 +360,33 @@ export default function PostClient({ id }: PostClientProps) {
       <div className="sticky top-4 z-30 mt-6 flex justify-center gap-3 md:gap-4 flex-wrap px-4">
         <div className="flex gap-3 md:gap-4 backdrop-blur-md bg-white/70 dark:bg-black/70 p-2 rounded-full shadow-lg border border-gray-100 dark:border-gray-800">
           <button
-            onClick={() => setLikes(prev => prev + 1)}
-            className="bg-gradient-to-r from-[#EF3866] to-[#F06292] text-white px-4 py-2 rounded-full hover:brightness-110 transition flex items-center gap-2 shadow-md text-sm md:text-base"
-          >
-            <Heart size={18} className="fill-white" />
-            <span className="hidden md:block">Like</span>
-            <span className="inline-block bg-white/20 px-2 py-0.5 rounded-full text-xs">{likes}</span>
-          </button>
-
-          <button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-full hover:brightness-110 transition flex items-center gap-2 shadow-md text-sm md:text-base">
-            <Share2 size={18} />
-            <span className="hidden md:block">Share</span>
-          </button>
+      onClick={handleLikeClick}
+      disabled={loading || !isSignedIn}
+      className={`
+        flex items-center gap-2 px-3 py-2 rounded-full transition-all duration-200
+        ${hasLiked 
+          ? 'bg-red-50 text-red-600 hover:bg-red-100' 
+          : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+        }
+        ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}
+        ${!isSignedIn ? 'opacity-50 cursor-not-allowed' : ''}
+      `}
+      title={!isSignedIn ? 'Sign in to like posts' : hasLiked ? 'Unlike this post' : 'Like this post'}
+    >
+      <Heart 
+        className={`w-5 h-5 transition-all duration-200 ${
+          hasLiked ? 'fill-current text-red-600' : 'text-gray-400'
+        }`}
+      />
+      <span className="font-medium">
+        {loading ? '...' : likeCount}
+      </span>
+      {!isSignedIn && (
+        <span className="text-xs text-gray-400 ml-1">
+          (Sign in to like)
+        </span>
+      )}
+    </button>
 
           <button
             onClick={() => setSaved(prev => !prev)}
