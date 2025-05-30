@@ -4,11 +4,11 @@ import { useEffect, useState, useRef } from "react";
 import { useAuth, UserButton, useUser } from "@clerk/nextjs";
 import { supabase } from "@/lib/supabaseClient";
 import { gsap } from "gsap";
-import { 
-  TrendingUp, 
-  CheckCircle, 
-  User, 
-  Mail, 
+import {
+  TrendingUp,
+  CheckCircle,
+  User,
+  Mail,
   Crown,
   BarChart3,
   Calendar,
@@ -20,6 +20,8 @@ import {
 import VerifiedList from '@/components/VerifiedList';
 import LinkButton from "@/components/LinkButton";
 import PageLoader from '@/components/PageLoader';
+import { useUserLikes } from '../../../hooks/user-likes/useUserLikes';
+import { useUserComments } from '../../../hooks/user-comments/useUserComments';
 
 interface UserProfile {
   first_name: string;
@@ -46,6 +48,7 @@ interface LoadingState {
   progress: number;
 }
 
+
 export default function UserDashboard() {
   const { user, isLoaded } = useUser();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -59,8 +62,16 @@ export default function UserDashboard() {
     progress: 0
   });
   const [requestSent, setRequestSent] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'verified' | 'author'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'comments' | 'verified' | 'author'>('overview');
   const [, setTabLoading] = useState(false);
+  const { totalLikes: userLikedPosts, loading: likesLoading } = useUserLikes();
+  const {
+    totalComments,
+    commentsThisMonth,
+    commentsToday,
+    recentComments,
+    loading: commentsLoading
+  } = useUserComments();
 
   // Animation refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -82,7 +93,7 @@ export default function UserDashboard() {
 
       // Set initial states - check each ref individually
       const elements = [headerRef.current, statsRef.current, tabsRef.current, contentRef.current].filter(Boolean);
-      
+
       if (elements.length > 0) {
         gsap.set(elements, {
           opacity: 0,
@@ -96,24 +107,24 @@ export default function UserDashboard() {
           duration: 0.6,
           ease: "power2.out"
         })
-        .to(statsRef.current, {
-          opacity: 1,
-          y: 0,
-          duration: 0.5,
-          ease: "power2.out"
-        }, "-=0.3")
-        .to(tabsRef.current, {
-          opacity: 1,
-          y: 0,
-          duration: 0.4,
-          ease: "power2.out"
-        }, "-=0.2")
-        .to(contentRef.current, {
-          opacity: 1,
-          y: 0,
-          duration: 0.4,
-          ease: "power2.out"
-        }, "-=0.1");
+          .to(statsRef.current, {
+            opacity: 1,
+            y: 0,
+            duration: 0.5,
+            ease: "power2.out"
+          }, "-=0.3")
+          .to(tabsRef.current, {
+            opacity: 1,
+            y: 0,
+            duration: 0.4,
+            ease: "power2.out"
+          }, "-=0.2")
+          .to(contentRef.current, {
+            opacity: 1,
+            y: 0,
+            duration: 0.4,
+            ease: "power2.out"
+          }, "-=0.1");
       }
     }
   }, [loading]);
@@ -265,9 +276,9 @@ export default function UserDashboard() {
     if (!user) return;
 
     try {
-      const payload = { 
-        userId: user.id, 
-        email: user.emailAddresses[0]?.emailAddress 
+      const payload = {
+        userId: user.id,
+        email: user.emailAddresses[0]?.emailAddress
       };
 
       const res = await fetch("/api/authors/request-author", {
@@ -304,15 +315,15 @@ export default function UserDashboard() {
     // Show tab loading for certain tabs that might need data fetching
     if (tab === 'verified' || tab === 'posts') {
       setTabLoading(true);
-      
+
       // Simulate async operation (replace with actual data fetching if needed)
       await new Promise(resolve => setTimeout(resolve, 800));
-      
+
       setTabLoading(false);
     }
 
     setActiveTab(tab);
-    
+
     // Animate tab switch - check if element exists
     if (event.currentTarget) {
       gsap.to(event.currentTarget, {
@@ -326,7 +337,7 @@ export default function UserDashboard() {
 
     // Animate content change - check if ref exists
     if (contentRef.current) {
-      gsap.fromTo(contentRef.current, 
+      gsap.fromTo(contentRef.current,
         { opacity: 0, y: 20 },
         { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }
       );
@@ -374,10 +385,10 @@ export default function UserDashboard() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-4">
               <div className="relative">
-          <UserButton/>
-          {/* Optional: Add a decorative ring around the avatar */}
-          <div className="absolute inset-0 rounded-full border-2 border-[#EF3866]/20 animate-pulse pointer-events-none"></div>
-        </div>
+                <UserButton />
+                {/* Optional: Add a decorative ring around the avatar */}
+                <div className="absolute inset-0 rounded-full border-2 border-[#EF3866]/20 animate-pulse pointer-events-none"></div>
+              </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
                   Welcome back, {userProfile.first_name}!
@@ -413,16 +424,20 @@ export default function UserDashboard() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
             <div className="flex items-center">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center transition-colors">
-                <Heart className="w-6 h-6 text-green-600 dark:text-green-400" />
+              <div className="w-12 h-12 bg-pink-100 dark:bg-pink-900/30 rounded-lg flex items-center justify-center transition-colors">
+                <Heart className="w-6 h-6 text-pink-600 dark:text-pink-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">Total Likes</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">Posts Liked</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
-                  {topPosts.reduce((sum, post) => sum + post.likes, 0).toLocaleString()}
+                  {likesLoading ? (
+                    <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-8 w-16 inline-block"></span>
+                  ) : (
+                    userLikedPosts.toLocaleString()
+                  )}
                 </p>
               </div>
             </div>
@@ -434,9 +449,13 @@ export default function UserDashboard() {
                 <MessageCircle className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">Comments</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">My Comments</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
-                  {topPosts.reduce((sum, post) => sum + post.comments, 0)}
+                  {commentsLoading ? (
+                    <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-8 w-16 inline-block"></span>
+                  ) : (
+                    totalComments.toLocaleString()
+                  )}
                 </p>
               </div>
             </div>
@@ -451,7 +470,7 @@ export default function UserDashboard() {
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">Verified News</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
                   {verifiedNewsCount}
-                  </p>
+                </p>
               </div>
             </div>
           </div>
@@ -465,6 +484,7 @@ export default function UserDashboard() {
             {[
               { id: 'overview', label: 'Overview', icon: BarChart3 },
               { id: 'posts', label: 'Top Posts', icon: TrendingUp },
+              { id: 'comments', label: 'My Comments', icon: MessageCircle },
               { id: 'verified', label: 'Verified News', icon: CheckCircle },
               { id: 'author', label: 'Author Access', icon: Crown }
             ].map((tab) => {
@@ -473,11 +493,10 @@ export default function UserDashboard() {
                 <button
                   key={tab.id}
                   onClick={(e) => handleTabClick(tab.id as typeof activeTab, e)}
-                  className={`flex items-center space-x-2 py-4 px-1 sm:px-3 border-b-2 font-medium text-sm transition-colors font-sora whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'border-[#EF3866] text-[#EF3866]'
-                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-                  }`}
+                  className={`flex items-center space-x-2 py-4 px-1 sm:px-3 border-b-2 font-medium text-sm transition-colors font-sora whitespace-nowrap ${activeTab === tab.id
+                    ? 'border-[#EF3866] text-[#EF3866]'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   <span className="hidden sm:inline">{tab.label}</span>
@@ -490,8 +509,8 @@ export default function UserDashboard() {
       </div>
 
       {/* Content Section - Enhanced for responsiveness */}
-      <div 
-        ref={contentRef} 
+      <div
+        ref={contentRef}
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 opacity-0 overflow-y-auto max-h-[calc(100vh-200px)] scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
       >
         {activeTab === 'overview' && (
@@ -502,17 +521,26 @@ export default function UserDashboard() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Role</span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium font-sora ${
-                    userProfile.role === 'author' 
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' 
-                      : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'
-                  } transition-colors`}>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium font-sora ${userProfile.role === 'author'
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
+                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'
+                    } transition-colors`}>
                     {userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Username</span>
                   <span className="text-gray-900 dark:text-white font-sora transition-colors">@{userProfile.username}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Comments Made</span>
+                  <span className="text-gray-900 dark:text-white font-sora transition-colors">
+                    {commentsLoading ? (
+                      <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-4 w-8 inline-block"></span>
+                    ) : (
+                      totalComments
+                    )}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Member Since</span>
@@ -587,6 +615,108 @@ export default function UserDashboard() {
           </div>
         )}
 
+        {activeTab === 'comments' && (
+          <div>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">My Comments</h2>
+              <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">All your comments across the platform</p>
+            </div>
+
+            {/* Comment Stats Overview */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
+                    {commentsLoading ? (
+                      <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-8 w-16 inline-block"></span>
+                    ) : (
+                      totalComments
+                    )}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">Total Comments</p>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
+                    {commentsLoading ? (
+                      <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-8 w-16 inline-block"></span>
+                    ) : (
+                      commentsThisMonth
+                    )}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">This Month</p>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
+                    {commentsLoading ? (
+                      <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-8 w-16 inline-block"></span>
+                    ) : (
+                      commentsToday
+                    )}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">Today</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Comments */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white font-sora transition-colors">Recent Comments</h3>
+              {commentsLoading ? (
+                <div className="space-y-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                      <div className="animate-pulse">
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : recentComments.length > 0 ? (
+                <div className="space-y-4">
+                  {recentComments.map((comment) => (
+                    <div key={comment.id} className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300 hover:shadow-md">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="text-gray-900 dark:text-white font-sora transition-colors mb-2">
+                            {comment.comment}
+                          </p>
+                          <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 transition-colors">
+                            <span className="font-sora">On: {comment.post_title}</span>
+                            <span className="font-sora">
+                              {new Date(comment.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <MessageCircle className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">
+                    You haven't made any comments yet. Start engaging with posts to see your comments here!
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'verified' && (
           <div>
             <div className="mb-6">
@@ -624,7 +754,7 @@ export default function UserDashboard() {
                   <p className="text-gray-600 dark:text-gray-400 mb-6 font-sora transition-colors">
                     Join our community of content creators and share your expertise with the world.
                   </p>
-                  
+
                   {requestSent ? (
                     <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 transition-colors">
                       <div className="flex items-center justify-center space-x-2">
@@ -643,7 +773,7 @@ export default function UserDashboard() {
                       Request Author Access
                     </button>
                   )}
-                  
+
                   <div className="mt-6 text-left">
                     <h4 className="font-semibold text-gray-900 dark:text-white mb-3 font-sora transition-colors">Author Benefits:</h4>
                     <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400 transition-colors">

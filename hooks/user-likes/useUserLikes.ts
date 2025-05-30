@@ -25,7 +25,7 @@ export function useUserLikes() {
     const fetchUserLikes = async () => {
       setLoading(true);
       try {
-        const response = await fetch('/api/post/user-likes');
+        const response = await fetch('/api/user/likes');
         if (response.ok) {
           const data = await response.json();
           setUserLikesData(data);
@@ -47,7 +47,7 @@ export function useUserLikes() {
     if (!isSignedIn) return;
 
     try {
-      const response = await fetch('/api/post/user-likes/');
+      const response = await fetch('/api/user/likes');
       if (response.ok) {
         const data = await response.json();
         setUserLikesData(data);
