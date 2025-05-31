@@ -1,7 +1,7 @@
 "use client";
 
 import Image from 'next/image'
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { ScrollToPlugin } from 'gsap/ScrollToPlugin'
@@ -27,154 +27,216 @@ const Footer = () => {
   const socialRef = useRef<HTMLElement[]>([])
   const dividerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Logo animation
-      gsap.fromTo(logoRef.current, 
-        {
-          opacity: 0,
-          y: 30,
-          scale: 0.8
-        },
-        {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          duration: 1,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: footerRef.current,
-            start: "top 80%",
-            toggleActions: "play none none reverse"
-          }
-        }
-      )
-
-      // Links animation
-      gsap.fromTo(linksRef.current,
-        {
-          opacity: 0,
-          y: 40,
-          stagger: 0.1
-        },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          stagger: 0.15,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: footerRef.current,
-            start: "top 70%",
-            toggleActions: "play none none reverse"
-          }
-        }
-      )
-
-      // Social icons animation
-      gsap.fromTo(socialRef.current,
-        {
-          opacity: 0,
-          scale: 0,
-          rotation: -180
-        },
-        {
-          opacity: 1,
-          scale: 1,
-          rotation: 0,
-          duration: 0.6,
-          stagger: 0.1,
-          ease: "back.out(1.7)",
-          scrollTrigger: {
-            trigger: footerRef.current,
-            start: "top 60%",
-            toggleActions: "play none none reverse"
-          }
-        }
-      )
-
-      // Divider animation
-      gsap.fromTo(dividerRef.current,
-        {
-          scaleX: 0,
-          opacity: 0
-        },
-        {
-          scaleX: 1,
-          opacity: 1,
-          duration: 1.2,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: footerRef.current,
-            start: "top 50%",
-            toggleActions: "play none none reverse"
-          }
-        }
-      )
-
-      // Bottom section animation
-      gsap.fromTo(bottomRef.current,
-        {
-          opacity: 0,
-          y: 20
-        },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: footerRef.current,
-            start: "top 40%",
-            toggleActions: "play none none reverse"
-          }
-        }
-      )
-
-      // Hover animations for social icons
-      socialRef.current.forEach((icon: HTMLElement | null) => {
-        if (icon) {
-          const handleMouseEnter = () => {
-            gsap.to(icon, {
-              scale: 1.2,
-              y: -5,
-              duration: 0.3,
-              ease: "power2.out"
-            })
-          }
-          
-          const handleMouseLeave = () => {
-            gsap.to(icon, {
-              scale: 1,
-              y: 0,
-              duration: 0.3,
-              ease: "power2.out"
-            })
-          }
-
-          icon.addEventListener('mouseenter', handleMouseEnter)
-          icon.addEventListener('mouseleave', handleMouseLeave)
-
-          // Cleanup function
-          return () => {
-            icon.removeEventListener('mouseenter', handleMouseEnter)
-            icon.removeEventListener('mouseleave', handleMouseLeave)
-          }
-        }
+    // Set elements visible immediately as fallback
+    const showElements = () => {
+      if (logoRef.current) {
+        gsap.set(logoRef.current, { opacity: 1, y: 0, scale: 1 })
+      }
+      linksRef.current.forEach(el => {
+        if (el) gsap.set(el, { opacity: 1, y: 0 })
       })
+      socialRef.current.forEach(el => {
+        if (el) gsap.set(el, { opacity: 1, scale: 1, rotation: 0 })
+      })
+      if (dividerRef.current) {
+        gsap.set(dividerRef.current, { scaleX: 1, opacity: 1 })
+      }
+      if (bottomRef.current) {
+        gsap.set(bottomRef.current, { opacity: 1, y: 0 })
+      }
+    }
+
+    // Show elements immediately
+    showElements()
+    setIsLoaded(true)
+
+    // Fallback timer in case GSAP doesn't load
+    const fallbackTimer = setTimeout(showElements, 200)
+
+    const ctx = gsap.context(() => {
+      clearTimeout(fallbackTimer)
+      
+      // Only animate if elements exist and GSAP is working
+      try {
+        // Logo animation - more reliable triggers
+        if (logoRef.current) {
+          gsap.fromTo(logoRef.current, 
+            {
+              opacity: 0,
+              y: 30,
+              scale: 0.8
+            },
+            {
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              duration: 1,
+              ease: "power3.out",
+              scrollTrigger: {
+                trigger: footerRef.current,
+                start: "top 95%", // Earlier trigger
+                end: "bottom 90%",
+                toggleActions: "play none none reverse",
+                once: false
+              }
+            }
+          )
+        }
+
+        // Links animation
+        if (linksRef.current.length > 0) {
+          gsap.fromTo(linksRef.current,
+            {
+              opacity: 0,
+              y: 40
+            },
+            {
+              opacity: 1,
+              y: 0,
+              duration: 0.8,
+              stagger: 0.15,
+              ease: "power2.out",
+              scrollTrigger: {
+                trigger: footerRef.current,
+                start: "top 90%",
+                toggleActions: "play none none reverse",
+                once: false
+              }
+            }
+          )
+        }
+
+        // Social icons animation
+        if (socialRef.current.length > 0) {
+          gsap.fromTo(socialRef.current,
+            {
+              opacity: 0,
+              scale: 0,
+              rotation: -180
+            },
+            {
+              opacity: 1,
+              scale: 1,
+              rotation: 0,
+              duration: 0.6,
+              stagger: 0.1,
+              ease: "back.out(1.7)",
+              scrollTrigger: {
+                trigger: footerRef.current,
+                start: "top 85%",
+                toggleActions: "play none none reverse",
+                once: false
+              }
+            }
+          )
+        }
+
+        // Divider animation
+        if (dividerRef.current) {
+          gsap.fromTo(dividerRef.current,
+            {
+              scaleX: 0,
+              opacity: 0
+            },
+            {
+              scaleX: 1,
+              opacity: 1,
+              duration: 1.2,
+              ease: "power2.out",
+              scrollTrigger: {
+                trigger: footerRef.current,
+                start: "top 80%",
+                toggleActions: "play none none reverse",
+                once: false
+              }
+            }
+          )
+        }
+
+        // Bottom section animation
+        if (bottomRef.current) {
+          gsap.fromTo(bottomRef.current,
+            {
+              opacity: 0,
+              y: 20
+            },
+            {
+              opacity: 1,
+              y: 0,
+              duration: 0.8,
+              ease: "power2.out",
+              scrollTrigger: {
+                trigger: footerRef.current,
+                start: "top 75%",
+                toggleActions: "play none none reverse",
+                once: false
+              }
+            }
+          )
+        }
+
+        // Hover animations for social icons
+        socialRef.current.forEach((icon: HTMLElement | null) => {
+          if (icon) {
+            const handleMouseEnter = () => {
+              gsap.to(icon, {
+                scale: 1.2,
+                y: -5,
+                duration: 0.3,
+                ease: "power2.out"
+              })
+            }
+            
+            const handleMouseLeave = () => {
+              gsap.to(icon, {
+                scale: 1,
+                y: 0,
+                duration: 0.3,
+                ease: "power2.out"
+              })
+            }
+
+            icon.addEventListener('mouseenter', handleMouseEnter)
+            icon.addEventListener('mouseleave', handleMouseLeave)
+
+            // Store cleanup functions
+            const cleanup = () => {
+              icon.removeEventListener('mouseenter', handleMouseEnter)
+              icon.removeEventListener('mouseleave', handleMouseLeave)
+            }
+            
+            // Return cleanup function
+            return cleanup
+          }
+        })
+
+      } catch (error) {
+        console.warn('GSAP animation failed, using fallback:', error)
+        showElements()
+      }
 
     }, footerRef)
 
-    return () => ctx.revert()
+    return () => {
+      clearTimeout(fallbackTimer)
+      ctx.revert()
+    }
   }, [])
 
   const scrollToTop = () => {
-    gsap.to(window, {
-      duration: 1.2,
-      scrollTo: { y: 0 },
-      ease: "power2.inOut"
-    })
+    try {
+      gsap.to(window, {
+        duration: 1.2,
+        scrollTo: { y: 0 },
+        ease: "power2.inOut"
+      })
+    } catch (error) {
+      // Fallback to native scroll
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
   }
 
   const addToRefs = (el: HTMLElement | null, refsArray: React.MutableRefObject<HTMLElement[]>) => {
@@ -187,6 +249,10 @@ const Footer = () => {
     <footer 
       ref={footerRef}
       className="font-sora bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-black border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-4 py-12 sm:px-6 sm:py-16 relative overflow-hidden"
+      style={{ 
+        // CSS fallback to ensure visibility
+        opacity: isLoaded ? undefined : 1 
+      }}
     >
       {/* Background pattern */}
       <div className="absolute inset-0 opacity-5 dark:opacity-10">
@@ -201,6 +267,7 @@ const Footer = () => {
           <div 
             ref={logoRef}
             className="flex flex-col items-center lg:items-start w-full lg:w-2/5 text-center lg:text-left"
+            style={{ opacity: 1 }} // Fallback CSS
           >
             <div className="relative mb-6">
               <Image
@@ -208,14 +275,12 @@ const Footer = () => {
                 alt="Hojo logo"
                 width={100}
                 height={100}
-                className="mb-4 block dark:hidden drop-shadow-lg"
-              />
-              <Image
-                src="/img/footerlogo.png"
-                alt="Hojo logo"
-                width={100}
-                height={100}
-                className="mb-4 hidden dark:block dark:invert dark:brightness-200 dark:contrast-200 drop-shadow-lg"
+                className="mb-4 drop-shadow-lg dark:invert dark:brightness-200 dark:contrast-200"
+                priority
+                onError={(e) => {
+                  // Fallback if image fails to load
+                  e.currentTarget.style.display = 'none'
+                }}
               />
               <div className="absolute -inset-4 bg-gradient-to-r from-[#EF3866]/20 to-pink-400/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
             </div>
@@ -242,6 +307,7 @@ const Footer = () => {
             <div 
               ref={el => addToRefs(el, linksRef)}
               className="min-w-32"
+              style={{ opacity: 1 }} // Fallback CSS
             >
               <h3 className="font-sora text-lg font-bold mb-4 text-gray-900 dark:text-white">Quick Links</h3>
               <ul className="space-y-3 text-sm">
@@ -262,6 +328,7 @@ const Footer = () => {
             <div 
               ref={el => addToRefs(el, linksRef)}
               className="min-w-32"
+              style={{ opacity: 1 }} // Fallback CSS
             >
               <h3 className="font-sora text-lg font-bold mb-4 text-gray-900 dark:text-white">Company</h3>
               <ul className="space-y-3 text-sm">
@@ -282,6 +349,7 @@ const Footer = () => {
             <div 
               ref={el => addToRefs(el, linksRef)}
               className="min-w-32"
+              style={{ opacity: 1 }} // Fallback CSS
             >
               <h3 className="font-sora text-lg font-bold mb-4 text-gray-900 dark:text-white">Legal</h3>
               <ul className="space-y-3 text-sm">
@@ -305,12 +373,14 @@ const Footer = () => {
         <div 
           ref={dividerRef}
           className="h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-600 to-transparent mb-8"
+          style={{ opacity: 1, transform: 'scaleX(1)' }} // Fallback CSS
         ></div>
 
         {/* Footer Bottom */}
         <div 
           ref={bottomRef}
           className="flex flex-col sm:flex-row justify-between items-center gap-6 text-sm"
+          style={{ opacity: 1 }} // Fallback CSS
         >
           <div className="font-sora text-gray-600 dark:text-gray-400">
             &copy; {year} Hojo. All rights reserved.
@@ -330,6 +400,7 @@ const Footer = () => {
                   href="#" 
                   aria-label={label} 
                   className={`p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 ${color} transition-all duration-300 hover:shadow-lg hover:shadow-gray-200 dark:hover:shadow-gray-800`}
+                  style={{ opacity: 1 }} // Fallback CSS
                 >
                   <Icon size={18} />
                 </a>
