@@ -16,6 +16,7 @@ import {
   Heart,
   MessageCircle,
   Shield,
+  Camera,
 } from "lucide-react";
 import VerifiedList from '@/components/VerifiedList';
 import LinkButton from "@/components/LinkButton";
@@ -30,6 +31,8 @@ interface UserProfile {
   username: string;
   email: string;
   role: string;
+  image_url?: string; // Make it optional since it might not exist
+  profile_completed?: boolean; // Also add this if you're using it
 }
 
 interface TopPost {
@@ -48,7 +51,6 @@ interface LoadingState {
   message: string;
   progress: number;
 }
-
 
 export default function UserDashboard() {
   const { user, isLoaded } = useUser();
@@ -117,10 +119,10 @@ export default function UserDashboard() {
   };
 
   const fetchUserData = useCallback(async () => {
-  if (!user?.id) return;
+    if (!user?.id) return;
 
-  setLoading(true);
-  try {
+    setLoading(true);
+    try {
       // Stage 1: Loading user profile
       setLoadingState({
         stage: 'loading',
@@ -128,11 +130,11 @@ export default function UserDashboard() {
         progress: 25
       });
 
-      // Fix: Use 'id' instead of 'clerk_id'
+      // ✅ FIXED: Added image_url and profile_completed to the select query
       const { data: profileData, error: profileError } = await supabase
         .from('users')
-        .select('first_name, last_name, username, email, role')
-        .eq('id', user.id)  // ✅ Changed from 'clerk_id' to 'id'
+        .select('first_name, last_name, username, email, role, image_url, profile_completed')
+        .eq('id', user.id)
         .single();
 
       console.log('🔍 Profile query result:', { profileData, profileError });
@@ -141,6 +143,20 @@ export default function UserDashboard() {
         setUserProfile(profileData);
       } else {
         console.error('❌ Failed to fetch profile:', profileError);
+        
+        // ✅ FALLBACK: If database query fails, use Clerk user data
+        if (user) {
+          const fallbackProfile: UserProfile = {
+            first_name: user.firstName || 'User',
+            last_name: user.lastName || '',
+            username: user.username || user.emailAddresses[0]?.emailAddress.split('@')[0] || 'user',
+            email: user.emailAddresses[0]?.emailAddress || '',
+            role: 'user', // default role
+            image_url: user.imageUrl, // ✅ Use Clerk's image URL as fallback
+            profile_completed: false
+          };
+          setUserProfile(fallbackProfile);
+        }
       }
 
       // Stage 2: Fetch verified news count
@@ -224,13 +240,13 @@ export default function UserDashboard() {
       console.error('Error fetching user data:', error);
       setLoading(false);
     }
-  }, [user?.id, getToken]);
+  }, [user?.id, user, getToken]);
 
   useEffect(() => {
-  if (isLoaded && user) {
-    fetchUserData();
-  }
-}, [isLoaded, user, fetchUserData]);
+    if (isLoaded && user) {
+      fetchUserData();
+    }
+  }, [isLoaded, user, fetchUserData]);
 
   // Initial animations - Fixed to check for refs before animating
   useEffect(() => {
@@ -274,8 +290,6 @@ export default function UserDashboard() {
       }
     }
   }, [loading]);
-
-
 
   const handleRequestAuthorAccess = async () => {
     if (!user) return;
@@ -357,6 +371,21 @@ export default function UserDashboard() {
     });
   };
 
+  // ✅ ENHANCED: Better image URL handling
+  const getProfileImageUrl = () => {
+    // Priority order: database image_url -> Clerk imageUrl -> null (fallback to initials)
+    return userProfile?.image_url || user?.imageUrl || null;
+  };
+
+  const getUserInitials = () => {
+    if (userProfile?.first_name) {
+      const firstInitial = userProfile.first_name.charAt(0).toUpperCase();
+      const lastInitial = userProfile.last_name ? userProfile.last_name.charAt(0).toUpperCase() : '';
+      return firstInitial + lastInitial;
+    }
+    return user?.firstName?.charAt(0).toUpperCase() || 'U';
+  };
+
   // Show PageLoader during initial loading
   if (!isLoaded || loading) {
     return (
@@ -382,6 +411,7 @@ export default function UserDashboard() {
       />
     );
   }
+
   return (
     <div ref={containerRef} className="min-h-screen bg-white dark:bg-black pt-[80px] transition-colors duration-300 pb-[100px]">
       {/* Header Section */}
@@ -389,18 +419,88 @@ export default function UserDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-4">
-              <div className="relative">
-                <UserButton />
-                {/* Optional: Add a decorative ring around the avatar */}
-                <div className="absolute inset-0 rounded-full border-2 border-[#EF3866]/20 animate-pulse pointer-events-none"></div>
+              {/* ✅ ENHANCED: Better Profile Image Section with improved error handling */}
+              <div className="relative group">
+                {/* Custom Profile Image with Fallback */}
+                <div className="relative w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-[#EF3866] to-[#FF6B9D] p-0.5">
+                  <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-gray-900">
+                    {getProfileImageUrl() ? (
+                      <img
+                        src={getProfileImageUrl()!}
+                        alt={`${userProfile.first_name}'s profile`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Hide the image and show fallback
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            const fallback = parent.querySelector('.fallback-avatar') as HTMLElement;
+                            if (fallback) {
+                              fallback.style.display = 'flex';
+                            }
+                          }
+                        }}
+                        onLoad={(e) => {
+                          // Hide fallback if image loads successfully
+                          const target = e.target as HTMLImageElement;
+                          const parent = target.parentElement;
+                          if (parent) {
+                            const fallback = parent.querySelector('.fallback-avatar') as HTMLElement;
+                            if (fallback) {
+                              fallback.style.display = 'none';
+                            }
+                          }
+                        }}
+                      />
+                    ) : null}
+                    
+                    {/* Fallback Avatar with Initials */}
+                    <div 
+                      className="fallback-avatar w-full h-full bg-gradient-to-br from-[#EF3866] to-[#FF6B9D] flex items-center justify-center text-white font-bold text-lg"
+                      style={{ display: getProfileImageUrl() ? 'none' : 'flex' }}
+                    >
+                      {getUserInitials()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Animated Ring */}
+                <div className="absolute inset-0 rounded-full border-2 border-[#EF3866]/20 animate-pulse pointer-events-none group-hover:border-[#EF3866]/40 transition-colors"></div>
+                
+                {/* Online Status Indicator */}
+                <div className="absolute -bottom-[-10px] -right-[-5px] w-5 h-5 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full animate-ping"></div>
+                
+                {/* Hover Effect - Camera Icon */}
+                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                  <Camera className="w-4 h-4 text-white" />
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
-                  Welcome back, {userProfile.first_name}!
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">
-                  @{userProfile.username} • {userProfile.role}
-                </p>
+
+              {/* User Information */}
+              <div className="flex-1">
+                <div className="flex items-center space-x-2">
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
+                    Welcome back, {userProfile.first_name}!
+                  </h1>
+                  
+                  {/* Profile Completion Badge */}
+                  {!userProfile.profile_completed && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+                      Profile Incomplete
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex items-center space-x-2 mt-1">
+                  <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">
+                    @{userProfile.username}
+                  </p>
+                  <span className="text-gray-400 dark:text-gray-600">•</span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 capitalize">
+                    {userProfile.role}
+                  </span>
+                </div>
               </div>
             </div>
             <div className="mt-4 sm:mt-0">
