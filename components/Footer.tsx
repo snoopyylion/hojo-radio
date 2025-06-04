@@ -27,7 +27,7 @@ const Footer = () => {
   const socialRef = useRef<HTMLElement[]>([])
   const dividerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const [isLoaded, setIsLoaded] = useState(false)
+  const [, setIsLoaded] = useState(false)
   const [animationsEnabled, setAnimationsEnabled] = useState(false)
 
   useEffect(() => {

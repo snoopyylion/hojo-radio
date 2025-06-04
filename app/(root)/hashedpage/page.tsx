@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useAuth, UserButton, useUser } from "@clerk/nextjs";
 import { supabase } from "@/lib/supabaseClient";
 import { gsap } from "gsap";
@@ -73,7 +73,7 @@ export default function UserDashboard() {
     recentComments,
     loading: commentsLoading
   } = useUserComments();
-  const { data: userCreatedData, loading: createdAtLoading } = useUserCreatedAt();
+  const { data: _userCreatedData, loading: createdAtLoading } = useUserCreatedAt();
   const { memberSince, daysSinceJoining } = useUserMemberSince();
 
   // Animation refs
@@ -82,55 +82,6 @@ export default function UserDashboard() {
   const statsRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isLoaded && user) {
-      fetchUserData();
-    }
-  }, [isLoaded, user]);
-
-  // Initial animations - Fixed to check for refs before animating
-  useEffect(() => {
-    if (!loading && headerRef.current && statsRef.current && tabsRef.current && contentRef.current) {
-      const tl = gsap.timeline();
-
-      // Set initial states - check each ref individually
-      const elements = [headerRef.current, statsRef.current, tabsRef.current, contentRef.current].filter(Boolean);
-
-      if (elements.length > 0) {
-        gsap.set(elements, {
-          opacity: 0,
-          y: 30
-        });
-
-        // Animate elements in sequence
-        tl.to(headerRef.current, {
-          opacity: 1,
-          y: 0,
-          duration: 0.6,
-          ease: "power2.out"
-        })
-          .to(statsRef.current, {
-            opacity: 1,
-            y: 0,
-            duration: 0.5,
-            ease: "power2.out"
-          }, "-=0.3")
-          .to(tabsRef.current, {
-            opacity: 1,
-            y: 0,
-            duration: 0.4,
-            ease: "power2.out"
-          }, "-=0.2")
-          .to(contentRef.current, {
-            opacity: 1,
-            y: 0,
-            duration: 0.4,
-            ease: "power2.out"
-          }, "-=0.1");
-      }
-    }
-  }, [loading]);
 
   // Function to fetch verified news count
   const fetchVerifiedNewsCount = async () => {
@@ -165,11 +116,11 @@ export default function UserDashboard() {
     }
   };
 
-  const fetchUserData = async () => {
-    if (!user?.id) return;
+  const fetchUserData = useCallback(async () => {
+  if (!user?.id) return;
 
-    setLoading(true);
-    try {
+  setLoading(true);
+  try {
       // Stage 1: Loading user profile
       setLoadingState({
         stage: 'loading',
@@ -273,7 +224,58 @@ export default function UserDashboard() {
       console.error('Error fetching user data:', error);
       setLoading(false);
     }
-  };
+  }, [user?.id, getToken]);
+
+  useEffect(() => {
+  if (isLoaded && user) {
+    fetchUserData();
+  }
+}, [isLoaded, user, fetchUserData]);
+
+  // Initial animations - Fixed to check for refs before animating
+  useEffect(() => {
+    if (!loading && headerRef.current && statsRef.current && tabsRef.current && contentRef.current) {
+      const tl = gsap.timeline();
+
+      // Set initial states - check each ref individually
+      const elements = [headerRef.current, statsRef.current, tabsRef.current, contentRef.current].filter(Boolean);
+
+      if (elements.length > 0) {
+        gsap.set(elements, {
+          opacity: 0,
+          y: 30
+        });
+
+        // Animate elements in sequence
+        tl.to(headerRef.current, {
+          opacity: 1,
+          y: 0,
+          duration: 0.6,
+          ease: "power2.out"
+        })
+          .to(statsRef.current, {
+            opacity: 1,
+            y: 0,
+            duration: 0.5,
+            ease: "power2.out"
+          }, "-=0.3")
+          .to(tabsRef.current, {
+            opacity: 1,
+            y: 0,
+            duration: 0.4,
+            ease: "power2.out"
+          }, "-=0.2")
+          .to(contentRef.current, {
+            opacity: 1,
+            y: 0,
+            duration: 0.4,
+            ease: "power2.out"
+          }, "-=0.1");
+      }
+    }
+  }, [loading]);
+
+
 
   const handleRequestAuthorAccess = async () => {
     if (!user) return;
