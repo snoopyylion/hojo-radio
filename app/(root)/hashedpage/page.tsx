@@ -73,7 +73,7 @@ export default function UserDashboard() {
     recentComments,
     loading: commentsLoading
   } = useUserComments();
-  const { data: _userCreatedData, loading: createdAtLoading } = useUserCreatedAt();
+  const { loading: createdAtLoading } = useUserCreatedAt();
   const { memberSince, daysSinceJoining } = useUserMemberSince();
 
   // Animation refs
