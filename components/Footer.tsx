@@ -28,6 +28,7 @@ const Footer = () => {
   const dividerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [animationsEnabled, setAnimationsEnabled] = useState(false)
 
   useEffect(() => {
     // Set elements visible immediately as fallback
@@ -53,187 +54,227 @@ const Footer = () => {
     showElements()
     setIsLoaded(true)
 
-    // Fallback timer in case GSAP doesn't load
-    const fallbackTimer = setTimeout(showElements, 200)
-
-    const ctx = gsap.context(() => {
-      clearTimeout(fallbackTimer)
-      
-      // Only animate if elements exist and GSAP is working
+    // Check if GSAP is available and working
+    const checkGSAP = () => {
       try {
-        // Logo animation - more reliable triggers
-        if (logoRef.current) {
-          gsap.fromTo(logoRef.current, 
-            {
-              opacity: 0,
-              y: 30,
-              scale: 0.8
-            },
-            {
-              opacity: 1,
-              y: 0,
-              scale: 1,
-              duration: 1,
-              ease: "power3.out",
-              scrollTrigger: {
-                trigger: footerRef.current,
-                start: "top 95%", // Earlier trigger
-                end: "bottom 90%",
-                toggleActions: "play none none reverse",
-                once: false
-              }
-            }
-          )
-        }
-
-        // Links animation
-        if (linksRef.current.length > 0) {
-          gsap.fromTo(linksRef.current,
-            {
-              opacity: 0,
-              y: 40
-            },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 0.8,
-              stagger: 0.15,
-              ease: "power2.out",
-              scrollTrigger: {
-                trigger: footerRef.current,
-                start: "top 90%",
-                toggleActions: "play none none reverse",
-                once: false
-              }
-            }
-          )
-        }
-
-        // Social icons animation
-        if (socialRef.current.length > 0) {
-          gsap.fromTo(socialRef.current,
-            {
-              opacity: 0,
-              scale: 0,
-              rotation: -180
-            },
-            {
-              opacity: 1,
-              scale: 1,
-              rotation: 0,
-              duration: 0.6,
-              stagger: 0.1,
-              ease: "back.out(1.7)",
-              scrollTrigger: {
-                trigger: footerRef.current,
-                start: "top 85%",
-                toggleActions: "play none none reverse",
-                once: false
-              }
-            }
-          )
-        }
-
-        // Divider animation
-        if (dividerRef.current) {
-          gsap.fromTo(dividerRef.current,
-            {
-              scaleX: 0,
-              opacity: 0
-            },
-            {
-              scaleX: 1,
-              opacity: 1,
-              duration: 1.2,
-              ease: "power2.out",
-              scrollTrigger: {
-                trigger: footerRef.current,
-                start: "top 80%",
-                toggleActions: "play none none reverse",
-                once: false
-              }
-            }
-          )
-        }
-
-        // Bottom section animation
-        if (bottomRef.current) {
-          gsap.fromTo(bottomRef.current,
-            {
-              opacity: 0,
-              y: 20
-            },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 0.8,
-              ease: "power2.out",
-              scrollTrigger: {
-                trigger: footerRef.current,
-                start: "top 75%",
-                toggleActions: "play none none reverse",
-                once: false
-              }
-            }
-          )
-        }
-
-        // Hover animations for social icons
-        socialRef.current.forEach((icon: HTMLElement | null) => {
-          if (icon) {
-            const handleMouseEnter = () => {
-              gsap.to(icon, {
-                scale: 1.2,
-                y: -5,
-                duration: 0.3,
-                ease: "power2.out"
-              })
-            }
-            
-            const handleMouseLeave = () => {
-              gsap.to(icon, {
-                scale: 1,
-                y: 0,
-                duration: 0.3,
-                ease: "power2.out"
-              })
-            }
-
-            icon.addEventListener('mouseenter', handleMouseEnter)
-            icon.addEventListener('mouseleave', handleMouseLeave)
-
-            // Store cleanup functions
-            const cleanup = () => {
-              icon.removeEventListener('mouseenter', handleMouseEnter)
-              icon.removeEventListener('mouseleave', handleMouseLeave)
-            }
-            
-            // Return cleanup function
-            return cleanup
+        if (typeof gsap !== 'undefined' && typeof gsap.timeline === 'function') {
+          // Test if GSAP can create a timeline to ensure it's fully loaded
+          const testTimeline = gsap.timeline()
+          if (testTimeline) {
+            testTimeline.kill() // Clean up test timeline
+            setAnimationsEnabled(true)
+            return true
           }
-        })
-
-      } catch (error) {
-        console.warn('GSAP animation failed, using fallback:', error)
-        showElements()
+        }
+      } catch {
+        // GSAP not available
       }
+      return false
+    }
 
-    }, footerRef)
+    // Fallback timer in case GSAP doesn't load
+    const fallbackTimer = setTimeout(() => {
+      showElements()
+      setAnimationsEnabled(false)
+    }, 100)
+
+    // Small delay to ensure DOM is ready
+    const initTimer = setTimeout(() => {
+      if (checkGSAP()) {
+        clearTimeout(fallbackTimer)
+        
+        const ctx = gsap.context(() => {
+          // Only animate if elements exist and GSAP is working
+          try {
+            // Logo animation - more reliable triggers
+            if (logoRef.current) {
+              gsap.fromTo(logoRef.current, 
+                {
+                  opacity: 0,
+                  y: 30,
+                  scale: 0.8
+                },
+                {
+                  opacity: 1,
+                  y: 0,
+                  scale: 1,
+                  duration: 1,
+                  ease: "power3.out",
+                  scrollTrigger: {
+                    trigger: footerRef.current,
+                    start: "top 95%", // Earlier trigger
+                    end: "bottom 90%",
+                    toggleActions: "play none none reverse",
+                    once: false
+                  }
+                }
+              )
+            }
+
+            // Links animation
+            if (linksRef.current.length > 0) {
+              gsap.fromTo(linksRef.current,
+                {
+                  opacity: 0,
+                  y: 40
+                },
+                {
+                  opacity: 1,
+                  y: 0,
+                  duration: 0.8,
+                  stagger: 0.15,
+                  ease: "power2.out",
+                  scrollTrigger: {
+                    trigger: footerRef.current,
+                    start: "top 90%",
+                    toggleActions: "play none none reverse",
+                    once: false
+                  }
+                }
+              )
+            }
+
+            // Social icons animation
+            if (socialRef.current.length > 0) {
+              gsap.fromTo(socialRef.current,
+                {
+                  opacity: 0,
+                  scale: 0,
+                  rotation: -180
+                },
+                {
+                  opacity: 1,
+                  scale: 1,
+                  rotation: 0,
+                  duration: 0.6,
+                  stagger: 0.1,
+                  ease: "back.out(1.7)",
+                  scrollTrigger: {
+                    trigger: footerRef.current,
+                    start: "top 85%",
+                    toggleActions: "play none none reverse",
+                    once: false
+                  }
+                }
+              )
+            }
+
+            // Divider animation
+            if (dividerRef.current) {
+              gsap.fromTo(dividerRef.current,
+                {
+                  scaleX: 0,
+                  opacity: 0
+                },
+                {
+                  scaleX: 1,
+                  opacity: 1,
+                  duration: 1.2,
+                  ease: "power2.out",
+                  scrollTrigger: {
+                    trigger: footerRef.current,
+                    start: "top 80%",
+                    toggleActions: "play none none reverse",
+                    once: false
+                  }
+                }
+              )
+            }
+
+            // Bottom section animation
+            if (bottomRef.current) {
+              gsap.fromTo(bottomRef.current,
+                {
+                  opacity: 0,
+                  y: 20
+                },
+                {
+                  opacity: 1,
+                  y: 0,
+                  duration: 0.8,
+                  ease: "power2.out",
+                  scrollTrigger: {
+                    trigger: footerRef.current,
+                    start: "top 75%",
+                    toggleActions: "play none none reverse",
+                    once: false
+                  }
+                }
+              )
+            }
+
+            // Hover animations for social icons
+            socialRef.current.forEach((icon: HTMLElement | null) => {
+              if (icon) {
+                const handleMouseEnter = () => {
+                  gsap.to(icon, {
+                    scale: 1.2,
+                    y: -5,
+                    duration: 0.3,
+                    ease: "power2.out"
+                  })
+                }
+                
+                const handleMouseLeave = () => {
+                  gsap.to(icon, {
+                    scale: 1,
+                    y: 0,
+                    duration: 0.3,
+                    ease: "power2.out"
+                  })
+                }
+
+                icon.addEventListener('mouseenter', handleMouseEnter)
+                icon.addEventListener('mouseleave', handleMouseLeave)
+
+                // Store cleanup functions
+                const cleanup = () => {
+                  icon.removeEventListener('mouseenter', handleMouseEnter)
+                  icon.removeEventListener('mouseleave', handleMouseLeave)
+                }
+                
+                // Return cleanup function
+                return cleanup
+              }
+            })
+
+          } catch (animationError) {
+            console.warn('GSAP animation failed, using fallback:', animationError)
+            showElements()
+            setAnimationsEnabled(false)
+          }
+
+        }, footerRef)
+
+        return () => {
+          ctx.revert()
+        }
+      } else {
+        // GSAP not available, ensure elements are visible
+        showElements()
+        setAnimationsEnabled(false)
+      }
+    }, 50)
 
     return () => {
       clearTimeout(fallbackTimer)
-      ctx.revert()
+      clearTimeout(initTimer)
     }
   }, [])
 
   const scrollToTop = () => {
     try {
-      gsap.to(window, {
-        duration: 1.2,
-        scrollTo: { y: 0 },
-        ease: "power2.inOut"
-      })
-    } catch (error) {
+      if (animationsEnabled && typeof gsap !== 'undefined') {
+        gsap.to(window, {
+          duration: 1.2,
+          scrollTo: { y: 0 },
+          ease: "power2.inOut"
+        })
+      } else {
+        // Fallback to native scroll
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    } catch {
       // Fallback to native scroll
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
@@ -251,7 +292,7 @@ const Footer = () => {
       className="font-sora bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-black border-t border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-4 py-12 sm:px-6 sm:py-16 relative overflow-hidden"
       style={{ 
         // CSS fallback to ensure visibility
-        opacity: isLoaded ? undefined : 1 
+        opacity: 1 
       }}
     >
       {/* Background pattern */}

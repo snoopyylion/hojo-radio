@@ -133,7 +133,7 @@ function OAuthCallbackContent() {
     console.log(`📝 Forcing profile completion: ${reason}`);
     const redirectUrl = getRedirectUrl();
     const completeProfileUrl = `/authentication/complete-profile${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
-    
+
     setAuthStatus({
       stage: 'completing',
       message: 'Setting up your profile...',
@@ -149,7 +149,7 @@ function OAuthCallbackContent() {
   // Enhanced sync and profile check function with better error handling
   const syncUserAndCheckProfile = useCallback(async () => {
     console.log('🔄 Starting user sync and profile check...');
-    
+
     setAuthStatus({
       stage: 'syncing',
       message: 'Synchronizing your account...',
@@ -176,10 +176,10 @@ function OAuthCallbackContent() {
       syncData = await syncResponse.json();
       console.log('✅ User sync response:', syncData);
       syncSuccessful = true;
-      
+
     } catch (syncError) {
       console.error('❌ User sync error:', syncError);
-      
+
       // If sync fails, we MUST go to complete profile to ensure user data integrity
       forceCompleteProfile('User sync failed - ensuring profile setup');
       return;
@@ -213,7 +213,7 @@ function OAuthCallbackContent() {
         if (!profileResponse.ok) {
           console.warn('⚠️ Profile check failed, but sync was successful');
           console.warn('⚠️ Sync data suggests profile complete, proceeding to redirect');
-          
+
           // Trust the sync result if profile check fails but sync succeeded
           const redirectUrl = getRedirectUrl();
           setAuthStatus({
@@ -241,7 +241,7 @@ function OAuthCallbackContent() {
           forceCompleteProfile('Profile check confirms completion needed');
         } else {
           console.log('✅ Profile is complete, redirecting to intended destination');
-          
+
           setAuthStatus({
             stage: 'redirecting',
             message: 'Welcome back! Taking you to your destination...',
@@ -256,13 +256,13 @@ function OAuthCallbackContent() {
 
       } catch (profileError) {
         console.error('❌ Profile check failed:', profileError);
-        
+
         // If profile check fails but sync succeeded and indicated complete profile,
         // trust the sync result
         if (syncData && !syncData.needsProfileCompletion) {
           console.log('⚠️ Profile check failed but sync indicated complete - proceeding');
           const redirectUrl = getRedirectUrl();
-          
+
           setAuthStatus({
             stage: 'redirecting',
             message: 'Welcome back! Taking you to your destination...',
@@ -455,8 +455,17 @@ function OAuthCallbackContent() {
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="max-w-md w-full p-8 text-center">
         <div className="mb-6">
-          {/* Logo Container with Professional Animation */}
-          <div className="w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+          {/* Logo 1 3 Container with Professional Animation */}
+          <div
+            className="w-28 h-28 mx-auto rounded-full shadow-2xl mb-6 flex items-center justify-center relative"
+            style={{
+              background: `
+      radial-gradient(circle at 30% 30%, rgba(239, 56, 102, 0.8) 0%, transparent 50%),
+      radial-gradient(circle at 70% 70%, rgba(239, 56, 140, 0.6) 0%, transparent 50%),
+      linear-gradient(135deg, #EF3866 0%, #EF5638 25%, #D63866 50%, #EF3884 100%)
+    `
+            }}
+          >
             <Link href="/" className="block">
               <Image
                 src="/img/logo.png"
@@ -515,7 +524,16 @@ function LoadingFallback() {
       <div className="max-w-md w-full p-8 text-center">
         <div className="mb-6">
           {/* Logo Container for Loading State */}
-          <div className="w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+          <div
+            className="w-28 h-28 mx-auto rounded-full shadow-2xl mb-6 flex items-center justify-center relative"
+            style={{
+              background: `
+      radial-gradient(circle at 30% 30%, rgba(239, 56, 102, 0.8) 0%, transparent 50%),
+      radial-gradient(circle at 70% 70%, rgba(239, 56, 140, 0.6) 0%, transparent 50%),
+      linear-gradient(135deg, #EF3866 0%, #EF5638 25%, #D63866 50%, #EF3884 100%)
+    `
+            }}
+          >
             <Link href="/" className="block">
               <Image
                 src="/img/logo.png"

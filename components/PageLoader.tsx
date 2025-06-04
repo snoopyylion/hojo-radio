@@ -125,7 +125,13 @@ export default function PageLoader({
       <div className="max-w-md w-full text-center">
         <div className="mb-6">
           {/* Logo Container with Professional Animation */}
-          <div className={`${logoConfig.container} mx-auto mb-6 flex items-center justify-center`}>
+          <div className={`${logoConfig.container} mx-auto w-28 h-28 rounded-full bg-gradient-to-r from-[#EF3866] to-[#ff4d7a] shadow-xl mb-6 flex items-center justify-center`}style={{
+    background: `
+      radial-gradient(circle at 30% 30%, rgba(239, 56, 102, 0.8) 0%, transparent 50%),
+      radial-gradient(circle at 70% 70%, rgba(239, 56, 140, 0.6) 0%, transparent 50%),
+      linear-gradient(135deg, #EF3866 0%, #EF5638 25%, #D63866 50%, #EF3884 100%)
+    `
+  }}>
             <Link href="/" className="block">
               <Image
                 src="/img/logo.png"

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Mic, UploadCloud, Sparkles, Clock, Bell } from 'lucide-react';
+import { Mic, UploadCloud, Sparkles, Clock } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 

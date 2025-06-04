@@ -22,6 +22,7 @@ import LinkButton from "@/components/LinkButton";
 import PageLoader from '@/components/PageLoader';
 import { useUserLikes } from '../../../hooks/user-likes/useUserLikes';
 import { useUserComments } from '../../../hooks/user-comments/useUserComments';
+import { useUserCreatedAt, useUserMemberSince } from '../../../hooks/user-created/useUserCreatedAt';
 
 interface UserProfile {
   first_name: string;
@@ -72,6 +73,8 @@ export default function UserDashboard() {
     recentComments,
     loading: commentsLoading
   } = useUserComments();
+  const { data: userCreatedData, loading: createdAtLoading } = useUserCreatedAt();
+  const { memberSince, daysSinceJoining } = useUserMemberSince();
 
   // Animation refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -514,40 +517,46 @@ export default function UserDashboard() {
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 opacity-0 overflow-y-auto max-h-[calc(100vh-200px)] scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
       >
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Quick Stats */}
-            <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 font-sora transition-colors">Account Overview</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Role</span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium font-sora ${userProfile.role === 'author'
-                    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
-                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'
-                    } transition-colors`}>
-                    {userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Username</span>
-                  <span className="text-gray-900 dark:text-white font-sora transition-colors">@{userProfile.username}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Comments Made</span>
-                  <span className="text-gray-900 dark:text-white font-sora transition-colors">
-                    {commentsLoading ? (
-                      <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-4 w-8 inline-block"></span>
-                    ) : (
-                      totalComments
-                    )}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Member Since</span>
-                  <span className="text-gray-900 dark:text-white font-sora transition-colors">Apr 2025</span>
-                </div>
-              </div>
-            </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Quick Stats */}
+      <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 font-sora transition-colors">Account Overview</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Role</span>
+            <span className={`px-3 py-1 rounded-full text-xs font-medium font-sora ${userProfile.role === 'author'
+              ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
+              : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'
+              } transition-colors`}>
+              {userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Username</span>
+            <span className="text-gray-900 dark:text-white font-sora transition-colors">@{userProfile.username}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Comments Made</span>
+            <span className="text-gray-900 dark:text-white font-sora transition-colors">
+              {commentsLoading ? (
+                <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-4 w-8 inline-block"></span>
+              ) : (
+                totalComments
+              )}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Member Since</span>
+            <span className="text-gray-900 dark:text-white font-sora transition-colors">
+              {createdAtLoading ? (
+                <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-4 w-20 inline-block"></span>
+              ) : (
+                memberSince || "Apr 2025"
+              )}
+            </span>
+          </div>
+        </div>
+      </div>
 
             {/* Recent Activity */}
             <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
@@ -564,6 +573,14 @@ export default function UserDashboard() {
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                   <span className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">Profile updated</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">{createdAtLoading ? (
+                <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-4 w-12 inline-block"></span>
+              ) : (
+                `${daysSinceJoining} days active`
+              )}</span>
                 </div>
               </div>
             </div>
