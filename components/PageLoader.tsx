@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 
 interface LoadingState {
   stage: 'loading' | 'syncing' | 'finalizing' | 'complete';
@@ -75,57 +77,31 @@ export default function PageLoader({
     }
   }, [message, progress, stage]);
 
-  const getStatusIcon = () => {
-    const sizeClasses = {
-      sm: "w-6 h-6",
-      md: "w-8 h-8", 
-      lg: "w-10 h-10"
-    };
-    
-    const iconProps = `${sizeClasses[size]} text-white`;
-
+  const getLogoAnimation = () => {
     switch (loadingState.stage) {
       case 'loading':
-        return (
-          <svg className={`${iconProps} animate-spin`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v4m0 8v4m8-8h-4M4 12h4" />
-          </svg>
-        );
+        return "animate-pulse scale-110";
       case 'syncing':
-        return (
-          <svg className={iconProps} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-        );
+        return "animate-spin";
       case 'finalizing':
-        return (
-          <svg className={iconProps} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        );
+        return "animate-bounce";
       case 'complete':
-        return (
-          <svg className={iconProps} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        );
+        return "animate-none scale-110";
       default:
-        return (
-          <div className={`${sizeClasses[size]} border-4 border-white border-t-transparent rounded-full animate-spin`}></div>
-        );
+        return "animate-pulse";
     }
   };
 
-  const getContainerSize = () => {
+  const getLogoSize = () => {
     switch (size) {
       case 'sm':
-        return 'w-12 h-12';
+        return { width: 48, height: 48, container: 'w-16 h-16' };
       case 'md':
-        return 'w-16 h-16';
+        return { width: 80, height: 80, container: 'w-24 h-24' };
       case 'lg':
-        return 'w-20 h-20';
+        return { width: 100, height: 100, container: 'w-28 h-28' };
       default:
-        return 'w-16 h-16';
+        return { width: 80, height: 80, container: 'w-24 h-24' };
     }
   };
 
@@ -142,15 +118,27 @@ export default function PageLoader({
     }
   };
 
+  const logoConfig = getLogoSize();
+
   return (
     <div className={`min-h-screen bg-white dark:bg-black flex items-center justify-center p-4 transition-colors duration-300 ${className}`}>
       <div className="max-w-md w-full text-center">
         <div className="mb-6">
-          <div className={`${getContainerSize()} bg-[#EF3866] rounded-full flex items-center justify-center mx-auto mb-4`}>
-            {getStatusIcon()}
+          {/* Logo Container with Professional Animation */}
+          <div className={`${logoConfig.container} mx-auto mb-6 flex items-center justify-center`}>
+            <Link href="/" className="block">
+              <Image
+                src="/img/logo.png"
+                alt="Logo"
+                width={logoConfig.width}
+                height={logoConfig.height}
+                className={`transition-all duration-700 ease-in-out ${getLogoAnimation()}`}
+                priority
+              />
+            </Link>
           </div>
           
-          <h1 className={`${getTextSize()} font-bold text-gray-800 dark:text-white mb-2 font-sora transition-colors`}>
+          <h1 className={`${getTextSize()} font-bold text-gray-800 dark:text-white mb-2 font-sora transition-colors animate-pulse`}>
             {loadingState.stage === 'complete' ? 'Ready!' : 'Loading'}
           </h1>
           
@@ -183,19 +171,33 @@ export default function PageLoader({
               ))}
             </div>
           )}
+
+          {/* Stage indicator for complete state */}
+          {loadingState.stage === 'complete' && (
+            <div className="mt-4">
+              <div className="inline-flex items-center space-x-2 text-[#EF3866] font-medium">
+                <svg className="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Loading Complete</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-// Compact version for inline loading states
+// Compact version for inline loading states with logo option
 export function InlineLoader({ 
   message = "Loading...", 
-  size = "sm" 
+  size = "sm",
+  useLogo = false
 }: { 
   message?: string; 
-  size?: 'xs' | 'sm' | 'md' 
+  size?: 'xs' | 'sm' | 'md';
+  useLogo?: boolean;
 }) {
   const sizeClasses = {
     xs: "w-4 h-4",
@@ -203,10 +205,62 @@ export function InlineLoader({
     md: "w-6 h-6"
   };
 
+  const logoSizes = {
+    xs: { width: 16, height: 16 },
+    sm: { width: 20, height: 20 },
+    md: { width: 24, height: 24 }
+  };
+
   return (
     <div className="flex items-center justify-center space-x-3 py-8">
-      <div className={`${sizeClasses[size]} border-2 border-[#EF3866] border-t-transparent rounded-full animate-spin`}></div>
+      {useLogo ? (
+        <div className={`${sizeClasses[size]} flex items-center justify-center`}>
+          <Image
+            src="/img/logo.png"
+            alt="Logo"
+            width={logoSizes[size].width}
+            height={logoSizes[size].height}
+            className="animate-pulse transition-all duration-500"
+          />
+        </div>
+      ) : (
+        <div className={`${sizeClasses[size]} border-2 border-[#EF3866] border-t-transparent rounded-full animate-spin`}></div>
+      )}
       <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">{message}</span>
+    </div>
+  );
+}
+
+// Logo-only loader for minimal use cases
+export function LogoLoader({ 
+  size = 'md',
+  className = ""
+}: { 
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}) {
+  const logoConfig = {
+    sm: { width: 48, height: 48, container: 'w-16 h-16' },
+    md: { width: 80, height: 80, container: 'w-24 h-24' },
+    lg: { width: 100, height: 100, container: 'w-28 h-28' }
+  };
+
+  const config = logoConfig[size];
+
+  return (
+    <div className={`flex items-center justify-center ${className}`}>
+      <div className={`${config.container} flex items-center justify-center`}>
+        <Link href="/" className="block">
+          <Image
+            src="/img/logo.png"
+            alt="Logo"
+            width={config.width}
+            height={config.height}
+            className="animate-pulse transition-all duration-700 ease-in-out scale-110"
+            priority
+          />
+        </Link>
+      </div>
     </div>
   );
 }

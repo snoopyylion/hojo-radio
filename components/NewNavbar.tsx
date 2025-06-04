@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import React, { useEffect, useState, useRef } from "react";
-import { Menu, X, Bell, Home, Shield, Mic, BookOpen, Users, ArrowRight } from "lucide-react";
+import { Menu, X, Bell, Home, Shield, Mic, BookOpen, Users, ArrowRight, Settings, CreditCard, User } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useAppContext } from "@/context/AppContext";
 import Link from "next/link";
@@ -10,7 +10,7 @@ import SignOutBtn from "@/components/SignOutBtn";
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@supabase/supabase-js';
 import { gsap } from 'gsap';
-import {  usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 // Initialize Supabase client with proper type checking
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -68,6 +68,7 @@ const useDarkMode = () => {
 const NewNavbar = () => {
   const { user } = useAppContext();
   const pathname = usePathname();
+  const router = useRouter();
   const isDarkMode = useDarkMode();
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
@@ -278,9 +279,32 @@ const NewNavbar = () => {
                     </div>
 
                     <div className="flex w-[161.5px] h-[50px] gap-[5px] items-center">
-                      {/* User Button */}
+                      {/* User Button with Custom Menu Items */}
                       <div className="w-[50px] h-[50px] flex items-center justify-center">
-                        <UserButton />
+                        <UserButton afterSignOutUrl="/">
+                          <UserButton.MenuItems>
+                            <UserButton.Action
+                              label="Settings"
+                              labelIcon={<Settings size={16} />}
+                              onClick={() => router.push("/settings")}
+                            />
+                            <UserButton.Action
+                              label="Dashboard"
+                              labelIcon={<User size={16} />}
+                              onClick={() => router.push("/dashboard")}
+                            />
+                            <UserButton.Action
+                              label="Billing"
+                              labelIcon={<CreditCard size={16} />}
+                              onClick={() => router.push("/billing")}
+                            />
+                            <UserButton.Action
+                              label="My Profile"
+                              labelIcon={<User size={16} />}
+                              onClick={() => router.push("/profile")}
+                            />
+                          </UserButton.MenuItems>
+                        </UserButton>
                       </div>
                       
                       {/* User Profile Info */}
@@ -507,7 +531,20 @@ const NewNavbar = () => {
                       <div className="relative">
                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#EF3866] to-gray-700 p-0.5">
                           <div className={`w-full h-full rounded-full ${isDarkMode ? 'bg-black/20' : 'bg-white/50'} flex items-center justify-center`}>
-                            <UserButton />
+                            <UserButton>
+                              <UserButton.MenuItems>
+                                <UserButton.Action
+                                  label="Dashboard"
+                                  labelIcon={<User size={16} />}
+                                  onClick={() => router.push("/hashedpage")}
+                                />
+                                <UserButton.Action
+                                  label="My Profile"
+                                  labelIcon={<User size={16} />}
+                                  onClick={() => router.push("/hashedpage")}
+                                />
+                              </UserButton.MenuItems>
+                            </UserButton>
                           </div>
                         </div>
                         <motion.div

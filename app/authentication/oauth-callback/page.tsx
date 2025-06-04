@@ -3,6 +3,8 @@
 import { useEffect, useState, Suspense, useCallback, useRef } from "react";
 import { useUser, useAuth, useClerk } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 
 interface AuthStatus {
   stage: 'authenticating' | 'syncing' | 'checking' | 'completing' | 'redirecting' | 'error';
@@ -422,48 +424,22 @@ function OAuthCallbackContent() {
     return () => clearTimeout(timeoutId);
   }, [isLoaded, router, user, retryCount, getRedirectUrl, isUserAuthenticated, searchParams, isSignedIn, activateEmailSession, waitForUserState, syncUserAndCheckProfile, forceCompleteProfile]);
 
-  const getStatusIcon = () => {
-    const iconProps = "w-8 h-8 text-white";
-
+  const getLogoAnimation = () => {
     switch (authStatus.stage) {
       case 'authenticating':
-        return (
-          <svg className={`${iconProps} animate-spin`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v4m0 8v4m8-8h-4M4 12h4" />
-          </svg>
-        );
+        return "animate-pulse scale-110";
       case 'syncing':
-        return (
-          <svg className={iconProps} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-        );
+        return "animate-spin";
       case 'checking':
-        return (
-          <svg className={iconProps} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        );
+        return "animate-bounce";
       case 'completing':
-        return (
-          <svg className={iconProps} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-        );
+        return "animate-pulse";
       case 'redirecting':
-        return (
-          <svg className={iconProps} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        );
+        return "animate-none scale-110";
       case 'error':
-        return (
-          <svg className={iconProps} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
-        );
+        return "animate-pulse opacity-75";
       default:
-        return null;
+        return "animate-pulse";
     }
   };
 
@@ -479,9 +455,20 @@ function OAuthCallbackContent() {
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="max-w-md w-full p-8 text-center">
         <div className="mb-6">
-          <div className="w-16 h-16 bg-[#EF3866] rounded-full flex items-center justify-center mx-auto mb-4">
-            {getStatusIcon()}
+          {/* Logo Container with Professional Animation */}
+          <div className="w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+            <Link href="/" className="block">
+              <Image
+                src="/img/logo.png"
+                alt="Logo"
+                width={80}
+                height={80}
+                className={`transition-all duration-700 ease-in-out ${getLogoAnimation()}`}
+                priority
+              />
+            </Link>
           </div>
+
           <h1 className="text-2xl font-bold text-gray-800 mb-2">{getTitle()}</h1>
           <p className="text-gray-600 mb-4">{authStatus.message}</p>
 
@@ -521,15 +508,26 @@ function OAuthCallbackContent() {
   );
 }
 
-// Loading fallback component
+// Loading fallback component with logo
 function LoadingFallback() {
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="max-w-md w-full p-8 text-center">
         <div className="mb-6">
-          <div className="w-16 h-16 bg-[#EF3866] rounded-full flex items-center justify-center mx-auto mb-4">
-            <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+          {/* Logo Container for Loading State */}
+          <div className="w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+            <Link href="/" className="block">
+              <Image
+                src="/img/logo.png"
+                alt="Logo"
+                width={80}
+                height={80}
+                className="animate-pulse transition-all duration-700 ease-in-out"
+                priority
+              />
+            </Link>
           </div>
+
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Loading...</h1>
           <p className="text-gray-600 mb-4">Preparing your authentication...</p>
 
