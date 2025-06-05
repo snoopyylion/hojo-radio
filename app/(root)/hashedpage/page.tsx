@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useAuth,  UserButton,  useUser } from "@clerk/nextjs";
+import { useAuth,  useUser } from "@clerk/nextjs";
 import { supabase } from "@/lib/supabaseClient";
 import { gsap } from "gsap";
 import {
@@ -420,84 +420,62 @@ export default function UserDashboard() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-4">
               {/* ✅ ENHANCED: Better Profile Image Section with improved error handling */}
-              <div className="relative group pt-7">
-  {/* Hide the default UserButton and overlay our custom design */}
-  <div className="relative">
-    {/* Our custom styled profile image */}
-    <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-[#EF3866] to-[#FF6B9D] p-0.5">
-      <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-gray-900">
-        {getProfileImageUrl() ? (
-          <img
-            src={getProfileImageUrl()!}
-            alt={`${userProfile.first_name}'s profile`}
-            className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.style.display = 'none';
-              const parent = target.parentElement;
-              if (parent) {
-                const fallback = parent.querySelector('.fallback-avatar') as HTMLElement;
-                if (fallback) {
-                  fallback.style.display = 'flex';
-                }
-              }
-            }}
-            onLoad={(e) => {
-              const target = e.target as HTMLImageElement;
-              const parent = target.parentElement;
-              if (parent) {
-                const fallback = parent.querySelector('.fallback-avatar') as HTMLElement;
-                if (fallback) {
-                  fallback.style.display = 'none';
-                }
-              }
-            }}
-          />
-        ) : null}
-        
-        <div 
-          className="fallback-avatar w-full h-full bg-gradient-to-br from-[#EF3866] to-[#FF6B9D] flex items-center justify-center text-white font-bold text-lg transition-transform duration-200 group-hover:scale-105"
-          style={{ display: getProfileImageUrl() ? 'none' : 'flex' }}
-        >
-          {getUserInitials()}
-        </div>
-      </div>
-    </div>
+              <div className="relative group">
+                {/* Custom Profile Image with Fallback */}
+                <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-[#EF3866] to-[#FF6B9D] p-0.5">
+                  <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-gray-900">
+                    {getProfileImageUrl() ? (
+                      <img
+                        src={getProfileImageUrl()!}
+                        alt={`${userProfile.first_name}'s profile`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Hide the image and show fallback
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            const fallback = parent.querySelector('.fallback-avatar') as HTMLElement;
+                            if (fallback) {
+                              fallback.style.display = 'flex';
+                            }
+                          }
+                        }}
+                        onLoad={(e) => {
+                          // Hide fallback if image loads successfully
+                          const target = e.target as HTMLImageElement;
+                          const parent = target.parentElement;
+                          if (parent) {
+                            const fallback = parent.querySelector('.fallback-avatar') as HTMLElement;
+                            if (fallback) {
+                              fallback.style.display = 'none';
+                            }
+                          }
+                        }}
+                      />
+                    ) : null}
+                    
+                    {/* Fallback Avatar with Initials */}
+                    <div 
+                      className="fallback-avatar w-full h-full bg-gradient-to-br from-[#EF3866] to-[#FF6B9D] flex items-center justify-center text-white font-bold text-lg"
+                      style={{ display: getProfileImageUrl() ? 'none' : 'flex' }}
+                    >
+                      {getUserInitials()}
+                    </div>
+                  </div>
+                </div>
 
-    {/* ✅ FIXED: Invisible UserButton positioned to cover the ENTIRE image */}
-    <div className="absolute inset-0 w-24 h-24 rounded-full overflow-hidden z-10">
-      <UserButton 
-        appearance={{
-          elements: {
-            avatarBox: "w-full h-full rounded-full opacity-0", // Made completely transparent
-            userButtonPopoverCard: "shadow-lg",
-            userButtonPopoverActionButton: "hover:bg-gray-50"
-          }
-        }}
-        showName={false}
-      />
-    </div>
-
-    {/* Our custom hover effects - positioned behind the UserButton */}
-    <div className="absolute inset-0 rounded-full border-2 border-[#EF3866]/20 animate-pulse pointer-events-none group-hover:border-[#EF3866]/40 transition-colors z-0"></div>
-    
-    <div className="absolute -bottom-[-10px] -right-[-5px] w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full animate-ping z-0"></div>
-    
-    <div className="absolute inset-0 bg-black/50 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-0">
-      <Camera className="w-4 h-4 text-white mb-1" />
-      <span className="text-xs text-white font-medium">Edit</span>
-    </div>
-
-    <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-0">
-      Click to edit profile
-    </div>
-  </div>
-</div>
+                {/* Animated Ring */}
+                <div className="absolute inset-0 rounded-full border-2 border-[#EF3866]/20 animate-pulse pointer-events-none group-hover:border-[#EF3866]/40 transition-colors"></div>
+                
+                {/* Online Status Indicator */}
+                <div className="absolute -bottom-[-10px] -right-[-5px] w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full animate-ping"></div>
+              </div>
 
               {/* User Information */}
               <div className="flex-1">
                 <div className="flex items-center space-x-2">
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
+                  <h1 className="text-2xl font-bold text-gray-900  dark:text-white font-sora transition-colors">
                     Welcome back, {userProfile.first_name}!
                   </h1>
                   
