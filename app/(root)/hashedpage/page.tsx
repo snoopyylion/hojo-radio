@@ -469,7 +469,7 @@ export default function UserDashboard() {
                 <div className="absolute inset-0 rounded-full border-2 border-[#EF3866]/20 animate-pulse pointer-events-none group-hover:border-[#EF3866]/40 transition-colors"></div>
                 
                 {/* Online Status Indicator */}
-                <div className="absolute -bottom-[-10px] -right-[-5px] w-5 h-5 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full animate-ping"></div>
+                <div className="absolute -bottom-[-10px] -right-[-5px] w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full animate-ping"></div>
                 
                 {/* Hover Effect - Camera Icon */}
                 <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
