@@ -16,7 +16,6 @@ import {
   Heart,
   MessageCircle,
   Shield,
-  Camera,
 } from "lucide-react";
 import VerifiedList from '@/components/VerifiedList';
 import LinkButton from "@/components/LinkButton";
