@@ -422,7 +422,7 @@ export default function UserDashboard() {
               {/* ✅ ENHANCED: Better Profile Image Section with improved error handling */}
               <div className="relative group">
                 {/* Custom Profile Image with Fallback */}
-                <div className="relative w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-[#EF3866] to-[#FF6B9D] p-0.5">
+                <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-[#EF3866] to-[#FF6B9D] p-0.5">
                   <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-gray-900">
                     {getProfileImageUrl() ? (
                       <img
