@@ -10,8 +10,6 @@ import SignOutBtn from "@/components/SignOutBtn";
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@supabase/supabase-js';
 import { usePathname, useRouter } from 'next/navigation';
-import { sanityClient } from '../lib/sanity/client'; // Make sure you have this import
-import { GLOBAL_SEARCH_QUERY } from '../sanity/lib/queries';
 
 interface SearchResult {
   id: string;
@@ -66,11 +64,6 @@ interface SearchResponse {
   };
 }
 
-interface SanitySearchResults {
-  posts?: SanityPost[];
-  authors?: SanityAuthor[];
-  categories?: SanityCategory[];
-}
 
 // Initialize Supabase client with proper type checking
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -533,7 +526,7 @@ const getResultUrl = (result: SearchResult): string => {
             >
               <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-gray-300 transition-colors">
                 {result.image ? (
-                  <img 
+                  <Image 
                     src={result.image} 
                     alt={result.title}
                     className="w-full h-full rounded-full object-cover"
@@ -747,7 +740,7 @@ const getResultUrl = (result: SearchResult): string => {
           >
             <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
               {result.image ? (
-                <img 
+                <Image 
                   src={result.image} 
                   alt={result.title}
                   className="w-full h-full rounded-full object-cover"
