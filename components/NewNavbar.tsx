@@ -54,6 +54,18 @@ interface SanityCategory {
   slug: { current: string };
 }
 
+interface SearchResponse {
+  results: SearchResult[];
+  totalCount: number;
+  query: string;
+  categories: {
+    users: SearchResult[];
+    articles: SearchResult[];
+    authors: SearchResult[];
+    categories: SearchResult[];
+  };
+}
+
 interface SanitySearchResults {
   posts?: SanityPost[];
   authors?: SanityAuthor[];
@@ -134,119 +146,115 @@ const NewNavbar = () => {
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
-  // Function to search Sanity content
-  const searchSanityContent = async (query: string): Promise<SearchResult[]> => {
-    try {
-      const searchTerm = `"${query}"*`;
-      
-      // Use the GLOBAL_SEARCH_QUERY from your queries file
-      const results: SanitySearchResults = await sanityClient.fetch(GLOBAL_SEARCH_QUERY, {
-        searchTerm,
-        limit: 5 // Limit for navbar dropdown
-      });
-
-      const searchResults: SearchResult[] = [];
-
-      // Process posts/articles
-      if (results.posts && results.posts.length > 0) {
-        results.posts.forEach((post: SanityPost) => {
-          searchResults.push({
-            id: post._id,
-            type: 'article',
-            title: post.title,
-            subtitle: `📝 ${post.author?.name} • ${formatDate(post.publishedAt)}`,
-            url: `/blog/${post.slug.current}`,
-            image: post.mainImage?.asset?.url,
-            excerpt: post.excerpt || post.description,
-            publishedAt: post.publishedAt,
-            likes: post.likes || 0,
-            comments: post.comments || 0
-          });
-        });
-      }
-
-      // Process authors
-      if (results.authors && results.authors.length > 0) {
-        results.authors.forEach((author: SanityAuthor) => {
-          searchResults.push({
-            id: author._id,
-            type: 'author',
-            title: author.name,
-            subtitle: '✍️ Author • View Profile',
-            url: `/authors/${author.slug.current}`,
-            image: author.image?.asset?.url || '/default-avatar.png',
-            excerpt: author.bio
-          });
-        });
-      }
-
-      // Process categories
-      if (results.categories && results.categories.length > 0) {
-        results.categories.forEach((category: SanityCategory) => {
-          searchResults.push({
-            id: category._id,
-            type: 'category',
-            title: category.title,
-            subtitle: '🏷️ Category • Browse Posts',
-            url: `/blog/category/${category.slug.current}`
-          });
-        });
-      }
-
-      return searchResults;
-    } catch (error) {
-      console.error('Error searching Sanity content:', error);
-      return [];
-    }
-  };
-
   // Update the performSearch function to properly use both Supabase and Sanity
-  const performSearch = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      return;
+  const performSearch = useCallback(async (searchQuery: string) => {
+  if (!searchQuery.trim()) {
+    setSearchResults([]);
+    setShowSearchResults(false);
+    return;
+  }
+
+  setIsSearching(true);
+  
+  try {
+    console.log('🔍 Performing navbar search:', { query: searchQuery });
+    
+    // Build API URL with proper encoding
+    const apiUrl = new URL('/api/search', window.location.origin);
+    apiUrl.searchParams.set('q', searchQuery);
+    apiUrl.searchParams.set('limit', '10'); // Limit for navbar dropdown
+    
+    console.log('📡 Calling search API:', apiUrl.toString());
+
+    const response = await fetch(apiUrl.toString(), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    setIsSearching(true);
-    const results: SearchResult[] = [];
-
-    try {
-      // Search users in Supabase
-      const { data: users, error: userError } = await supabase
-        .from('users')
-        .select('id, first_name, last_name, role, clerk_id, image_url')
-        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%`)
-        .limit(5);
-
-      if (users && !userError) {
-        users.forEach(user => {
-          results.push({
-            id: user.id,
-            type: 'user',
-            title: `${user.first_name} ${user.last_name || ''}`.trim(),
-            subtitle: user.role === 'author' ? '✍️ Author' : '👤 Member',
-            url: `/profile/${user.clerk_id}`,
-            image: user.image_url || '/default-avatar.png'
-          });
-        });
+    const data: SearchResponse = await response.json();
+    
+    console.log('✅ Search API response:', {
+      totalCount: data.totalCount,
+      categories: {
+        users: data.categories.users.length,
+        articles: data.categories.articles.length,
+        authors: data.categories.authors.length,
+        categories: data.categories.categories.length
       }
+    });
 
-      // Search Sanity content
-      const sanityResults = await searchSanityContent(query);
-      results.push(...sanityResults);
-
-      setSearchResults(results);
-      setShowSearchResults(results.length > 0);
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setIsSearching(false);
+    // Process and prioritize results for navbar dropdown
+    const prioritizedResults: SearchResult[] = [];
+    
+    // 1. First, add users (highest priority for navbar)
+    if (data.categories.users && data.categories.users.length > 0) {
+      data.categories.users.forEach(user => {
+        prioritizedResults.push({
+          ...user,
+          subtitle: user.subtitle || `👤 ${user.type === 'author' ? 'Author' : 'Member'}`,
+          url: getResultUrl(user)
+        });
+      });
     }
-  }, []);
+
+    // 2. Then add articles
+    if (data.categories.articles && data.categories.articles.length > 0) {
+      data.categories.articles.slice(0, 4).forEach(article => { // Limit articles to 4 for navbar
+        prioritizedResults.push({
+          ...article,
+          subtitle: article.subtitle || `📝 Article • ${formatDate(article.publishedAt || '')}`,
+          url: getResultUrl(article)
+        });
+      });
+    }
+
+    // 3. Add authors
+    if (data.categories.authors && data.categories.authors.length > 0) {
+      data.categories.authors.slice(0, 2).forEach(author => { // Limit authors to 2 for navbar
+        prioritizedResults.push({
+          ...author,
+          subtitle: author.subtitle || '✍️ Author • View Profile',
+          url: getResultUrl(author)
+        });
+      });
+    }
+
+    // 4. Finally add categories
+    if (data.categories.categories && data.categories.categories.length > 0) {
+      data.categories.categories.slice(0, 2).forEach(category => { // Limit categories to 2 for navbar
+        prioritizedResults.push({
+          ...category,
+          subtitle: category.subtitle || '🏷️ Category • Browse Posts',
+          url: getResultUrl(category)
+        });
+      });
+    }
+
+    // Limit total results for navbar dropdown
+    const finalResults = prioritizedResults.slice(0, 8);
+    
+    setSearchResults(finalResults);
+    setShowSearchResults(finalResults.length > 0);
+
+  } catch (error) {
+    console.error('❌ Navbar search error:', error);
+    setSearchResults([]);
+    setShowSearchResults(false);
+  } finally {
+    setIsSearching(false);
+  }
+}, []);
+
 
   // Helper function to format dates
   const formatDate = (dateString: string): string => {
+  try {
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
@@ -261,7 +269,38 @@ const NewNavbar = () => {
       day: 'numeric',
       year: 'numeric'
     });
-  };
+  } catch {
+    return 'Unknown date';
+  }
+};
+
+// Add the getResultUrl function from your search results page
+const getResultUrl = (result: SearchResult): string => {
+  switch (result.type) {
+    case 'article':
+      let postId = result.url.includes('/post/')
+        ? result.url.split('/post/')[1].split('/')[0]
+        : result.id;
+
+      // If prefixed with "sanity_post_", strip it
+      if (postId.startsWith('sanity_post_')) {
+        postId = postId.replace('sanity_post_', '');
+      }
+
+      return `/post/${postId}`;
+
+    case 'user':
+    case 'author':
+      return `/user/${result.id}`;
+
+    case 'category':
+      return `/category/${result.id}`;
+
+    default:
+      return result.url || '#';
+  }
+};
+
 
   // Debounced search
   useEffect(() => {
@@ -477,58 +516,78 @@ const NewNavbar = () => {
 
               {/* Search Results Dropdown */}
               <AnimatePresence>
-                {showSearchResults && searchResults.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute top-12 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-96 overflow-y-auto"
-                  >
-                    <div className="p-2">
-                      {searchResults.map((result) => (
-                        <button
-                          key={result.id}
-                          onClick={() => handleResultClick(result)}
-                          className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"
-                        >
-                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
-                            {result.type === 'user' ? (
-                              <User size={20} className="text-gray-600" />
-                            ) : (
-                              <BookOpen size={20} className="text-gray-600" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{result.title}</p>
-                            {result.subtitle && (
-                              <p className="text-sm text-gray-500 truncate">{result.subtitle}</p>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-400 capitalize">
-                            {result.type}
-                          </div>
-                        </button>
-                      ))}
-                      
-                      {searchQuery && (
-                        <button
-                          onClick={handleSearchSubmit}
-                          className="w-full flex items-center gap-3 p-3 hover:bg-pink-50 rounded-lg transition-colors text-left border-t border-gray-100 mt-2"
-                        >
-                          <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <Search size={20} className="text-pink-600" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900">See all results for &quot;{searchQuery}&quot;</p>
-                            <p className="text-sm text-gray-500">View complete search results</p>
-                          </div>
-                        </button>
-                      )}
-                    </div>
-                  </motion.div>
+    {showSearchResults && searchResults.length > 0 && (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 10 }}
+        transition={{ duration: 0.2 }}
+        className="absolute top-12 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-96 overflow-y-auto"
+      >
+        <div className="p-2">
+          {searchResults.map((result) => (
+            <button
+              key={result.id}
+              onClick={() => handleResultClick(result)}
+              className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left group"
+            >
+              <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-gray-300 transition-colors">
+                {result.image ? (
+                  <img 
+                    src={result.image} 
+                    alt={result.title}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  <>
+                    {result.type === 'user' && <User size={20} className="text-gray-600" />}
+                    {result.type === 'article' && <BookOpen size={20} className="text-gray-600" />}
+                    {result.type === 'author' && <User size={20} className="text-gray-600" />}
+                    {result.type === 'category' && <div className="text-gray-600 text-sm font-semibold">#</div>}
+                  </>
                 )}
-              </AnimatePresence>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-gray-900 truncate group-hover:text-[#EF3866] transition-colors">
+                  {result.title}
+                </p>
+                {result.subtitle && (
+                  <p className="text-sm text-gray-500 truncate">{result.subtitle}</p>
+                )}
+                {result.excerpt && (
+                  <p className="text-xs text-gray-400 truncate mt-1">{result.excerpt}</p>
+                )}
+              </div>
+              <div className="flex flex-col items-end text-xs text-gray-400">
+                <span className="capitalize">{result.type}</span>
+                {result.likes && (
+                  <span className="text-pink-500">♥ {result.likes}</span>
+                )}
+              </div>
+            </button>
+          ))}
+          
+          {searchQuery && (
+            <button
+              onClick={handleSearchSubmit}
+              className="w-full flex items-center gap-3 p-3 hover:bg-pink-50 rounded-lg transition-colors text-left border-t border-gray-100 mt-2 group"
+            >
+              <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-pink-200 transition-colors">
+                <Search size={20} className="text-pink-600" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900 group-hover:text-[#EF3866] transition-colors">
+                  See all results for &quot;{searchQuery}&quot;
+                </p>
+                <p className="text-sm text-gray-500">View complete search results</p>
+              </div>
+              <ArrowRight size={16} className="text-gray-400 group-hover:text-[#EF3866] transition-colors" />
+            </button>
+          )}
+        </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
             </div>
           </div>
 
@@ -678,32 +737,59 @@ const NewNavbar = () => {
 
               {/* Mobile Search Results */}
               {showSearchResults && searchResults.length > 0 && (
-                <div className="mt-4 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
-                  <div className="p-2">
-                    {searchResults.map((result) => (
-                      <button
-                        key={result.id}
-                        onClick={() => handleResultClick(result)}
-                        className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"
-                      >
-                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
-                          {result.type === 'user' ? (
-                            <User size={16} className="text-gray-600" />
-                          ) : (
-                            <BookOpen size={16} className="text-gray-600" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 text-sm truncate">{result.title}</p>
-                          {result.subtitle && (
-                            <p className="text-xs text-gray-500 truncate">{result.subtitle}</p>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+    <div className="mt-4 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+      <div className="p-2">
+        {searchResults.map((result) => (
+          <button
+            key={result.id}
+            onClick={() => handleResultClick(result)}
+            className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"
+          >
+            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+              {result.image ? (
+                <img 
+                  src={result.image} 
+                  alt={result.title}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                <>
+                  {result.type === 'user' && <User size={16} className="text-gray-600" />}
+                  {result.type === 'article' && <BookOpen size={16} className="text-gray-600" />}
+                  {result.type === 'author' && <User size={16} className="text-gray-600" />}
+                  {result.type === 'category' && <div className="text-gray-600 text-xs font-semibold">#</div>}
+                </>
               )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-gray-900 text-sm truncate">{result.title}</p>
+              {result.subtitle && (
+                <p className="text-xs text-gray-500 truncate">{result.subtitle}</p>
+              )}
+            </div>
+            <div className="text-xs text-gray-400 capitalize">
+              {result.type}
+            </div>
+          </button>
+        ))}
+        
+        {searchQuery && (
+          <button
+            onClick={handleSearchSubmit}
+            className="w-full flex items-center gap-3 p-3 hover:bg-pink-50 rounded-lg transition-colors text-left border-t border-gray-100 mt-2"
+          >
+            <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <Search size={16} className="text-pink-600" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-gray-900 text-sm">See all results</p>
+              <p className="text-xs text-gray-500">View complete search results</p>
+            </div>
+          </button>
+        )}
+      </div>
+    </div>
+  )}
             </motion.div>
           )}
         </AnimatePresence>

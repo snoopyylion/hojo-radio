@@ -41,24 +41,7 @@ interface SearchResponse {
   };
 }
 
-// Type definitions for database records
-interface SupabaseUser {
-  id: string;
-  first_name?: string;
-  last_name?: string;
-  name?: string;
-  full_name?: string;
-  role?: string;
-  clerk_id?: string;
-  user_id?: string;
-  external_id?: string;
-  image_url?: string;
-  avatar_url?: string;
-  profile_image?: string;
-  email?: string;
-  username?: string;
-  created_at?: string;
-}
+
 
 interface SanityPost {
   _id: string;
@@ -136,9 +119,9 @@ const formatDate = (dateString: string): string => {
       day: 'numeric',
       year: 'numeric'
     });
-  } catch (error) {
-    return 'Unknown date';
-  }
+  } catch {
+  return 'Unknown date';
+}
 };
 
 // Enhanced relevance scoring function with safety checks
@@ -163,7 +146,7 @@ const calculateRelevance = (text: unknown, query: string): number => {
   const textWords = safeText.split(' ').filter(word => word.length > 0);
   
   let matchScore = 0;
-  let totalWords = queryWords.length;
+  const totalWords = queryWords.length;
   
   queryWords.forEach(queryWord => {
     const exactMatch = textWords.find(textWord => textWord === queryWord);
