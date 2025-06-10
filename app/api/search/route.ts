@@ -22,7 +22,7 @@ interface SearchResult {
   image?: string;
   url: string;
   excerpt?: string;
-  publishedAt?: string;
+  publishedAt?: string | null;
   likes?: number;
   comments?: number;
   relevanceScore?: number;
@@ -41,8 +41,77 @@ interface SearchResponse {
   };
 }
 
+// Type definitions for database records
+interface SupabaseUser {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  name?: string;
+  full_name?: string;
+  role?: string;
+  clerk_id?: string;
+  user_id?: string;
+  external_id?: string;
+  image_url?: string;
+  avatar_url?: string;
+  profile_image?: string;
+  email?: string;
+  username?: string;
+  created_at?: string;
+}
+
+interface SanityPost {
+  _id: string;
+  title?: string;
+  slug?: {
+    current?: string;
+  };
+  excerpt?: string;
+  description?: string;
+  publishedAt?: string;
+  likes?: number;
+  comments?: number;
+  author?: {
+    name?: string;
+  };
+  mainImage?: {
+    asset?: {
+      url?: string;
+    };
+  };
+}
+
+interface SanityAuthor {
+  _id: string;
+  name?: string;
+  slug?: {
+    current?: string;
+  };
+  bio?: string;
+  image?: {
+    asset?: {
+      url?: string;
+    };
+  };
+}
+
+interface SanityCategory {
+  _id: string;
+  title?: string;
+  slug?: {
+    current?: string;
+  };
+  description?: string;
+}
+
+interface SanitySearchResults {
+  posts?: SanityPost[];
+  authors?: SanityAuthor[];
+  categories?: SanityCategory[];
+}
+
 // Helper function to safely convert to string and handle null/undefined
-const safeString = (value: any): string => {
+const safeString = (value: unknown): string => {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return value.toString();
@@ -73,7 +142,7 @@ const formatDate = (dateString: string): string => {
 };
 
 // Enhanced relevance scoring function with safety checks
-const calculateRelevance = (text: any, query: string): number => {
+const calculateRelevance = (text: unknown, query: string): number => {
   // Convert both to safe strings
   const safeText = safeString(text).toLowerCase().trim();
   const safeQuery = safeString(query).toLowerCase().trim();
@@ -165,90 +234,108 @@ const searchSupabaseUsers = async (query: string, limit: number = 20): Promise<S
       return [];
     }
 
-    // Perform the search
-    const { data: users, error: userError } = await supabase
+    // Perform the search with explicit typing
+    const supabaseResponse = await supabase
       .from('users')
       .select(selectColumns)
       .or(searchConditions.join(','))
       .limit(limit);
 
-    if (userError) {
-      console.error('❌ Supabase user search error:', userError);
+    if (supabaseResponse.error) {
+      console.error('❌ Supabase user search error:', supabaseResponse.error);
       return [];
     }
 
-    if (!users || users.length === 0) {
+    const rawUsers = supabaseResponse.data;
+
+    if (!rawUsers || rawUsers.length === 0) {
       console.log('ℹ️ No Supabase users found for query:', query);
       return [];
     }
 
-    console.log(`✅ Found ${users.length} Supabase users`);
+    console.log(`✅ Found ${rawUsers.length} Supabase users`);
 
-    const userResults: SearchResult[] = users.map((user: any) => {
-      // Safely extract user data with fallbacks
-      const firstName = safeString(user.first_name || '').trim();
-      const lastName = safeString(user.last_name || '').trim();
-      const name = safeString(user.name || '').trim();
-      const fullName = safeString(user.full_name || '').trim();
-      const role = safeString(user.role || 'user');
-      const email = safeString(user.email || '');
-      const username = safeString(user.username || '');
-      
-      // Determine the best display name
-      let displayName = '';
-      if (fullName) {
-        displayName = fullName;
-      } else if (name) {
-        displayName = name;
-      } else if (firstName || lastName) {
-        displayName = `${firstName} ${lastName}`.trim();
-      } else if (username) {
-        displayName = username;
-      } else if (email) {
-        displayName = email.split('@')[0];
-      } else {
-        displayName = 'Unknown User';
+    // Process each user with proper error handling
+    const userResults: SearchResult[] = [];
+    
+    for (const rawUser of rawUsers) {
+      try {
+        // Type guard and data extraction
+        if (!rawUser || typeof rawUser !== 'object' || !('id' in rawUser)) {
+          console.warn('⚠️ Invalid user record skipped:', rawUser);
+          continue;
+        }
+
+        const user = rawUser as Record<string, unknown>;
+        
+        // Safely extract user data with fallbacks
+        const firstName = safeString(user.first_name || '').trim();
+        const lastName = safeString(user.last_name || '').trim();
+        const name = safeString(user.name || '').trim();
+        const fullName = safeString(user.full_name || '').trim();
+        const role = safeString(user.role || 'user');
+        const email = safeString(user.email || '');
+        const username = safeString(user.username || '');
+        
+        // Determine the best display name
+        let displayName = '';
+        if (fullName) {
+          displayName = fullName;
+        } else if (name) {
+          displayName = name;
+        } else if (firstName || lastName) {
+          displayName = `${firstName} ${lastName}`.trim();
+        } else if (username) {
+          displayName = username;
+        } else if (email) {
+          displayName = email.split('@')[0];
+        } else {
+          displayName = 'Unknown User';
+        }
+
+        // Determine the best image URL
+        const imageUrl = safeString(
+          user.image_url || 
+          user.avatar_url || 
+          user.profile_image || 
+          '/default-avatar.png'
+        );
+
+        // Determine the best user ID for URL
+        const userId = safeString(
+          user.clerk_id || 
+          user.user_id || 
+          user.external_id || 
+          user.id
+        );
+        
+        // Calculate relevance based on all searchable fields
+        const relevance = Math.max(
+          calculateRelevance(displayName, query),
+          calculateRelevance(firstName, query),
+          calculateRelevance(lastName, query),
+          calculateRelevance(name, query),
+          calculateRelevance(fullName, query),
+          calculateRelevance(email, query),
+          calculateRelevance(username, query)
+        );
+
+        userResults.push({
+          id: `supabase_user_${user.id}`,
+          type: role.toLowerCase() === 'author' ? 'author' : 'user',
+          title: displayName,
+          subtitle: role.toLowerCase() === 'author' ? '✍️ Author' : '👤 User',
+          url: `/profile/${userId}`,
+          image: imageUrl,
+          excerpt: email ? `Email: ${email}` : undefined,
+          relevanceScore: relevance,
+          source: 'supabase'
+        });
+      } catch (userError) {
+        console.warn('⚠️ Error processing user record:', userError);
+        continue;
       }
-
-      // Determine the best image URL
-      const imageUrl = safeString(
-        user.image_url || 
-        user.avatar_url || 
-        user.profile_image || 
-        '/default-avatar.png'
-      );
-
-      // Determine the best user ID for URL
-      const userId = safeString(
-        user.clerk_id || 
-        user.user_id || 
-        user.external_id || 
-        user.id
-      );
-      
-      // Calculate relevance based on all searchable fields
-      const relevance = Math.max(
-        calculateRelevance(displayName, query),
-        calculateRelevance(firstName, query),
-        calculateRelevance(lastName, query),
-        calculateRelevance(name, query),
-        calculateRelevance(fullName, query),
-        calculateRelevance(email, query),
-        calculateRelevance(username, query)
-      );
-
-      return {
-        id: `supabase_user_${user.id}`,
-        type: role.toLowerCase() === 'author' ? 'author' : 'user',
-        title: displayName,
-        subtitle: role.toLowerCase() === 'author' ? '✍️ Author' : '👤 User',
-        url: `/profile/${userId}`,
-        image: imageUrl,
-        excerpt: email ? `Email: ${email}` : undefined,
-        relevanceScore: relevance,
-        source: 'supabase'
-      };
-    });
+    }
 
     return userResults;
   } catch (error) {
@@ -274,35 +361,35 @@ const searchSanityContent = async (query: string, limit: number = 20): Promise<S
       query.split(' ').map(word => `"${word}"`).join(' '), // Individual words
     ];
 
-    let allResults: any = { posts: [], authors: [], categories: [] };
+    const allResults: SanitySearchResults = { posts: [], authors: [], categories: [] };
 
     // Try different search strategies and combine results
     for (const searchTerm of searchStrategies) {
       try {
-        const results = await sanityClient.fetch(GLOBAL_SEARCH_QUERY, {
+        const results: SanitySearchResults = await sanityClient.fetch(GLOBAL_SEARCH_QUERY, {
           searchTerm,
           limit: Math.ceil(limit / searchStrategies.length)
         });
 
         // Merge results
-        if (results?.posts) allResults.posts = [...allResults.posts, ...results.posts];
-        if (results?.authors) allResults.authors = [...allResults.authors, ...results.authors];
-        if (results?.categories) allResults.categories = [...allResults.categories, ...results.categories];
+        if (results?.posts) allResults.posts = [...(allResults.posts || []), ...results.posts];
+        if (results?.authors) allResults.authors = [...(allResults.authors || []), ...results.authors];
+        if (results?.categories) allResults.categories = [...(allResults.categories || []), ...results.categories];
       } catch (strategyError) {
         console.warn('⚠️ Search strategy failed:', searchTerm, strategyError);
       }
     }
 
     // Remove duplicates based on _id
-    allResults.posts = Array.from(new Map(allResults.posts.map((item: any) => [item._id, item])).values());
-    allResults.authors = Array.from(new Map(allResults.authors.map((item: any) => [item._id, item])).values());
-    allResults.categories = Array.from(new Map(allResults.categories.map((item: any) => [item._id, item])).values());
+    allResults.posts = Array.from(new Map((allResults.posts || []).map((item: SanityPost) => [item._id, item])).values());
+    allResults.authors = Array.from(new Map((allResults.authors || []).map((item: SanityAuthor) => [item._id, item])).values());
+    allResults.categories = Array.from(new Map((allResults.categories || []).map((item: SanityCategory) => [item._id, item])).values());
 
     const searchResults: SearchResult[] = [];
 
     // Process posts/articles with safety checks
     if (allResults?.posts && Array.isArray(allResults.posts)) {
-      allResults.posts.forEach((post: any) => {
+      allResults.posts.forEach((post: SanityPost) => {
         if (post && post._id && post.title) {
           const authorName = safeString(post.author?.name || 'Unknown Author');
           const publishedAt = post.publishedAt || null;
@@ -337,7 +424,7 @@ const searchSanityContent = async (query: string, limit: number = 20): Promise<S
 
     // Process Sanity authors with safety checks
     if (allResults?.authors && Array.isArray(allResults.authors)) {
-      allResults.authors.forEach((author: any) => {
+      allResults.authors.forEach((author: SanityAuthor) => {
         if (author && author._id && author.name) {
           const slug = safeString(author.slug?.current || author._id);
           const imageUrl = safeString(author.image?.asset?.url || '/default-avatar.png');
@@ -366,7 +453,7 @@ const searchSanityContent = async (query: string, limit: number = 20): Promise<S
 
     // Process categories with safety checks
     if (allResults?.categories && Array.isArray(allResults.categories)) {
-      allResults.categories.forEach((category: any) => {
+      allResults.categories.forEach((category: SanityCategory) => {
         if (category && category._id && category.title) {
           const slug = safeString(category.slug?.current || category._id);
           const title = safeString(category.title);
@@ -449,7 +536,7 @@ export async function GET(request: NextRequest) {
     const deduplicatedResults = deduplicateResults(results);
 
     // Sort by relevance score (highest first), then by type priority
-    const typePriority = { user: 1, author: 2, article: 3, category: 4 };
+    const typePriority: Record<SearchResult['type'], number> = { user: 1, author: 2, article: 3, category: 4 };
     deduplicatedResults.sort((a, b) => {
       const scoreDiff = (b.relevanceScore || 0) - (a.relevanceScore || 0);
       if (scoreDiff !== 0) return scoreDiff;

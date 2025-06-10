@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Menu, X, Bell, Home, Shield, Mic, BookOpen, Users, ArrowRight, Settings, CreditCard, User, Search } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useAppContext } from "@/context/AppContext";
@@ -26,6 +26,39 @@ interface SearchResult {
   comments?: number;
 }
 
+// Define specific types for your Sanity data
+interface SanityPost {
+  _id: string;
+  title: string;
+  slug: { current: string };
+  author?: { name: string };
+  publishedAt: string;
+  mainImage?: { asset?: { url: string } };
+  excerpt?: string;
+  description?: string;
+  likes?: number;
+  comments?: number;
+}
+
+interface SanityAuthor {
+  _id: string;
+  name: string;
+  slug: { current: string };
+  image?: { asset?: { url: string } };
+  bio?: string;
+}
+
+interface SanityCategory {
+  _id: string;
+  title: string;
+  slug: { current: string };
+}
+
+interface SanitySearchResults {
+  posts?: SanityPost[];
+  authors?: SanityAuthor[];
+  categories?: SanityCategory[];
+}
 
 // Initialize Supabase client with proper type checking
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -42,9 +75,6 @@ interface UserProfile {
   role: string;
   first_name: string;
 }
-
-// Define search result types
-
 
 // Navigation items with icons
 const navItems = [
@@ -104,137 +134,134 @@ const NewNavbar = () => {
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
-  // Comprehensive search function
+  // Function to search Sanity content
+  const searchSanityContent = async (query: string): Promise<SearchResult[]> => {
+    try {
+      const searchTerm = `"${query}"*`;
+      
+      // Use the GLOBAL_SEARCH_QUERY from your queries file
+      const results: SanitySearchResults = await sanityClient.fetch(GLOBAL_SEARCH_QUERY, {
+        searchTerm,
+        limit: 5 // Limit for navbar dropdown
+      });
 
-  // Function to search Sanity content (you'll need to implement this)
- const searchSanityContent = async (query: string): Promise<SearchResult[]> => {
-  try {
-    const searchTerm = `"${query}"*`;
+      const searchResults: SearchResult[] = [];
+
+      // Process posts/articles
+      if (results.posts && results.posts.length > 0) {
+        results.posts.forEach((post: SanityPost) => {
+          searchResults.push({
+            id: post._id,
+            type: 'article',
+            title: post.title,
+            subtitle: `📝 ${post.author?.name} • ${formatDate(post.publishedAt)}`,
+            url: `/blog/${post.slug.current}`,
+            image: post.mainImage?.asset?.url,
+            excerpt: post.excerpt || post.description,
+            publishedAt: post.publishedAt,
+            likes: post.likes || 0,
+            comments: post.comments || 0
+          });
+        });
+      }
+
+      // Process authors
+      if (results.authors && results.authors.length > 0) {
+        results.authors.forEach((author: SanityAuthor) => {
+          searchResults.push({
+            id: author._id,
+            type: 'author',
+            title: author.name,
+            subtitle: '✍️ Author • View Profile',
+            url: `/authors/${author.slug.current}`,
+            image: author.image?.asset?.url || '/default-avatar.png',
+            excerpt: author.bio
+          });
+        });
+      }
+
+      // Process categories
+      if (results.categories && results.categories.length > 0) {
+        results.categories.forEach((category: SanityCategory) => {
+          searchResults.push({
+            id: category._id,
+            type: 'category',
+            title: category.title,
+            subtitle: '🏷️ Category • Browse Posts',
+            url: `/blog/category/${category.slug.current}`
+          });
+        });
+      }
+
+      return searchResults;
+    } catch (error) {
+      console.error('Error searching Sanity content:', error);
+      return [];
+    }
+  };
+
+  // Update the performSearch function to properly use both Supabase and Sanity
+  const performSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const results: SearchResult[] = [];
+
+    try {
+      // Search users in Supabase
+      const { data: users, error: userError } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, role, clerk_id, image_url')
+        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%`)
+        .limit(5);
+
+      if (users && !userError) {
+        users.forEach(user => {
+          results.push({
+            id: user.id,
+            type: 'user',
+            title: `${user.first_name} ${user.last_name || ''}`.trim(),
+            subtitle: user.role === 'author' ? '✍️ Author' : '👤 Member',
+            url: `/profile/${user.clerk_id}`,
+            image: user.image_url || '/default-avatar.png'
+          });
+        });
+      }
+
+      // Search Sanity content
+      const sanityResults = await searchSanityContent(query);
+      results.push(...sanityResults);
+
+      setSearchResults(results);
+      setShowSearchResults(results.length > 0);
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  // Helper function to format dates
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
     
-    // Use the GLOBAL_SEARCH_QUERY from your queries file
-    const results = await sanityClient.fetch(GLOBAL_SEARCH_QUERY, {
-      searchTerm,
-      limit: 5 // Limit for navbar dropdown
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
     });
-
-    const searchResults: SearchResult[] = [];
-
-    // Process posts/articles
-    if (results.posts && results.posts.length > 0) {
-      results.posts.forEach((post: any) => {
-        searchResults.push({
-          id: post._id,
-          type: 'article',
-          title: post.title,
-          subtitle: `📝 ${post.author?.name} • ${formatDate(post.publishedAt)}`,
-          url: `/blog/${post.slug.current}`,
-          image: post.mainImage?.asset?.url,
-          excerpt: post.excerpt || post.description,
-          publishedAt: post.publishedAt,
-          likes: post.likes || 0,
-          comments: post.comments || 0
-        });
-      });
-    }
-
-    // Process authors
-    if (results.authors && results.authors.length > 0) {
-      results.authors.forEach((author: any) => {
-        searchResults.push({
-          id: author._id,
-          type: 'author',
-          title: author.name,
-          subtitle: '✍️ Author • View Profile',
-          url: `/authors/${author.slug.current}`,
-          image: author.image?.asset?.url || '/default-avatar.png',
-          excerpt: author.bio
-        });
-      });
-    }
-
-    // Process categories
-    if (results.categories && results.categories.length > 0) {
-      results.categories.forEach((category: any) => {
-        searchResults.push({
-          id: category._id,
-          type: 'category',
-          title: category.title,
-          subtitle: '🏷️ Category • Browse Posts',
-          url: `/blog/category/${category.slug.current}`
-        });
-      });
-    }
-
-    return searchResults;
-  } catch (error) {
-    console.error('Error searching Sanity content:', error);
-    return [];
-  }
-};
-
-// Update the performSearch function to properly use both Supabase and Sanity
-const performSearch = async (query: string) => {
-  if (!query.trim()) {
-    setSearchResults([]);
-    setShowSearchResults(false);
-    return;
-  }
-
-  setIsSearching(true);
-  const results: SearchResult[] = [];
-
-  try {
-    // Search users in Supabase
-    const { data: users, error: userError } = await supabase
-      .from('users')
-      .select('id, first_name, last_name, role, clerk_id, image_url')
-      .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%`)
-      .limit(5);
-
-    if (users && !userError) {
-      users.forEach(user => {
-        results.push({
-          id: user.id,
-          type: 'user',
-          title: `${user.first_name} ${user.last_name || ''}`.trim(),
-          subtitle: user.role === 'author' ? '✍️ Author' : '👤 Member',
-          url: `/profile/${user.clerk_id}`,
-          image: user.image_url || '/default-avatar.png'
-        });
-      });
-    }
-
-    // Search Sanity content
-    const sanityResults = await searchSanityContent(query);
-    results.push(...sanityResults);
-
-    setSearchResults(results);
-    setShowSearchResults(results.length > 0);
-  } catch (error) {
-    console.error('Search error:', error);
-  } finally {
-    setIsSearching(false);
-  }
-};
-
-// Helper function to format dates
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffTime = Math.abs(now.getTime() - date.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-  if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
-  
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-};
-
+  };
 
   // Debounced search
   useEffect(() => {
@@ -248,7 +275,7 @@ const formatDate = (dateString: string): string => {
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  }, [searchQuery, performSearch]);
 
   // Handle search functionality
   const handleSearchToggle = () => {
@@ -493,7 +520,7 @@ const formatDate = (dateString: string): string => {
                             <Search size={20} className="text-pink-600" />
                           </div>
                           <div className="flex-1">
-                            <p className="font-medium text-gray-900">See all results for "{searchQuery}"</p>
+                            <p className="font-medium text-gray-900">See all results for &quot;{searchQuery}&quot;</p>
                             <p className="text-sm text-gray-500">View complete search results</p>
                           </div>
                         </button>

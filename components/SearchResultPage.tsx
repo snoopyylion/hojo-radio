@@ -75,9 +75,9 @@ const SearchResultsPage = () => {
         day: 'numeric',
         year: 'numeric'
       });
-    } catch (error) {
-      return 'Unknown date';
-    }
+    } catch {
+  return 'Unknown date';
+}
   };
 
   // Handle follow/unfollow
