@@ -354,17 +354,25 @@ const getResultUrl = (result: SearchResult): string => {
       if (user?.id) {
         setLoading(true);
         try {
+          console.log('Fetching profile for user ID:', user.id); // Debug log
+          
+          // Query using the actual database structure
           const { data, error } = await supabase
             .from('users')
             .select('role, first_name')
-            .eq('clerk_id', user.id) // Use clerk_id instead of id
+            .eq('id', user.id) // Using 'id' as shown in your database
             .single();
+
+          console.log('Supabase response:', { data, error }); // Debug log
 
           if (data && !error) {
             setUserProfile({
               first_name: data.first_name || 'User',
               role: data.role || 'Member'
             });
+            console.log('User profile set:', data); // Debug log
+          } else {
+            console.error('Supabase error:', error);
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
