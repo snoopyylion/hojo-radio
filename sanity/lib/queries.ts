@@ -40,7 +40,6 @@ export const ALL_CATEGORIES_QUERY = defineQuery(`
   }
 `);
 
-
 // Likes count and comment summary for a post
 export const POST_META_QUERY = defineQuery(`
   *[_type == "post" && _id == $id][0] {
@@ -65,7 +64,6 @@ export const POSTS_BY_AUTHOR_QUERY = defineQuery(`
   }
 `);
 
-
 // Posts by status (admin view)
 export const POSTS_BY_STATUS_QUERY = defineQuery(`
   *[_type == "post" && status == $status] | order(publishedAt desc) {
@@ -81,3 +79,103 @@ export const POSTS_BY_STATUS_QUERY = defineQuery(`
   }
 `);
 
+// ========== NEW SEARCH QUERIES ==========
+
+// Search posts by title, description, or author name
+export const SEARCH_POSTS_QUERY = defineQuery(`
+  *[_type == "post" && (
+    title match $searchTerm ||
+    description match $searchTerm ||
+    author->name match $searchTerm ||
+    categories[]->title match $searchTerm
+  )] | order(publishedAt desc) [0...$limit] {
+    _id,
+    title,
+    description,
+    slug,
+    publishedAt,
+    mainImage,
+    "author": author->{_id, name, slug, image},
+    categories[]->{title, slug},
+    likes,
+    comments,
+    "excerpt": pt::text(body)[0...150] + "..."
+  }
+`);
+
+// Search authors/users in Sanity
+export const SEARCH_AUTHORS_QUERY = defineQuery(`
+  *[_type == "author" && name match $searchTerm] | order(name asc) [0...$limit] {
+    _id,
+    name,
+    slug,
+    image,
+    bio
+  }
+`);
+
+// Get featured/trending posts for search suggestions
+export const TRENDING_POSTS_QUERY = defineQuery(`
+  *[_type == "post"] | order(likes desc, publishedAt desc) [0..5] {
+    _id,
+    title,
+    slug,
+    likes,
+    "author": author->{name}
+  }
+`);
+
+// Search posts by category
+export const SEARCH_POSTS_BY_CATEGORY_QUERY = defineQuery(`
+  *[_type == "post" && categories[]->title match $searchTerm] | order(publishedAt desc) [0...$limit] {
+    _id,
+    title,
+    description,
+    slug,
+    publishedAt,
+    mainImage,
+    "author": author->{_id, name, slug, image},
+    categories[]->{title, slug},
+    likes,
+    comments
+  }
+`);
+
+// Global search query (searches across multiple fields)
+export const GLOBAL_SEARCH_QUERY = defineQuery(`
+  {
+    "posts": *[_type == "post" && (
+      title match $searchTerm ||
+      description match $searchTerm ||
+      author->name match $searchTerm ||
+      categories[]->title match $searchTerm
+    )] | order(publishedAt desc) [0...$limit] {
+      _id,
+      title,
+      description,
+      slug,
+      publishedAt,
+      mainImage,
+      "author": author->{_id, name, slug, image},
+      categories[]->{title, slug},
+      likes,
+      comments,
+      "excerpt": pt::text(body)[0...150] + "...",
+      "type": "post"
+    },
+    "authors": *[_type == "author" && name match $searchTerm] | order(name asc) [0...$limit] {
+      _id,
+      name,
+      slug,
+      image,
+      bio,
+      "type": "author"
+    },
+    "categories": *[_type == "category" && title match $searchTerm] | order(title asc) [0...$limit] {
+      _id,
+      title,
+      slug,
+      "type": "category"
+    }
+  }
+`);
