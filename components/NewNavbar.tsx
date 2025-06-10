@@ -24,33 +24,6 @@ interface SearchResult {
   comments?: number;
 }
 
-// Define specific types for your Sanity data
-interface SanityPost {
-  _id: string;
-  title: string;
-  slug: { current: string };
-  author?: { name: string };
-  publishedAt: string;
-  mainImage?: { asset?: { url: string } };
-  excerpt?: string;
-  description?: string;
-  likes?: number;
-  comments?: number;
-}
-
-interface SanityAuthor {
-  _id: string;
-  name: string;
-  slug: { current: string };
-  image?: { asset?: { url: string } };
-  bio?: string;
-}
-
-interface SanityCategory {
-  _id: string;
-  title: string;
-  slug: { current: string };
-}
 
 interface SearchResponse {
   results: SearchResult[];

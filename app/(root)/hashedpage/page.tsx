@@ -23,6 +23,7 @@ import PageLoader from '@/components/PageLoader';
 import { useUserLikes } from '../../../hooks/user-likes/useUserLikes';
 import { useUserComments } from '../../../hooks/user-comments/useUserComments';
 import { useUserCreatedAt, useUserMemberSince } from '../../../hooks/user-created/useUserCreatedAt';
+import Image from "next/image";
 
 interface UserProfile {
   first_name: string;
@@ -424,7 +425,7 @@ export default function UserDashboard() {
                 <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-[#EF3866] to-[#FF6B9D] p-0.5">
                   <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-gray-900">
                     {getProfileImageUrl() ? (
-                      <img
+                      <Image
                         src={getProfileImageUrl()!}
                         alt={`${userProfile.first_name}'s profile`}
                         className="w-full h-full object-cover"
