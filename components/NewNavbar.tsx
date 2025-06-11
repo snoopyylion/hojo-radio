@@ -351,36 +351,37 @@ const NewNavbar = () => {
   // Fetch user profile data from Supabase
   useEffect(() => {
     const fetchUserProfile = async () => {
-      if (user?.id) {
-        setLoading(true);
-        try {
-          console.log('Fetching profile for user ID:', user.id); // Debug log
+  if (!user?.id) return;
 
-          // Query using the actual database structure
-          const { data, error } = await supabase
-            .from('users')
-            .select('role, first_name')
-            .eq('id', user.id) // Using 'id' as shown in your database
-            .single();
+  setLoading(true);
 
-          console.log('Supabase response:', { data, error }); // Debug log
+  try {
+    console.log('🔍 Fetching profile for user ID:', user.id);
 
-          if (data && !error) {
-            setUserProfile({
-              first_name: data.first_name || 'User',
-              role: data.role || 'Member'
-            });
-            console.log('User profile set:', data); // Debug log
-          } else {
-            console.error('Supabase error:', error);
-          }
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
+    const { data, error, status } = await supabase
+      .from('users')
+      .select('role, first_name')
+      .eq('id', user.id)
+      .maybeSingle(); // safer than .single()
+
+    if (error) {
+      console.error('❌ Supabase error fetching user profile:', { error, status });
+    } else if (!data) {
+      console.warn('⚠️ No user profile found for ID:', user.id);
+    } else {
+      setUserProfile({
+        first_name: data.first_name || 'User',
+        role: data.role || 'Member',
+      });
+      console.log('✅ User profile loaded:', data);
+    }
+  } catch (err) {
+    console.error('❌ Unexpected error fetching user profile:', err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
     fetchUserProfile();
   }, [user?.id]);
@@ -476,8 +477,8 @@ const NewNavbar = () => {
               <button
                 onClick={handleSearchToggle}
                 className={`p-2 rounded-full transition-all duration-300 ${isSearchExpanded
-                    ? 'bg-[#EF3866] text-white hover:bg-[#d7325a] ml-2'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-[#EF3866]'
+                  ? 'bg-[#EF3866] text-white hover:bg-[#d7325a] ml-2'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-[#EF3866]'
                   }`}
               >
                 {isSearchExpanded ? (
@@ -723,6 +724,8 @@ const NewNavbar = () => {
                         <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
                           {result.image ? (
                             <Image
+                              width={32}
+                              height={32}
                               src={result.image}
                               alt={result.title}
                               className="w-full h-full rounded-full object-cover"
@@ -832,8 +835,8 @@ const NewNavbar = () => {
                         }`}
                     >
                       <div className={`p-2 rounded-xl transition-all duration-300 ${isActive
-                          ? 'bg-gradient-to-br from-[#EF3866] to-gray-700'
-                          : `${sidebarCardBgClass} group-hover:bg-gradient-to-br group-hover:from-[#EF3866] group-hover:to-gray-700`
+                        ? 'bg-gradient-to-br from-[#EF3866] to-gray-700'
+                        : `${sidebarCardBgClass} group-hover:bg-gradient-to-br group-hover:from-[#EF3866] group-hover:to-gray-700`
                         }`}>
                         <Icon size={20} className={`${isActive ? 'text-white' : `${sidebarTextClass} group-hover:text-white`}`} />
                       </div>

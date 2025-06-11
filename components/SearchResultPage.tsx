@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, User, BookOpen, Tag, Clock, Heart, MessageCircle, ArrowRight, Filter, Grid, List, X, UserPlus } from 'lucide-react';
+import { Search, User, BookOpen, Tag, Clock, Heart, MessageCircle, ArrowRight, Filter, Grid, List, X, UserPlus, UserMinus } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,7 +19,9 @@ interface SearchResult {
   likes?: number;
   comments?: number;
   relevanceScore?: number;
-  isFollowing?: boolean; // For users
+  isFollowing?: boolean;
+  originalId?: string;
+  databaseId?: string;
 }
 
 interface SearchResponse {
@@ -34,11 +36,26 @@ interface SearchResponse {
   };
 }
 
+interface FollowingUser {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  role?: string;
+  followed_at?: string;
+}
+
+interface FollowingResponse {
+  type: string;
+  users: FollowingUser[];
+  count: number;
+}
+
 const SearchResultsPage = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const query = searchParams.get('q') || '';
-  
+
   const [searchResults, setSearchResults] = useState<SearchResponse>({
     results: [],
     totalCount: 0,
@@ -51,6 +68,7 @@ const SearchResultsPage = () => {
     query: '',
     categories: { users: [], articles: [], authors: [], categories: [] }
   });
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'users' | 'articles' | 'authors' | 'categories'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -58,6 +76,7 @@ const SearchResultsPage = () => {
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [followingLoading, setFollowingLoading] = useState<Set<string>>(new Set());
 
   // Helper function to format dates
   const formatDate = (dateString: string): string => {
@@ -70,7 +89,7 @@ const SearchResultsPage = () => {
       if (diffDays === 1) return 'Yesterday';
       if (diffDays < 7) return `${diffDays} days ago`;
       if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
-      
+
       return date.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -81,58 +100,238 @@ const SearchResultsPage = () => {
     }
   };
 
-  // Handle follow/unfollow
-  const handleFollowToggle = async (userId: string, isCurrentlyFollowing: boolean) => {
+  // FIXED: Simplified and consistent database ID extraction
+  const getDatabaseId = (result: SearchResult): string => {
+    console.log('🔍 Getting database ID for result:', {
+      id: result.id,
+      type: result.type,
+      databaseId: result.databaseId,
+      originalId: result.originalId
+    });
+
+    // Priority order: databaseId > originalId > cleaned id
+    if (result.databaseId) {
+      console.log('✅ Using databaseId:', result.databaseId);
+      return result.databaseId;
+    }
+
+    if (result.originalId) {
+      console.log('✅ Using originalId:', result.originalId);
+      return result.originalId;
+    }
+
+    const cleanUserId = (userId: string): string => {
+      // Don't modify the ID unless you're absolutely sure it has a prefix
+      // Most likely, the ID from your database is already correct
+      return userId;
+    };
+
+    const cleanId = cleanUserId(result.id);
+
+    console.log('✅ Final database ID:', cleanId);
+    return cleanId;
+  };
+
+  // Check if a user can be followed (users and authors can be followed)
+  const canFollowUser = (result: SearchResult): boolean => {
+    if (result.type !== 'user' && result.type !== 'author') {
+      return false;
+    }
+
+    // Prevent following yourself
+    const databaseId = getDatabaseId(result);
+    return currentUserId !== databaseId;
+  };
+
+  // FIXED: Handle follow/unfollow with proper error handling and state management
+  const handleFollowToggle = async (result: SearchResult) => {
+    if (!canFollowUser(result)) {
+      console.log('❌ Cannot follow this type of result:', result.type);
+      return;
+    }
+    const databaseId = getDatabaseId(result);
+    if (currentUserId === databaseId) {
+      alert('You cannot follow yourself');
+      return;
+    }
+    const isCurrentlyFollowing = followingUsers.has(databaseId);
+
+    // Prevent multiple simultaneous requests
+    if (followingLoading.has(databaseId)) {
+      console.log('⏳ Follow request already in progress for:', databaseId);
+      return;
+    }
+
+    console.log('🔄 Starting follow toggle:', {
+      resultId: result.id,
+      databaseId: databaseId,
+      isCurrentlyFollowing: isCurrentlyFollowing,
+      action: isCurrentlyFollowing ? 'unfollow' : 'follow'
+    });
+
+    // Set loading state
+    setFollowingLoading(prev => new Set(prev).add(databaseId));
+
     try {
-      const response = await fetch(`/api/users/${userId}/follow`, {
-        method: isCurrentlyFollowing ? 'DELETE' : 'POST',
+      const response = await fetch('/api/follow', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          action: isCurrentlyFollowing ? 'unfollow' : 'follow',
+          following_id: databaseId
+        })
       });
 
-      if (response.ok) {
+      const responseData = await response.json();
+      console.log('📡 Follow API response:', responseData);
+
+      if (response.ok && responseData.success) {
+        console.log('✅ Follow operation successful:', responseData);
+
+        // Update local following state
         setFollowingUsers(prev => {
           const newSet = new Set(prev);
-          if (isCurrentlyFollowing) {
-            newSet.delete(userId);
-          } else {
-            newSet.add(userId);
+          if (responseData.action === 'followed') {
+            newSet.add(databaseId);
+            console.log('➕ Added to following set:', databaseId);
+          } else if (responseData.action === 'unfollowed') {
+            newSet.delete(databaseId);
+            console.log('➖ Removed from following set:', databaseId);
           }
           return newSet;
         });
+
+        // Update search results to reflect the new follow state
+        const updateResults = (results: SearchResult[]) =>
+          results.map(searchResult => {
+            const searchDatabaseId = getDatabaseId(searchResult);
+            if (searchDatabaseId === databaseId) {
+              return {
+                ...searchResult,
+                isFollowing: responseData.action === 'followed'
+              };
+            }
+            return searchResult;
+          });
+
+        setSearchResults(prev => ({
+          ...prev,
+          results: updateResults(prev.results),
+          categories: {
+            ...prev.categories,
+            users: updateResults(prev.categories.users),
+            authors: updateResults(prev.categories.authors)
+          }
+        }));
+
+        setOriginalResults(prev => ({
+          ...prev,
+          results: updateResults(prev.results),
+          categories: {
+            ...prev.categories,
+            users: updateResults(prev.categories.users),
+            authors: updateResults(prev.categories.authors)
+          }
+        }));
+
+        // Show success message
+        console.log(`✅ Successfully ${responseData.action} user`);
+
+      } else {
+        console.error('❌ Follow API error:', responseData);
+        alert(`Error: ${responseData.error || 'Failed to update follow status'}`);
       }
     } catch (error) {
-      console.error('Follow toggle error:', error);
+      console.error('❌ Network error during follow toggle:', error);
+      alert('Network error occurred while updating follow status. Please try again.');
+    } finally {
+      // Remove loading state
+      setFollowingLoading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(databaseId);
+        return newSet;
+      });
     }
   };
 
   // Get proper URL for result
   const getResultUrl = (result: SearchResult): string => {
+    console.log('Generating URL for result:', { id: result.id, type: result.type });
+
     switch (result.type) {
       case 'article':
-        let postId = result.url.includes('/post/')
-          ? result.url.split('/post/')[1].split('/')[0]
-          : result.id;
-
-        // If prefixed with "sanity_post_", strip it
-        if (postId.startsWith('sanity_post_')) {
-          postId = postId.replace('sanity_post_', '');
-        }
-
-        return `/post/${postId}`;
+        let postId = result.url && result.url.includes('/blog/')
+          ? result.url.split('/blog/')[1]
+          : getDatabaseId(result);
+        return `/blog/${postId}`;
 
       case 'user':
       case 'author':
-        return `/user/${result.id}`;
+        const userId = getDatabaseId(result);
+        console.log('User URL generated:', `/user/${userId}`);
+        return `/user/${userId}`;
 
       case 'category':
-        return `/category/${result.id}`;
+        return `/blog/category/${getDatabaseId(result)}`;
 
       default:
         return result.url || '#';
     }
   };
+
+  // FIXED: Check if user is currently being followed
+  const isUserFollowing = (result: SearchResult): boolean => {
+    const databaseId = getDatabaseId(result);
+    return followingUsers.has(databaseId) || followingUsers.has(result.id) || !!result.isFollowing;
+  };
+
+  // Check if follow operation is in progress
+  const isFollowLoading = (result: SearchResult): boolean => {
+    const databaseId = getDatabaseId(result);
+    return followingLoading.has(databaseId);
+  };
+
+  // FIXED: Load current user's following list with better error handling
+  const loadFollowingStatus = async () => {
+    try {
+      console.log('📡 Loading following status...');
+      const response = await fetch('/api/follow?type=following');
+
+      if (response.ok) {
+        const data: FollowingResponse = await response.json();
+        console.log('✅ Following data received:', data);
+
+        const followingIds = new Set(data.users.map((user: FollowingUser) => user.id));
+        setFollowingUsers(followingIds);
+
+        console.log('✅ Following IDs set:', Array.from(followingIds));
+      } else {
+        console.error('❌ Failed to load following status:', response.status);
+      }
+    } catch (error) {
+      console.error('❌ Error loading following status:', error);
+    }
+  };
+
+  // Load current user ID
+  const loadCurrentUserId = async () => {
+    try {
+      const response = await fetch('/api/user/me');
+      if (response.ok) {
+        const userData = await response.json();
+        setCurrentUserId(userData.id);
+      }
+    } catch (error) {
+      console.error('Error loading current user:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadFollowingStatus();
+    loadCurrentUserId();
+  }, []);
 
   // Updated performSearch to use API route
   const performSearch = async (searchQuery: string) => {
@@ -149,11 +348,10 @@ const SearchResultsPage = () => {
     }
 
     setIsLoading(true);
-    
+
     try {
       console.log('🔍 Performing search:', { query: searchQuery });
-      
-      // Build API URL with proper encoding
+
       const apiUrl = new URL('/api/search', window.location.origin);
       apiUrl.searchParams.set('q', searchQuery);
       apiUrl.searchParams.set('limit', '50');
@@ -172,7 +370,7 @@ const SearchResultsPage = () => {
       }
 
       const data: SearchResponse = await response.json();
-      
+
       console.log('✅ API response:', {
         totalCount: data.totalCount,
         categories: {
@@ -183,19 +381,38 @@ const SearchResultsPage = () => {
         }
       });
 
+      // FIXED: Update search results with current following status
+      const updateResultsWithFollowStatus = (results: SearchResult[]) =>
+        results.map(result => {
+          if (canFollowUser(result)) {
+            const databaseId = getDatabaseId(result);
+            return {
+              ...result,
+              isFollowing: followingUsers.has(databaseId)
+            };
+          }
+          return result;
+        });
+
       const responseWithQuery = {
         ...data,
-        query: searchQuery
+        query: searchQuery,
+        results: updateResultsWithFollowStatus(data.results),
+        categories: {
+          ...data.categories,
+          users: updateResultsWithFollowStatus(data.categories.users),
+          authors: updateResultsWithFollowStatus(data.categories.authors),
+          articles: data.categories.articles,
+          categories: data.categories.categories
+        }
       };
 
-      // Store both original and current results
       setOriginalResults(responseWithQuery);
       setSearchResults(responseWithQuery);
 
     } catch (error) {
       console.error('❌ Search error:', error);
-      
-      // Set error state with empty results
+
       const errorResults = {
         results: [],
         totalCount: 0,
@@ -217,16 +434,52 @@ const SearchResultsPage = () => {
     }
   }, [query]);
 
-  // Handle filter change with proper type mapping
+  // FIXED: Re-run search when following status changes to update results
+  useEffect(() => {
+    if (query && followingUsers.size > 0) {
+      // Update existing results with current follow status without making a new API call
+      const updateResultsWithFollowStatus = (results: SearchResult[]) =>
+        results.map(result => {
+          if (canFollowUser(result)) {
+            const databaseId = getDatabaseId(result);
+            return {
+              ...result,
+              isFollowing: followingUsers.has(databaseId)
+            };
+          }
+          return result;
+        });
+
+      setSearchResults(prev => ({
+        ...prev,
+        results: updateResultsWithFollowStatus(prev.results),
+        categories: {
+          ...prev.categories,
+          users: updateResultsWithFollowStatus(prev.categories.users),
+          authors: updateResultsWithFollowStatus(prev.categories.authors)
+        }
+      }));
+
+      setOriginalResults(prev => ({
+        ...prev,
+        results: updateResultsWithFollowStatus(prev.results),
+        categories: {
+          ...prev.categories,
+          users: updateResultsWithFollowStatus(prev.categories.users),
+          authors: updateResultsWithFollowStatus(prev.categories.authors)
+        }
+      }));
+    }
+  }, [followingUsers]);
+
+  // Handle filter change
   const handleFilterChange = (filter: typeof activeFilter) => {
     setActiveFilter(filter);
-    setShowMobileFilters(false); // Close mobile filters
-    
+    setShowMobileFilters(false);
+
     if (filter === 'all') {
-      // Reset to show all original results
       setSearchResults(originalResults);
     } else {
-      // Filter results based on selected category
       const categoryResults = originalResults.categories[filter] || [];
       setSearchResults({
         ...originalResults,
@@ -243,7 +496,7 @@ const SearchResultsPage = () => {
       if (window.location.pathname + window.location.search !== newUrl) {
         router.push(newUrl);
       }
-      setActiveFilter('all'); // Reset filter when performing new search
+      setActiveFilter('all');
       performSearch(newQuery);
     }
   };
@@ -309,16 +562,16 @@ const SearchResultsPage = () => {
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8">
         {/* Search Header */}
         <div className="mb-6 lg:mb-8">
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6"
           >
             Search Results
           </motion.h1>
-          
+
           {/* Enhanced Search Form */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
@@ -336,7 +589,7 @@ const SearchResultsPage = () => {
                   className="w-full h-12 sm:h-14 pl-10 sm:pl-12 pr-16 sm:pr-20 text-base sm:text-lg bg-white border-2 border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#EF3866] focus:border-[#EF3866] transition-all shadow-sm hover:shadow-md"
                 />
                 <Search size={20} className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 sm:w-6 sm:h-6" />
-                
+
                 <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1 sm:gap-2">
                   {newQuery && (
                     <button
@@ -360,7 +613,7 @@ const SearchResultsPage = () => {
 
           {/* Results Summary and Controls */}
           {query && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
@@ -379,7 +632,7 @@ const SearchResultsPage = () => {
                   </>
                 )}
               </div>
-              
+
               <div className="flex items-center gap-2">
                 {/* Mobile Filter Toggle */}
                 <button
@@ -389,7 +642,7 @@ const SearchResultsPage = () => {
                   <Filter size={16} />
                   Filters
                 </button>
-                
+
                 <span className="text-sm text-gray-500 mr-2 hidden sm:inline">View:</span>
                 <button
                   onClick={() => setViewMode('list')}
@@ -438,7 +691,7 @@ const SearchResultsPage = () => {
                       <X size={20} />
                     </button>
                   </div>
-                  
+
                   <div className="space-y-2">
                     {filterButtons.map((filter) => {
                       const Icon = filter.icon;
@@ -446,19 +699,17 @@ const SearchResultsPage = () => {
                         <button
                           key={filter.key}
                           onClick={() => handleFilterChange(filter.key as typeof activeFilter)}
-                          className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
-                            activeFilter === filter.key
-                              ? 'bg-[#EF3866] text-white shadow-md'
-                              : 'hover:bg-gray-50 text-gray-700 hover:text-[#EF3866]'
-                          }`}
+                          className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${activeFilter === filter.key
+                            ? 'bg-[#EF3866] text-white shadow-md'
+                            : 'hover:bg-gray-50 text-gray-700 hover:text-[#EF3866]'
+                            }`}
                         >
                           <Icon size={18} />
                           <span className="font-medium flex-1 text-left">{filter.label}</span>
-                          <span className={`text-sm px-2 py-1 rounded-full ${
-                            activeFilter === filter.key
-                              ? 'bg-white/20'
-                              : 'bg-gray-200 text-gray-600'
-                          }`}>
+                          <span className={`text-sm px-2 py-1 rounded-full ${activeFilter === filter.key
+                            ? 'bg-white/20'
+                            : 'bg-gray-200 text-gray-600'
+                            }`}>
                             {filter.count}
                           </span>
                         </button>
@@ -473,7 +724,7 @@ const SearchResultsPage = () => {
 
         <div className="flex gap-4 lg:gap-8">
           {/* Desktop Filters Sidebar */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
@@ -484,7 +735,7 @@ const SearchResultsPage = () => {
                 <Filter size={20} className="text-[#EF3866]" />
                 Filter Results
               </h3>
-              
+
               <div className="space-y-2">
                 {filterButtons.map((filter) => {
                   const Icon = filter.icon;
@@ -492,19 +743,17 @@ const SearchResultsPage = () => {
                     <button
                       key={filter.key}
                       onClick={() => handleFilterChange(filter.key as typeof activeFilter)}
-                      className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
-                        activeFilter === filter.key
-                          ? 'bg-[#EF3866] text-white shadow-md'
-                          : 'hover:bg-gray-50 text-gray-700 hover:text-[#EF3866]'
-                      }`}
+                      className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${activeFilter === filter.key
+                        ? 'bg-[#EF3866] text-white shadow-md'
+                        : 'hover:bg-gray-50 text-gray-700 hover:text-[#EF3866]'
+                        }`}
                     >
                       <Icon size={18} />
                       <span className="font-medium flex-1 text-left">{filter.label}</span>
-                      <span className={`text-sm px-2 py-1 rounded-full ${
-                        activeFilter === filter.key
-                          ? 'bg-white/20'
-                          : 'bg-gray-200 text-gray-600'
-                      }`}>
+                      <span className={`text-sm px-2 py-1 rounded-full ${activeFilter === filter.key
+                        ? 'bg-white/20'
+                        : 'bg-gray-200 text-gray-600'
+                        }`}>
                         {filter.count}
                       </span>
                     </button>
@@ -518,7 +767,7 @@ const SearchResultsPage = () => {
           <div className="flex-1 min-w-0">
             <AnimatePresence mode="wait">
               {isLoading ? (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -530,7 +779,7 @@ const SearchResultsPage = () => {
                   </div>
                 </motion.div>
               ) : searchResults.results.length === 0 && query ? (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="text-center py-12"
@@ -550,12 +799,12 @@ const SearchResultsPage = () => {
                   </button>
                 </motion.div>
               ) : (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className={
-                    viewMode === 'grid' 
-                      ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6' 
+                    viewMode === 'grid'
+                      ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6'
                       : 'space-y-3 sm:space-y-4'
                   }
                 >
@@ -638,22 +887,21 @@ const SearchResultsPage = () => {
 
                           {/* Action Button */}
                           <div className="flex-shrink-0 flex flex-col sm:flex-row items-end sm:items-center gap-2">
-                            {result.type === 'user' && (
+                            {canFollowUser(result) && (
                               <button
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  const isFollowing = followingUsers.has(result.id) || !!result.isFollowing;
-                                  handleFollowToggle(result.id, isFollowing);
+                                  const isFollowing = isUserFollowing(result);
+                                  handleFollowToggle(result);
                                 }}
-                                className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all ${
-                                  followingUsers.has(result.id) || result.isFollowing
-                                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    : 'bg-[#EF3866] text-white hover:bg-[#d7325a]'
-                                }`}
+                                className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all ${isUserFollowing(result)
+                                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                  : 'bg-[#EF3866] text-white hover:bg-[#d7325a]'
+                                  }`}
                               >
                                 <UserPlus size={12} className="sm:w-4 sm:h-4" />
                                 <span className="hidden sm:inline">
-                                  {followingUsers.has(result.id) || result.isFollowing ? 'Following' : 'Follow'}
+                                  {isUserFollowing(result) ? 'Following' : 'Follow'}
                                 </span>
                               </button>
                             )}

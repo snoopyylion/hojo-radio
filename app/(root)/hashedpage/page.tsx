@@ -85,6 +85,8 @@ export default function UserDashboard() {
   const tabsRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  
+
   // Function to fetch verified news count
   const fetchVerifiedNewsCount = async () => {
     try {

@@ -1,27 +1,56 @@
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
+// next.config.js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   images: {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'cdn.sanity.io',
-      },
-      {
-        protocol: 'https',
-        hostname: 'img.clerk.com',
+        hostname: 'www.gravatar.com',
+        port: '',
+        pathname: '/avatar/**',
       },
       {
         protocol: 'https',
         hostname: 'images.clerk.dev',
+        port: '',
+        pathname: '/uploaded/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'img.clerk.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.sanity.io',
+        port: '',
+        pathname: '/images/**',
+      },
+      // Add other domains as needed
+      {
+        protocol: 'https',
+        hostname: 'example.com',
+        port: '',
+        pathname: '/**',
+      }
     ],
   },
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '4mb', // Increase to a larger value as needed
-    },
-  },
-};
+  // ... other config options
+}
 
-export default nextConfig;
+module.exports = nextConfig
+
+// Alternative syntax (if you prefer domains instead of remotePatterns):
+// const nextConfig = {
+//   images: {
+//     domains: [
+//       'www.gravatar.com',
+//       'images.clerk.dev',
+//       'img.clerk.com',
+//       'cdn.sanity.io'
+//     ],
+//   },
+// }
+// 
+// module.exports = nextConfig
