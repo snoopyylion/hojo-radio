@@ -262,10 +262,16 @@ const SearchResultsPage = () => {
 
     switch (result.type) {
       case 'article':
-        const postId = result.url && result.url.includes('/blog/')
-          ? result.url.split('/blog/')[1]
-          : getDatabaseId(result);
-        return `/blog/${postId}`;
+        let postId = result.url.includes('/post/')
+          ? result.url.split('/post/')[1].split('/')[0]
+          : result.id;
+
+        // If prefixed with "sanity_post_", strip it
+        if (postId.startsWith('sanity_post_')) {
+          postId = postId.replace('sanity_post_', '');
+        }
+
+        return `/post/${postId}`;
 
       case 'user':
       case 'author':
@@ -552,7 +558,7 @@ const SearchResultsPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 sm:pt-20 font-sora">
+    <div className="min-h-screen bg-gray-50 pt-24 sm:pt-20 font-sora mb-[24px]">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8">
         {/* Search Header */}
         <div className="mb-6 lg:mb-8">
