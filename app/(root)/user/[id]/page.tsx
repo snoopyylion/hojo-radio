@@ -57,173 +57,218 @@ const UserProfilePage = () => {
   const [activeTab, setActiveTab] = useState<'posts' | 'about'>('posts');
 
   useEffect(() => {
-    if (id) {
-      fetchUserProfile();
-      fetchUserArticles();
-      if (user?.id) {
-        checkFollowStatus();
-      }
+  if (id) {
+    fetchUserProfile();
+    if (user?.id) {
+      checkFollowStatus();
     }
-  }, [id, user?.id]);
+  }
+}, [id, user?.id]);
 
+// Add a separate useEffect for fetching articles after profile is loaded
+useEffect(() => {
+  if (profile?.id) {
+    fetchUserArticles();
+  }
+}, [profile?.id]);
 
-  const fetchUserProfile = async () => {
+// Add this at the start of your fetchUserProfile function
+const fetchUserProfile = async () => {
+  try {
+    console.log('🎯 fetchUserProfile called with ID:', id);
+    console.log('🎯 ID type:', typeof id);
+    
+    // First, let's try a simple query to see if the user exists
+    const { data: simpleUser, error: simpleError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name')
+      .eq('id', id)
+      .single();
+
+    console.log('🔍 Simple user query result:', { simpleUser, simpleError });
+
+    if (simpleError) {
+      console.error('❌ Simple query error:', {
+        message: simpleError.message,
+        code: simpleError.code,
+        details: simpleError.details,
+        hint: simpleError.hint
+      });
+      setProfile(null);
+      return;
+    }
+
+    if (!simpleUser) {
+      console.log('❌ No user found with ID:', id);
+      setProfile(null);
+      return;
+    }
+
+    // Now fetch the complete user profile
+    const { data: userProfile, error } = await supabase
+      .from('users')
+      .select('*')  // Select all fields first to see what's available
+      .eq('id', id)
+      .single();
+
+    console.log('🔍 Complete user query result:', { userProfile, error });
+
+    if (error) {
+      console.error('❌ Error fetching complete user profile:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+      setProfile(null);
+      return;
+    }
+
+    if (!userProfile) {
+      console.log('❌ No user profile found for ID:', id);
+      setProfile(null);
+      return;
+    }
+
+    console.log('✅ User profile found:', userProfile);
+
+    // Fetch additional counts (followers, following, posts) - make these optional
     try {
-      console.log('Fetching profile for ID:', id);
+      const [followersResult, followingResult, postsResult] = await Promise.all([
+        // Get followers count
+        supabase
+          .from('follows')
+          .select('id', { count: 'exact' })
+          .eq('following_id', id)
+          .then(result => {
+            console.log('👥 Followers query result:', result);
+            return result;
+          }),
+        
+        // Get following count
+        supabase
+          .from('follows')
+          .select('id', { count: 'exact' })
+          .eq('follower_id', id)
+          .then(result => {
+            console.log('👤 Following query result:', result);
+            return result;
+          }),
+        
+        // Get posts count
+        supabase
+          .from('user_posts')
+          .select('id', { count: 'exact' })
+          .eq('user_id', id)
+          .then(result => {
+            console.log('📝 Posts query result:', result);
+            return result;
+          })
+      ]);
 
-      // First, try with the exact ID from URL
-      let { data, error } = await supabase
-        .from('users')
-        .select(`
-        id,
-        first_name,
-        last_name,
-        email,
-        phone,
-        role,
-        bio,
-        location,
-        website,
-        avatar_url,
-        created_at
-      `)
-        .eq('id', id)
-        .single();
+      // Construct the complete profile object
+      const completeProfile: UserProfile = {
+        id: userProfile.id,
+        first_name: userProfile.first_name || '',
+        last_name: userProfile.last_name || '',
+        email: userProfile.email || '',
+        phone: userProfile.phone || '',
+        role: userProfile.role || 'user',
+        bio: userProfile.bio || '',
+        location: userProfile.location || '',
+        website: userProfile.website || '',
+        avatar_url: userProfile.avatar_url || '',
+        created_at: userProfile.created_at || '',
+        followers_count: followersResult.count || 0,
+        following_count: followingResult.count || 0,
+        posts_count: postsResult.count || 0
+      };
 
-      // If not found and ID looks like it might have been cleaned, try with common prefixes
-      if (error && error.code === 'PGRST116') { // PGRST116 = no rows returned
-        console.log('User not found with exact ID, trying with prefixes...');
-
-        const prefixes = ['supabase_user_', 'user_', 'sanity_user_'];
-
-        for (const prefix of prefixes) {
-          const prefixedId = `${prefix}${id}`;
-          console.log('Trying with prefixed ID:', prefixedId);
-
-          const result = await supabase
-            .from('users')
-            .select(`
-            id,
-            first_name,
-            last_name,
-            email,
-            phone,
-            role,
-            bio,
-            location,
-            website,
-            avatar_url,
-            created_at
-          `)
-            .eq('id', prefixedId)
-            .single();
-
-          if (result.data && !result.error) {
-            data = result.data;
-            error = null;
-            console.log('Found user with prefixed ID:', prefixedId);
-            break;
-          }
-        }
-
-        // If still not found, try searching by partial ID match
-        if (!data) {
-          console.log('Trying partial ID match...');
-          const partialResult = await supabase
-            .from('users')
-            .select(`
-            id,
-            first_name,
-            last_name,
-            email,
-            phone,
-            role,
-            bio,
-            location,
-            website,
-            avatar_url,
-            created_at
-          `)
-            .ilike('id', `%${id}%`)
-            .limit(1)
-            .single();
-
-          if (partialResult.data && !partialResult.error) {
-            data = partialResult.data;
-            error = null;
-            console.log('Found user with partial match:', partialResult.data.id);
-          }
-        }
-      }
-
-      if (error) {
-        console.error('Database error:', error);
-        throw error;
-      }
-
-      if (data) {
-        console.log('User found:', data);
-
-        // Get counts
-        const [followersResult, followingResult, postsResult] = await Promise.all([
-          supabase.from('follows').select('id').eq('following_id', data.id),
-          supabase.from('follows').select('id').eq('follower_id', data.id),
-          supabase.from('user_posts').select('id').eq('user_id', data.id)
-        ]);
-
-        setProfile({
-          ...data,
-          followers_count: followersResult.data?.length || 0,
-          following_count: followingResult.data?.length || 0,
-          posts_count: postsResult.data?.length || 0
-        });
-      } else {
-        console.log('No user data found');
-        throw new Error('User not found');
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      // Don't set profile to null immediately, let the component handle the error state
-    } finally {
-      setLoading(false);
+      console.log('✅ Complete profile with counts:', completeProfile);
+      setProfile(completeProfile);
+      
+    } catch (countsError) {
+      console.error('⚠️ Error fetching counts, using basic profile:', countsError);
+      
+      // If counts fail, still set the basic profile
+      const basicProfile: UserProfile = {
+        id: userProfile.id,
+        first_name: userProfile.first_name || '',
+        last_name: userProfile.last_name || '',
+        email: userProfile.email || '',
+        phone: userProfile.phone || '',
+        role: userProfile.role || 'user',
+        bio: userProfile.bio || '',
+        location: userProfile.location || '',
+        website: userProfile.website || '',
+        avatar_url: userProfile.avatar_url || '',
+        created_at: userProfile.created_at || '',
+        followers_count: 0,
+        following_count: 0,
+        posts_count: 0
+      };
+      
+      setProfile(basicProfile);
     }
-  };
+    
+  } catch (error) {
+    console.error('💥 Error in fetchUserProfile:', error);
+    setProfile(null);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchUserArticles = async () => {
-    try {
-      // Fetch user's posts from your posts table
-      const { data, error } = await supabase
-        .from('user_posts')
-        .select(`
-          id,
-          title,
-          content,
-          created_at,
-          likes_count,
-          comments_count,
-          image_url
-        `)
-        .eq('user_id', id)
-        .order('created_at', { ascending: false })
-        .limit(10);
+  try {
+    // If we don't have a profile yet, or profile.id is different from the URL id,
+    // we should use the actual user ID from the profile once it's loaded
+    const userIdToUse = profile?.id || id;
+    
+    // Fetch user's posts from your posts table
+    const { data, error } = await supabase
+      .from('user_posts')
+      .select(`
+        id,
+        title,
+        content,
+        created_at,
+        likes_count,
+        comments_count,
+        image_url
+      `)
+      .eq('user_id', userIdToUse)
+      .order('created_at', { ascending: false })
+      .limit(10);
 
-      if (error) throw error;
-
-      const formattedArticles = data?.map(post => ({
-        id: post.id,
-        title: post.title,
-        excerpt: post.content?.substring(0, 150) + '...' || '',
-        published_at: post.created_at,
-        likes_count: post.likes_count || 0,
-        comments_count: post.comments_count || 0,
-        image_url: post.image_url
-      })) || [];
-
-      setArticles(formattedArticles);
-    } catch (error) {
-      console.error('Error fetching user articles:', error);
+    if (error) {
+      console.error('Error fetching user articles:', {
+        message: error.message,
+        code: error.code,
+        details: error.details
+      });
+      return;
     }
-  };
+
+    const formattedArticles = data?.map(post => ({
+      id: post.id,
+      title: post.title,
+      excerpt: post.content?.substring(0, 150) + '...' || '',
+      published_at: post.created_at,
+      likes_count: post.likes_count || 0,
+      comments_count: post.comments_count || 0,
+      image_url: post.image_url
+    })) || [];
+
+    setArticles(formattedArticles);
+  } catch (error) {
+    console.error('Error fetching user articles:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      error: error
+    });
+  }
+};
 
   const checkFollowStatus = async () => {
     if (!user?.id || user.id === id) return;

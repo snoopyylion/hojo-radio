@@ -102,35 +102,42 @@ const SearchResultsPage = () => {
 
   // FIXED: Simplified and consistent database ID extraction
   const getDatabaseId = (result: SearchResult): string => {
-    console.log('🔍 Getting database ID for result:', {
-      id: result.id,
-      type: result.type,
-      databaseId: result.databaseId,
-      originalId: result.originalId
-    });
+  console.log('🔍 Getting database ID for result:', {
+    id: result.id,
+    type: result.type,
+    databaseId: result.databaseId,
+    originalId: result.originalId
+  });
 
-    // Priority order: databaseId > originalId > cleaned id
-    if (result.databaseId) {
-      console.log('✅ Using databaseId:', result.databaseId);
-      return result.databaseId;
+  // Priority order: databaseId > originalId > cleaned id
+  if (result.databaseId) {
+    console.log('✅ Using databaseId:', result.databaseId);
+    return result.databaseId;
+  }
+
+  if (result.originalId) {
+    console.log('✅ Using originalId:', result.originalId);
+    return result.originalId;
+  }
+
+  // Clean the ID by removing common prefixes if they exist
+  const cleanUserId = (userId: string): string => {
+    // Remove common prefixes that might be added by your search API
+    const prefixes = ['supabase_user_', 'user_', 'sanity_user_'];
+    
+    for (const prefix of prefixes) {
+      if (userId.startsWith(prefix)) {
+        return userId.replace(prefix, '');
+      }
     }
-
-    if (result.originalId) {
-      console.log('✅ Using originalId:', result.originalId);
-      return result.originalId;
-    }
-
-    const cleanUserId = (userId: string): string => {
-      // Don't modify the ID unless you're absolutely sure it has a prefix
-      // Most likely, the ID from your database is already correct
-      return userId;
-    };
-
-    const cleanId = cleanUserId(result.id);
-
-    console.log('✅ Final database ID:', cleanId);
-    return cleanId;
+    
+    return userId;
   };
+
+  const cleanId = cleanUserId(result.id);
+  console.log('✅ Final database ID:', cleanId);
+  return cleanId;
+};
 
   // Check if a user can be followed (users and authors can be followed)
   const canFollowUser = (result: SearchResult): boolean => {
@@ -256,6 +263,7 @@ const SearchResultsPage = () => {
     }
   };
 
+
   // Get proper URL for result
   const getResultUrl = (result: SearchResult): string => {
     console.log('Generating URL for result:', { id: result.id, type: result.type });
@@ -273,9 +281,23 @@ const SearchResultsPage = () => {
 
         return `/post/${postId}`;
 
-      case 'user':
+       case 'user':
       case 'author':
-        const userId = getDatabaseId(result);
+        // Based on your logs, originalId contains the correct database ID
+        let userId = result.originalId || result.databaseId || result.id;
+        
+        // If we still don't have a userId, try getDatabaseId
+        if (!userId) {
+          userId = getDatabaseId(result);
+        }
+        
+        console.log('🔍 User ID options:', {
+          id: result.id,
+          originalId: result.originalId,
+          databaseId: result.databaseId,
+          selected: userId
+        });
+        
         console.log('User URL generated:', `/user/${userId}`);
         return `/user/${userId}`;
 
