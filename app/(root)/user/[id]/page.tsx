@@ -48,7 +48,7 @@ const UserProfilePage = () => {
   const { id } = useParams();
   const { user } = useAppContext();
   const router = useRouter();
-  
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,13 +68,13 @@ const UserProfilePage = () => {
 
 
   const fetchUserProfile = async () => {
-  try {
-    console.log('Fetching profile for ID:', id);
-    
-    // First, try with the exact ID from URL
-    let { data, error } = await supabase
-      .from('users')
-      .select(`
+    try {
+      console.log('Fetching profile for ID:', id);
+
+      // First, try with the exact ID from URL
+      let { data, error } = await supabase
+        .from('users')
+        .select(`
         id,
         first_name,
         last_name,
@@ -87,22 +87,22 @@ const UserProfilePage = () => {
         avatar_url,
         created_at
       `)
-      .eq('id', id)
-      .single();
+        .eq('id', id)
+        .single();
 
-    // If not found and ID looks like it might have been cleaned, try with common prefixes
-    if (error && error.code === 'PGRST116') { // PGRST116 = no rows returned
-      console.log('User not found with exact ID, trying with prefixes...');
-      
-      const prefixes = ['supabase_user_', 'user_', 'sanity_user_'];
-      
-      for (const prefix of prefixes) {
-        const prefixedId = `${prefix}${id}`;
-        console.log('Trying with prefixed ID:', prefixedId);
-        
-        const result = await supabase
-          .from('users')
-          .select(`
+      // If not found and ID looks like it might have been cleaned, try with common prefixes
+      if (error && error.code === 'PGRST116') { // PGRST116 = no rows returned
+        console.log('User not found with exact ID, trying with prefixes...');
+
+        const prefixes = ['supabase_user_', 'user_', 'sanity_user_'];
+
+        for (const prefix of prefixes) {
+          const prefixedId = `${prefix}${id}`;
+          console.log('Trying with prefixed ID:', prefixedId);
+
+          const result = await supabase
+            .from('users')
+            .select(`
             id,
             first_name,
             last_name,
@@ -115,23 +115,23 @@ const UserProfilePage = () => {
             avatar_url,
             created_at
           `)
-          .eq('id', prefixedId)
-          .single();
-          
-        if (result.data && !result.error) {
-          data = result.data;
-          error = null;
-          console.log('Found user with prefixed ID:', prefixedId);
-          break;
+            .eq('id', prefixedId)
+            .single();
+
+          if (result.data && !result.error) {
+            data = result.data;
+            error = null;
+            console.log('Found user with prefixed ID:', prefixedId);
+            break;
+          }
         }
-      }
-      
-      // If still not found, try searching by partial ID match
-      if (!data) {
-        console.log('Trying partial ID match...');
-        const partialResult = await supabase
-          .from('users')
-          .select(`
+
+        // If still not found, try searching by partial ID match
+        if (!data) {
+          console.log('Trying partial ID match...');
+          const partialResult = await supabase
+            .from('users')
+            .select(`
             id,
             first_name,
             last_name,
@@ -144,50 +144,50 @@ const UserProfilePage = () => {
             avatar_url,
             created_at
           `)
-          .ilike('id', `%${id}%`)
-          .limit(1)
-          .single();
-          
-        if (partialResult.data && !partialResult.error) {
-          data = partialResult.data;
-          error = null;
-          console.log('Found user with partial match:', partialResult.data.id);
+            .ilike('id', `%${id}%`)
+            .limit(1)
+            .single();
+
+          if (partialResult.data && !partialResult.error) {
+            data = partialResult.data;
+            error = null;
+            console.log('Found user with partial match:', partialResult.data.id);
+          }
         }
       }
-    }
 
-    if (error) {
-      console.error('Database error:', error);
-      throw error;
-    }
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
 
-    if (data) {
-      console.log('User found:', data);
-      
-      // Get counts
-      const [followersResult, followingResult, postsResult] = await Promise.all([
-        supabase.from('follows').select('id').eq('following_id', data.id),
-        supabase.from('follows').select('id').eq('follower_id', data.id),
-        supabase.from('user_posts').select('id').eq('user_id', data.id)
-      ]);
+      if (data) {
+        console.log('User found:', data);
 
-      setProfile({
-        ...data,
-        followers_count: followersResult.data?.length || 0,
-        following_count: followingResult.data?.length || 0,
-        posts_count: postsResult.data?.length || 0
-      });
-    } else {
-      console.log('No user data found');
-      throw new Error('User not found');
+        // Get counts
+        const [followersResult, followingResult, postsResult] = await Promise.all([
+          supabase.from('follows').select('id').eq('following_id', data.id),
+          supabase.from('follows').select('id').eq('follower_id', data.id),
+          supabase.from('user_posts').select('id').eq('user_id', data.id)
+        ]);
+
+        setProfile({
+          ...data,
+          followers_count: followersResult.data?.length || 0,
+          following_count: followingResult.data?.length || 0,
+          posts_count: postsResult.data?.length || 0
+        });
+      } else {
+        console.log('No user data found');
+        throw new Error('User not found');
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      // Don't set profile to null immediately, let the component handle the error state
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error fetching user profile:', error);
-    // Don't set profile to null immediately, let the component handle the error state
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const fetchUserArticles = async () => {
     try {
@@ -240,7 +240,7 @@ const UserProfilePage = () => {
         setIsFollowing(true);
       }
     } catch (error) {
-      // User is not following
+      console.error('Error checking follow status:', error);
       setIsFollowing(false);
     }
   };
@@ -310,7 +310,7 @@ const UserProfilePage = () => {
       <div className="min-h-screen bg-gray-50 pt-24 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">User Not Found</h1>
-          <p className="text-gray-600 mb-6">The user you're looking for doesn't exist.</p>
+          <p className="text-gray-600 mb-6">The user you&apos;re looking for doesn&apos;t exist.</p>
           <button
             onClick={() => router.back()}
             className="bg-[#EF3866] text-white px-6 py-2 rounded-full hover:bg-[#d7325a] transition"
@@ -368,7 +368,7 @@ const UserProfilePage = () => {
                         <span className="text-sm">Joined {formatDate(profile.created_at)}</span>
                       </div>
                     </div>
-                    
+
                     {profile.bio && (
                       <p className="text-gray-700 mb-4">{profile.bio}</p>
                     )}
@@ -399,11 +399,10 @@ const UserProfilePage = () => {
                       <button
                         onClick={handleFollow}
                         disabled={followLoading}
-                        className={`flex items-center gap-2 px-6 py-2 rounded-full font-medium transition ${
-                          isFollowing
+                        className={`flex items-center gap-2 px-6 py-2 rounded-full font-medium transition ${isFollowing
                             ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                             : 'bg-[#EF3866] text-white hover:bg-[#d7325a]'
-                        } ${followLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          } ${followLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         {followLoading ? (
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
@@ -432,21 +431,19 @@ const UserProfilePage = () => {
             <nav className="flex">
               <button
                 onClick={() => setActiveTab('posts')}
-                className={`px-6 py-4 font-medium text-sm transition ${
-                  activeTab === 'posts'
+                className={`px-6 py-4 font-medium text-sm transition ${activeTab === 'posts'
                     ? 'text-[#EF3866] border-b-2 border-[#EF3866]'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 Posts ({profile.posts_count})
               </button>
               <button
                 onClick={() => setActiveTab('about')}
-                className={`px-6 py-4 font-medium text-sm transition ${
-                  activeTab === 'about'
+                className={`px-6 py-4 font-medium text-sm transition ${activeTab === 'about'
                     ? 'text-[#EF3866] border-b-2 border-[#EF3866]'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 About
               </button>
@@ -500,7 +497,7 @@ const UserProfilePage = () => {
                     <BookOpen size={48} className="text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">No posts yet</h3>
                     <p className="text-gray-600">
-                      {profile.first_name} hasn't published any posts yet.
+                      {profile.first_name} hasn&apos;t published any posts yet.
                     </p>
                   </div>
                 )}

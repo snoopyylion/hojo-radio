@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, User, BookOpen, Tag, Clock, Heart, MessageCircle, ArrowRight, Filter, Grid, List, X, UserPlus, UserMinus } from 'lucide-react';
+import { Search, User, BookOpen, Tag, Clock, Heart, MessageCircle, ArrowRight, Filter, Grid, List, X, UserPlus } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -262,7 +262,7 @@ const SearchResultsPage = () => {
 
     switch (result.type) {
       case 'article':
-        let postId = result.url && result.url.includes('/blog/')
+        const postId = result.url && result.url.includes('/blog/')
           ? result.url.split('/blog/')[1]
           : getDatabaseId(result);
         return `/blog/${postId}`;
@@ -285,12 +285,6 @@ const SearchResultsPage = () => {
   const isUserFollowing = (result: SearchResult): boolean => {
     const databaseId = getDatabaseId(result);
     return followingUsers.has(databaseId) || followingUsers.has(result.id) || !!result.isFollowing;
-  };
-
-  // Check if follow operation is in progress
-  const isFollowLoading = (result: SearchResult): boolean => {
-    const databaseId = getDatabaseId(result);
-    return followingLoading.has(databaseId);
   };
 
   // FIXED: Load current user's following list with better error handling
@@ -891,7 +885,6 @@ const SearchResultsPage = () => {
                               <button
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  const isFollowing = isUserFollowing(result);
                                   handleFollowToggle(result);
                                 }}
                                 className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all ${isUserFollowing(result)

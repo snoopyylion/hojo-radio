@@ -183,9 +183,10 @@ const isValidUser = (data: unknown): data is SupabaseUser => {
     typeof data === 'object' &&
     data !== null &&
     'id' in data &&
-    typeof (data as any).id === 'string'
+    typeof (data as { id: unknown }).id === 'string'
   );
 };
+
 
 // Function to get Supabase table structure and search users
 const searchSupabaseUsers = async (query: string, limit: number = 20): Promise<SearchResult[]> => {
@@ -320,7 +321,6 @@ const searchSupabaseUsers = async (query: string, limit: number = 20): Promise<S
         const originalId = safeString(user.id);
         const clerkId = safeString(user.clerk_id || '');
         const userId = safeString(user.user_id || '');
-        const externalId = safeString(user.external_id || '');
         
         // Calculate relevance
         const relevance = Math.max(
