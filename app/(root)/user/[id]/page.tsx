@@ -420,25 +420,47 @@ const UserProfilePage = () => {
       case 'posts':
         if (profile?.role !== 'author') {
           return (
-            <div className="text-center py-8">
-              <p className="text-gray-600 dark:text-gray-400">
-                This user doesn&apos;t have any posts to display.
+            <div className="flex flex-col items-center justify-center py-16 px-4">
+              <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-full flex items-center justify-center mb-6">
+                <svg className="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                No posts yet
+              </h3>
+              <p className="text-gray-500 dark:text-gray-400 text-center max-w-sm leading-relaxed">
+                This user hasn't shared any posts yet. Check back later to see their content.
               </p>
             </div>
           );
         }
         return (
-          <PostsList
-            posts={posts}
-            loading={postsLoading}
-          />
+          <div className="px-4 sm:px-6 lg:px-8">
+            <PostsList
+              posts={posts}
+              loading={postsLoading}
+            />
+          </div>
         );
       case 'about':
-        return profile ? <AboutSection profile={profile} /> : null;
+        return profile ? (
+          <div className="px-4 sm:px-6 lg:px-8">
+            <AboutSection profile={profile} />
+          </div>
+        ) : null;
       case 'verified':
-        return <VerifiedList />;
+        return (
+          <div className="px-4 sm:px-6 lg:px-8">
+            <VerifiedList />
+          </div>
+        );
       case 'custom':
-        return <UserActivity activities={activities} />;
+        return (
+          <div className="px-4 sm:px-6 lg:px-8">
+            <UserActivity activities={activities} />
+          </div>
+        );
       default:
         return null;
     }
@@ -446,11 +468,17 @@ const UserProfilePage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-pulse">
-          <div className="w-32 h-32 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mb-4"></div>
-          <div className="w-48 h-4 bg-gray-300 dark:bg-gray-700 rounded mx-auto mb-2"></div>
-          <div className="w-32 h-4 bg-gray-300 dark:bg-gray-700 rounded mx-auto"></div>
+      <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center px-4">
+        <div className="text-center">
+          <div className="relative">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-full mx-auto mb-6 animate-pulse"></div>
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-white/20 dark:via-gray-700/20 to-transparent animate-pulse"></div>
+          </div>
+          <div className="space-y-3">
+            <div className="w-48 h-4 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-full mx-auto animate-pulse"></div>
+            <div className="w-32 h-3 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-full mx-auto animate-pulse"></div>
+            <div className="w-40 h-3 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-full mx-auto animate-pulse"></div>
+          </div>
         </div>
       </div>
     );
@@ -458,13 +486,18 @@ const UserProfilePage = () => {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+      <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.664-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
             User not found
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            The user you&apos;re looking for doesn&apos;t exist.
+          <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+            The user you're looking for doesn't exist or may have been removed.
           </p>
         </div>
       </div>
@@ -472,19 +505,25 @@ const UserProfilePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-[100px]">
-      <div className="max-w-4xl mx-auto">
-        <ProfileHeader
-          profile={profile}
-          currentUserId={user?.id}
-          isFollowing={isFollowing}
-          followLoading={followLoading}
-          onFollow={handleFollow}
-          onOpenFollowers={handleFollowersClick}
-          onOpenFollowing={handleFollowingClick}
-        />
+    <div className="min-h-screen bg-white dark:bg-black">
+      {/* Header Section */}
+      <div className="pt-20 sm:pt-24 lg:pt-28 pb-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <ProfileHeader
+            profile={profile}
+            currentUserId={user?.id}
+            isFollowing={isFollowing}
+            followLoading={followLoading}
+            onFollow={handleFollow}
+            onOpenFollowers={handleFollowersClick}
+            onOpenFollowing={handleFollowingClick}
+          />
+        </div>
+      </div>
 
-        <div className="bg-white dark:bg-gray-800 shadow-sm">
+      {/* Navigation Tabs */}
+      <div className="sticky top-16 sm:top-20 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-800/50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <ProfileTabs
             activeTab={activeTab}
             onTabChange={setActiveTab}
@@ -492,12 +531,16 @@ const UserProfilePage = () => {
             userRole={profile.role || 'user'}
           />
         </div>
+      </div>
 
-        <div className="pb-8">
+      {/* Content Section */}
+      <div className="max-w-4xl mx-auto">
+        <div className="min-h-[60vh] py-8">
           {renderTabContent()}
         </div>
       </div>
 
+      {/* Modals */}
       <FollowModal
         isOpen={followersModalOpen}
         onClose={() => setFollowersModalOpen(false)}

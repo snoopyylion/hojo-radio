@@ -1,4 +1,3 @@
-// components/UserProfile/ProfileTabs.tsx
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -52,7 +51,8 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
     },
     ...(userRole === 'author' ? [{
       id: 'posts' as const,
-      label: `Posts (${postsCount})`,
+      label: `Posts`,
+      count: postsCount,
       icon: BookOpen
     }] : []),
     {
@@ -65,39 +65,45 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
       label: 'Activity',
       icon: User
     }] : []),
-    
   ];
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg overflow-hidden transition-colors duration-300">
-      <div className="relative">
-        <div ref={tabsRef} className="flex border-b border-gray-200 dark:border-gray-700">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                data-tab={tab.id}
-                onClick={() => onTabChange(tab.id)}
-                className={`flex items-center gap-2 px-6 py-4 font-semibold text-sm transition-all duration-300 ${
-                  activeTab === tab.id
-                    ? 'text-[#EF3866]'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
-              >
-                <Icon size={18} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-        
-        {/* Animated Indicator */}
-        <div
-          ref={indicatorRef}
-          className="absolute bottom-0 h-0.5 bg-gradient-to-r from-[#EF3866] to-[#d7325a] transition-all duration-300"
-        />
+    <div className="relative">
+      <div ref={tabsRef} className="flex overflow-x-auto scrollbar-hide">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              data-tab={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={`flex items-center gap-2 px-4 sm:px-6 py-4 font-semibold text-sm whitespace-nowrap transition-all duration-300 ${
+                activeTab === tab.id
+                  ? 'text-[#EF3866]'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              <Icon size={16} />
+              <span>{tab.label}</span>
+              {'count' in tab && tab.count !== undefined && (
+                <span className={`px-2 py-0.5 rounded-full text-xs ${
+                  activeTab === tab.id 
+                    ? 'bg-[#EF3866] text-white' 
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
+      
+      {/* Animated Indicator */}
+      <div
+        ref={indicatorRef}
+        className="absolute bottom-0 h-0.5 bg-gradient-to-r from-[#EF3866] to-[#d7325a] transition-all duration-300 rounded-full"
+      />
     </div>
   );
 };

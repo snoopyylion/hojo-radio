@@ -90,84 +90,61 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'author':
-        return <BookOpen size={16} className="text-[#EF3866]" />;
+        return <BookOpen size={14} className="text-white" />;
       case 'user':
-        return <User size={16} className="text-gray-500 dark:text-gray-400" />;
+        return <User size={14} className="text-white" />;
       default:
-        return <Shield size={16} className="text-blue-500" />;
+        return <Shield size={14} className="text-white" />;
     }
   };
 
   const getRoleStyles = (role: string) => {
     switch (role) {
       case 'author':
-        return 'bg-gradient-to-r from-[#EF3866] to-[#d7325a] text-white';
+        return 'bg-gradient-to-r from-[#EF3866] to-[#d7325a] text-white shadow-lg';
       case 'user':
-        return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300';
+        return 'bg-gradient-to-r from-gray-600 to-gray-700 text-white shadow-lg';
       default:
-        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
+        return 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg';
     }
   };
 
   const handleFollowClick = () => {
-  console.log('🔍 Follow button clicked:', {
-    currentUserId: currentUserId,
-    profileId: profile.id,
-    isFollowing: isFollowing,
-    followLoading: followLoading,
-    canFollow: currentUserId && currentUserId !== profile.id
-  });
-  
-  if (!currentUserId) {
-    console.log('❌ No current user ID');
-    return;
-  }
-  
-  if (currentUserId === profile.id) {
-    console.log('❌ Cannot follow self');
-    return;
-  }
-  
-  if (followLoading) {
-    console.log('❌ Follow operation in progress');
-    return;
-  }
-  
-  console.log('✅ Calling onFollow function');
-  onFollow();
-};
+    if (!currentUserId || currentUserId === profile.id || followLoading) return;
+    onFollow();
+  };
 
   return (
     <div 
       ref={headerRef}
-      className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg overflow-hidden mb-8 transition-colors duration-300"
+      className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 overflow-hidden"
     >
-      {/* Background Gradient */}
-      <div className="h-32 bg-gradient-to-r from-[#EF3866]/10 via-gray-50 to-[#EF3866]/5 dark:from-[#EF3866]/20 dark:via-gray-800 dark:to-[#EF3866]/10"></div>
+      {/* Minimal gradient background */}
+      <div className="h-24 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800"></div>
       
-      <div className="px-8 pb-8 -mt-16 relative">
-        <div className="flex flex-col lg:flex-row items-start gap-8">
-          {/* Avatar */}
-          <div ref={avatarRef} className="relative">
-            <div className="w-32 h-32 bg-gradient-to-br from-[#EF3866] to-gray-700 rounded-2xl overflow-hidden shadow-xl border-4 border-white dark:border-gray-800">
+      <div className="px-6 sm:px-8 pb-8 -mt-12 relative">
+        <div className="flex flex-col sm:flex-row items-start gap-6">
+          {/* Avatar Section */}
+          <div ref={avatarRef} className="relative flex-shrink-0">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 bg-gradient-to-br from-[#EF3866] to-gray-700 rounded-2xl overflow-hidden border-4 border-white dark:border-black shadow-xl">
               {profile.image_url ? (
                 <Image
                   src={profile.image_url}
                   alt={`${profile.first_name} ${profile.last_name}`}
-                  width={128}
-                  height={128}
+                  width={112}
+                  height={112}
                   className="w-full h-full object-cover"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <User size={48} className="text-white" />
+                  <User size={32} className="text-white" />
                 </div>
               )}
             </div>
             
             {/* Role Badge */}
-            <div className="absolute -bottom-2 -right-2">
-              <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold shadow-lg ${getRoleStyles(profile.role)}`}>
+            <div className="absolute -bottom-1 -right-1">
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getRoleStyles(profile.role)}`}>
                 {getRoleIcon(profile.role)}
                 <span className="capitalize">{profile.role}</span>
               </div>
@@ -175,30 +152,63 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           </div>
 
           {/* Profile Info */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 w-full">
             <div ref={infoRef} className="mb-6">
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {profile.first_name} {profile.last_name}
-                </h1>
-                {profile.role === 'author' && (
-                  <Verified className="w-6 h-6 text-[#EF3866]" />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                      {profile.first_name} {profile.last_name}
+                    </h1>
+                    {profile.role === 'author' && (
+                      <Verified className="w-5 h-5 text-[#EF3866]" />
+                    )}
+                  </div>
+                  
+                  {profile.username && (
+                    <p className="text-gray-500 dark:text-gray-400 font-medium">@{profile.username}</p>
+                  )}
+                </div>
+
+                {/* Action Buttons - Mobile optimized */}
+                {currentUserId && currentUserId !== profile.id && (
+                  <div ref={actionsRef} className="flex gap-3">
+                    <button
+                      onClick={handleFollowClick}
+                      disabled={followLoading}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 ${
+                        isFollowing
+                          ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                          : 'bg-gradient-to-r from-[#EF3866] to-[#d7325a] text-white hover:shadow-lg hover:scale-105'
+                      } ${followLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {followLoading ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent"></div>
+                      ) : isFollowing ? (
+                        <UserMinus size={16} />
+                      ) : (
+                        <UserPlus size={16} />
+                      )}
+                      <span>{isFollowing ? 'Unfollow' : 'Follow'}</span>
+                    </button>
+
+                    <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300 font-semibold text-sm">
+                      <Mail size={16} />
+                      <span className="hidden sm:inline">Message</span>
+                    </button>
+                  </div>
                 )}
               </div>
               
-              {profile.username && (
-                <p className="text-gray-600 dark:text-gray-400 mb-2">@{profile.username}</p>
-              )}
-              
-              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-4">
                 {profile.location && (
-                  <div className="flex items-center gap-1">
-                    <MapPin size={16} />
+                  <div className="flex items-center gap-1.5">
+                    <MapPin size={14} />
                     <span>{profile.location}</span>
                   </div>
                 )}
-                <div className="flex items-center gap-1">
-                  <Calendar size={16} />
+                <div className="flex items-center gap-1.5">
+                  <Calendar size={14} />
                   <span>Joined {formatDate(profile.created_at)}</span>
                 </div>
               </div>
@@ -211,17 +221,17 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             </div>
 
             {/* Stats */}
-            <div ref={statsRef} className="flex items-center gap-8 mb-6">
+            <div ref={statsRef} className="flex items-center gap-6 sm:gap-8">
               <button
                 onClick={onOpenFollowers}
-                className="group flex items-center gap-2 hover:text-[#EF3866] transition-colors"
+                className="group flex items-center gap-2 hover:scale-105 transition-transform duration-200"
               >
-                <Users size={20} className="text-gray-500 group-hover:text-[#EF3866]" />
+                <Users size={18} className="text-gray-400 group-hover:text-[#EF3866] transition-colors" />
                 <div className="text-left">
-                  <div className="font-bold text-lg text-gray-900 dark:text-white">
+                  <div className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-[#EF3866] transition-colors">
                     {profile.followers_count}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
                     Followers
                   </div>
                 </div>
@@ -229,14 +239,14 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
               <button
                 onClick={onOpenFollowing}
-                className="group flex items-center gap-2 hover:text-[#EF3866] transition-colors"
+                className="group flex items-center gap-2 hover:scale-105 transition-transform duration-200"
               >
-                <Users size={20} className="text-gray-500 group-hover:text-[#EF3866]" />
+                <Users size={18} className="text-gray-400 group-hover:text-[#EF3866] transition-colors" />
                 <div className="text-left">
-                  <div className="font-bold text-lg text-gray-900 dark:text-white">
+                  <div className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-[#EF3866] transition-colors">
                     {profile.following_count}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
                     Following
                   </div>
                 </div>
@@ -244,47 +254,18 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
               {profile.role === 'author' && (
                 <div className="flex items-center gap-2">
-                  <BookOpen size={20} className="text-gray-500" />
+                  <BookOpen size={18} className="text-gray-400" />
                   <div className="text-left">
                     <div className="font-bold text-lg text-gray-900 dark:text-white">
                       {profile.posts_count}
                     </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       Posts
                     </div>
                   </div>
                 </div>
               )}
             </div>
-
-            {/* Action Buttons */}
-            {currentUserId && currentUserId !== profile.id && (
-              <div ref={actionsRef} className="flex gap-4">
-                <button
-                  onClick={handleFollowClick}
-                  disabled={followLoading}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                    isFollowing
-                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                      : 'bg-gradient-to-r from-[#EF3866] to-[#d7325a] text-white hover:from-[#d7325a] hover:to-[#EF3866] shadow-lg hover:shadow-xl'
-                  } ${followLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {followLoading ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-current border-t-transparent"></div>
-                  ) : isFollowing ? (
-                    <UserMinus size={20} />
-                  ) : (
-                    <UserPlus size={20} />
-                  )}
-                  <span>{isFollowing ? 'Unfollow' : 'Follow'}</span>
-                </button>
-
-                <button className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300">
-                  <Mail size={20} />
-                  <span>Message</span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>

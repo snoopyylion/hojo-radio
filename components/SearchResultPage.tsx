@@ -580,14 +580,14 @@ const SearchResultsPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 sm:pt-20 font-sora mb-[24px]">
+    <div className="min-h-screen bg-gray-50 dark:bg-black pt-24 sm:pt-20 font-sora mb-[24px] transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8">
         {/* Search Header */}
         <div className="mb-6 lg:mb-8">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6"
+            className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6 transition-colors duration-300"
           >
             Search Results
           </motion.h1>
@@ -608,18 +608,18 @@ const SearchResultsPage = () => {
                   onChange={(e) => setNewQuery(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Search users, articles, authors, categories..."
-                  className="w-full h-12 sm:h-14 pl-10 sm:pl-12 pr-16 sm:pr-20 text-base sm:text-lg bg-white border-2 border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#EF3866] focus:border-[#EF3866] transition-all shadow-sm hover:shadow-md"
+                  className="w-full h-12 sm:h-14 pl-10 sm:pl-12 pr-16 sm:pr-20 text-base sm:text-lg bg-white dark:bg-black border-2 border-gray-200 dark:border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-[#EF3866] focus:border-[#EF3866] dark:focus:border-[#EF3866] transition-all shadow-sm hover:shadow-md text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
-                <Search size={20} className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 sm:w-6 sm:h-6" />
+                <Search size={20} className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 sm:w-6 sm:h-6" />
 
                 <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1 sm:gap-2">
                   {newQuery && (
                     <button
                       type="button"
                       onClick={clearSearch}
-                      className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      className="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
                     >
-                      <X size={16} className="text-gray-400 sm:w-5 sm:h-5" />
+                      <X size={16} className="text-gray-400 dark:text-gray-500 sm:w-5 sm:h-5" />
                     </button>
                   )}
                   <button
@@ -641,7 +641,7 @@ const SearchResultsPage = () => {
               transition={{ delay: 0.2 }}
               className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
             >
-              <div className="text-sm sm:text-base text-gray-600">
+              <div className="text-sm sm:text-base text-gray-600 dark:text-gray-300">
                 {isLoading ? (
                   <span className="flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#EF3866]"></div>
@@ -650,7 +650,7 @@ const SearchResultsPage = () => {
                 ) : (
                   <>
                     Found <span className="font-semibold text-[#EF3866]">{activeFilter === 'all' ? originalResults.totalCount : searchResults.results.length}</span> results for &quot;
-                    <span className="font-semibold text-gray-900">{query}</span>&quot;
+                    <span className="font-semibold text-gray-900 dark:text-white">{query}</span>&quot;
                   </>
                 )}
               </div>
@@ -659,22 +659,22 @@ const SearchResultsPage = () => {
                 {/* Mobile Filter Toggle */}
                 <button
                   onClick={() => setShowMobileFilters(!showMobileFilters)}
-                  className="lg:hidden flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                  className="lg:hidden flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
                   <Filter size={16} />
                   Filters
                 </button>
 
-                <span className="text-sm text-gray-500 mr-2 hidden sm:inline">View:</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400 mr-2 hidden sm:inline">View:</span>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-[#EF3866] text-white' : 'hover:bg-gray-200 text-gray-600'}`}
+                  className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-[#EF3866] text-white' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
                 >
                   <List size={16} className="sm:w-5 sm:h-5" />
                 </button>
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-[#EF3866] text-white' : 'hover:bg-gray-200 text-gray-600'}`}
+                  className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-[#EF3866] text-white' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
                 >
                   <Grid size={16} className="sm:w-5 sm:h-5" />
                 </button>
@@ -690,27 +690,27 @@ const SearchResultsPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-50 lg:hidden"
+              className="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 lg:hidden"
               onClick={() => setShowMobileFilters(false)}
             >
               <motion.div
                 initial={{ x: '-100%' }}
                 animate={{ x: 0 }}
                 exit={{ x: '-100%' }}
-                className="absolute left-0 top-0 h-full w-80 max-w-[85vw] bg-white shadow-xl overflow-y-auto"
+                className="absolute left-0 top-0 h-full w-80 max-w-[85vw] bg-white dark:bg-black shadow-xl dark:shadow-2xl overflow-y-auto border-r dark:border-gray-800"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                       <Filter size={20} className="text-[#EF3866]" />
                       Filter Results
                     </h3>
                     <button
                       onClick={() => setShowMobileFilters(false)}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-lg transition-colors"
                     >
-                      <X size={20} />
+                      <X size={20} className="text-gray-600 dark:text-gray-400" />
                     </button>
                   </div>
 
@@ -723,14 +723,14 @@ const SearchResultsPage = () => {
                           onClick={() => handleFilterChange(filter.key as typeof activeFilter)}
                           className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${activeFilter === filter.key
                             ? 'bg-[#EF3866] text-white shadow-md'
-                            : 'hover:bg-gray-50 text-gray-700 hover:text-[#EF3866]'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 hover:text-[#EF3866] dark:hover:text-[#EF3866] border border-transparent dark:border-gray-800 hover:border-gray-200 dark:hover:border-gray-700'
                             }`}
                         >
                           <Icon size={18} />
                           <span className="font-medium flex-1 text-left">{filter.label}</span>
                           <span className={`text-sm px-2 py-1 rounded-full ${activeFilter === filter.key
                             ? 'bg-white/20'
-                            : 'bg-gray-200 text-gray-600'
+                            : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
                             }`}>
                             {filter.count}
                           </span>
@@ -752,8 +752,8 @@ const SearchResultsPage = () => {
             transition={{ delay: 0.1 }}
             className="hidden lg:block w-64 flex-shrink-0"
           >
-            <div className="bg-white rounded-xl shadow-sm p-6 sticky top-28 border">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-black rounded-xl shadow-sm dark:shadow-2xl p-6 sticky top-28 border border-gray-200 dark:border-gray-800">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <Filter size={20} className="text-[#EF3866]" />
                 Filter Results
               </h3>
@@ -767,14 +767,14 @@ const SearchResultsPage = () => {
                       onClick={() => handleFilterChange(filter.key as typeof activeFilter)}
                       className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${activeFilter === filter.key
                         ? 'bg-[#EF3866] text-white shadow-md'
-                        : 'hover:bg-gray-50 text-gray-700 hover:text-[#EF3866]'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 hover:text-[#EF3866] dark:hover:text-[#EF3866] border border-transparent dark:border-gray-800 hover:border-gray-200 dark:hover:border-gray-700'
                         }`}
                     >
                       <Icon size={18} />
                       <span className="font-medium flex-1 text-left">{filter.label}</span>
                       <span className={`text-sm px-2 py-1 rounded-full ${activeFilter === filter.key
                         ? 'bg-white/20'
-                        : 'bg-gray-200 text-gray-600'
+                        : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
                         }`}>
                         {filter.count}
                       </span>
@@ -797,7 +797,7 @@ const SearchResultsPage = () => {
                 >
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#EF3866] mx-auto mb-4"></div>
-                    <p className="text-gray-600 font-medium">Searching...</p>
+                    <p className="text-gray-600 dark:text-gray-300 font-medium">Searching...</p>
                   </div>
                 </motion.div>
               ) : searchResults.results.length === 0 && query ? (
@@ -806,12 +806,12 @@ const SearchResultsPage = () => {
                   animate={{ opacity: 1, y: 0 }}
                   className="text-center py-12"
                 >
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Search size={32} className="text-gray-400 sm:w-10 sm:h-10" />
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 dark:bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-200 dark:border-gray-800">
+                    <Search size={32} className="text-gray-400 dark:text-gray-500 sm:w-10 sm:h-10" />
                   </div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No results found</h3>
-                  <p className="text-sm sm:text-base text-gray-600 mb-4 px-4">
-                    We couldn&apos;t find anything matching &quot;<span className="font-medium">{query}</span>&quot;. Try different keywords or check spelling.
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">No results found</h3>
+                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4 px-4">
+                    We couldn&apos;t find anything matching &quot;<span className="font-medium text-gray-900 dark:text-white">{query}</span>&quot;. Try different keywords or check spelling.
                   </p>
                   <button
                     onClick={clearSearch}
@@ -837,12 +837,12 @@ const SearchResultsPage = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
                     >
-                      <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-4 sm:p-6 border hover:border-[#EF3866]/20 group">
+                      <div className="bg-white dark:bg-black rounded-xl shadow-sm dark:shadow-2xl hover:shadow-md dark:hover:shadow-2xl transition-all p-4 sm:p-6 border border-gray-200 dark:border-gray-800 hover:border-[#EF3866]/20 dark:hover:border-[#EF3866]/40 group">
                         <div className="flex items-start gap-3 sm:gap-4">
                           {/* Result Icon/Image */}
                           <div className="flex-shrink-0">
                             {result.image ? (
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-gray-100">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-gray-100 dark:border-gray-800">
                                 <Image
                                   src={result.image}
                                   alt={result.title}
@@ -852,7 +852,7 @@ const SearchResultsPage = () => {
                                 />
                               </div>
                             ) : (
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-full flex items-center justify-center group-hover:bg-gray-200 transition-colors">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 dark:bg-gray-900 rounded-full flex items-center justify-center group-hover:bg-gray-200 dark:group-hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-800">
                                 {getResultIcon(result.type)}
                               </div>
                             )}
@@ -867,28 +867,28 @@ const SearchResultsPage = () => {
                                     {result.type}
                                   </span>
                                   {result.publishedAt && (
-                                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                       <Clock size={12} />
                                       {formatDate(result.publishedAt)}
                                     </span>
                                   )}
                                 </div>
 
-                                <h3 className="font-semibold text-gray-900 group-hover:text-[#EF3866] transition-colors mb-1 line-clamp-2 text-sm sm:text-base">
+                                <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-[#EF3866] dark:group-hover:text-[#EF3866] transition-colors mb-1 line-clamp-2 text-sm sm:text-base">
                                   {result.title}
                                 </h3>
 
                                 {result.subtitle && (
-                                  <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-1 sm:line-clamp-none">{result.subtitle}</p>
+                                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-1 sm:line-clamp-none">{result.subtitle}</p>
                                 )}
 
                                 {result.excerpt && (
-                                  <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 mb-3">{result.excerpt}</p>
+                                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">{result.excerpt}</p>
                                 )}
 
                                 {/* Article Stats */}
                                 {result.type === 'article' && (result.likes || result.comments) && (
-                                  <div className="flex items-center gap-3 sm:gap-4 text-xs text-gray-500">
+                                  <div className="flex items-center gap-3 sm:gap-4 text-xs text-gray-500 dark:text-gray-400">
                                     {result.likes && (
                                       <span className="flex items-center gap-1">
                                         <Heart size={12} />
@@ -916,7 +916,7 @@ const SearchResultsPage = () => {
                                   handleFollowToggle(result);
                                 }}
                                 className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all ${isUserFollowing(result)
-                                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                  ? 'bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700'
                                   : 'bg-[#EF3866] text-white hover:bg-[#d7325a]'
                                   }`}
                               >
@@ -927,7 +927,7 @@ const SearchResultsPage = () => {
                               </button>
                             )}
                             <Link href={getResultUrl(result)}>
-                              <ArrowRight size={18} className="text-gray-400 group-hover:text-[#EF3866] transition-colors sm:w-5 sm:h-5" />
+                              <ArrowRight size={18} className="text-gray-400 dark:text-gray-500 group-hover:text-[#EF3866] dark:group-hover:text-[#EF3866] transition-colors sm:w-5 sm:h-5" />
                             </Link>
                           </div>
                         </div>
