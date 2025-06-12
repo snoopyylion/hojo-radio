@@ -57,18 +57,7 @@ interface ExtendedUserProfile extends UserProfile {
   sanity_author_id?: string; // Add this to link to Sanity author
 }
 
-interface VerifiedNews {
-  id: string;
-  title: string;
-  excerpt: string;
-  source: string;
-  published_at: string;
-  verified_at: string;
-  image_url?: string;
-  external_url: string;
-  views_count: number;
-  credibility_score: number;
-}
+
 
 interface ActivityItem {
   id: string;
