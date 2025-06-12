@@ -69,7 +69,6 @@ const Footer = () => {
                 className="mr-3 dark:invert"
                 priority
               />
-              <span className="text-xl font-bold text-gray-900 dark:text-white">Hojo</span>
             </div>
             
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 max-w-md leading-relaxed">
