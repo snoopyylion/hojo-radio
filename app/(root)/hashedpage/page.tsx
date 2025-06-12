@@ -18,6 +18,7 @@ import {
   Shield,
 } from "lucide-react";
 import VerifiedList from '@/components/VerifiedList';
+import { FollowersFollowingSection } from '@/components/Dashboard/FollowersFollowingSection';
 import LinkButton from "@/components/LinkButton";
 import PageLoader from '@/components/PageLoader';
 import { useUserLikes } from '../../../hooks/user-likes/useUserLikes';
@@ -77,6 +78,8 @@ export default function UserDashboard() {
   } = useUserComments();
   const { loading: createdAtLoading } = useUserCreatedAt();
   const { memberSince, daysSinceJoining } = useUserMemberSince();
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
+const [followersModalTab, setFollowersModalTab] = useState<'followers' | 'following'>('followers');
 
   // Animation refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -85,8 +88,21 @@ export default function UserDashboard() {
   const tabsRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  
 
+
+  const handleFollowersClick = () => {
+  setFollowersModalTab('followers');
+  setShowFollowersModal(true);
+};
+
+const handleFollowingClick = () => {
+  setFollowersModalTab('following');
+  setShowFollowersModal(true);
+};
+
+const handleCloseFollowersModal = () => {
+  setShowFollowersModal(false);
+};
   // Function to fetch verified news count
   const fetchVerifiedNewsCount = async () => {
     try {
@@ -515,6 +531,14 @@ export default function UserDashboard() {
       {/* Stats Section */}
       <div ref={statsRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 opacity-0">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          <div className="col-span-1 xl:col-span-2">
+            <FollowersFollowingSection 
+  onFollowersClick={handleFollowersClick}
+  onFollowingClick={handleFollowingClick}
+/>
+          </div>
+
           <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
             <div className="flex items-center">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center transition-colors">
@@ -919,6 +943,13 @@ export default function UserDashboard() {
           </div>
         )}
       </div>
+      {showFollowersModal && (
+  <FollowersFollowingSection
+    isModal={true}
+    onClose={handleCloseFollowersModal}
+    initialTab={followersModalTab}
+  />
+)}
     </div>
   );
 }
