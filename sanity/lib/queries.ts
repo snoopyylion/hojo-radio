@@ -50,19 +50,84 @@ export const POST_META_QUERY = defineQuery(`
 `);
 
 // All posts by author (admin view)
-export const POSTS_BY_AUTHOR_QUERY = defineQuery(`
-  *[_type == "post" && author._ref == $id] | order(publishedAt desc) {
+export const POSTS_BY_AUTHOR_QUERY = `
+  *[_type == "post" && author._ref == $id] | order(publishedAt desc, _createdAt desc) {
     _id,
+    _createdAt,
+    _updatedAt,
     title,
     slug,
+    description,
+    excerpt,
+    body,
+    mainImage {
+      asset -> {
+        url,
+        metadata {
+          dimensions
+        }
+      }
+    },
+    author -> {
+      _id,
+      name,
+      slug,
+      image {
+        asset -> {
+          url
+        }
+      }
+    },
+    categories[] -> {
+      _id,
+      title
+    },
     publishedAt,
-    mainImage,
     likes,
-    comments,
-    "author": author->{_id, name, image},
-    categories[]->{title}
+    comments
   }
-`);
+`;
+
+export const AUTHOR_EXISTS_QUERY = `
+  *[_type == "author" && _id == $authorId][0] {
+    _id,
+    name,
+    slug,
+    bio,
+    image {
+      asset -> {
+        url
+      }
+    }
+  }
+`;
+
+export const ALL_AUTHORS_QUERY = `
+  *[_type == "author"] {
+    _id,
+    name,
+    slug,
+    bio
+  }
+`;
+
+export const CREATE_AUTHOR_MUTATION = `
+  {
+    "create": {
+      "_type": "author",
+      "name": $name,
+      "slug": {
+        "_type": "slug",
+        "current": $slug
+      },
+      "bio": $bio,
+      "image": $image,
+      "email": $email,
+      "userId": $userId
+    }
+  }
+`;
+
 
 // Posts by status (admin view)
 export const POSTS_BY_STATUS_QUERY = defineQuery(`

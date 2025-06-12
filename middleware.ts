@@ -10,6 +10,8 @@ const isProtectedRoute = createRouteMatcher([
   '/hashedpage(.*)',
   '/dashboard(.*)',
   '/profile(.*)',
+  '/user(.*)',
+  '/search(.*)',
   '/authentication/complete-profile',
 ]);
 

@@ -13,7 +13,7 @@ import { usePathname, useRouter } from 'next/navigation';
 
 interface SearchResult {
   id: string;
-  type: 'user' | 'article' | 'author' | 'category';
+  type: 'user' | 'article' | 'author' | 'category' ; 
   title: string;
   subtitle?: string;
   image?: string;
@@ -22,6 +22,10 @@ interface SearchResult {
   publishedAt?: string;
   likes?: number;
   comments?: number;
+  relevanceScore?: number;
+  isFollowing?: boolean;
+  originalId?: string;
+  databaseId?: string;
 }
 
 
@@ -242,30 +246,83 @@ const NewNavbar = () => {
 
   // Add the getResultUrl function from your search results page
   const getResultUrl = (result: SearchResult): string => {
-    switch (result.type) {
-      case 'article':
-        let postId = result.url.includes('/post/')
-          ? result.url.split('/post/')[1].split('/')[0]
-          : result.id;
+  console.log('🔗 Generating URL for result:', { 
+    id: result.id, 
+    type: result.type, 
+    originalId: result.originalId, 
+    databaseId: result.databaseId,
+    url: result.url 
+  });
 
-        // If prefixed with "sanity_post_", strip it
-        if (postId.startsWith('sanity_post_')) {
-          postId = postId.replace('sanity_post_', '');
-        }
+  // If result already has a valid URL path, use it
+  if (result.url && result.url.startsWith('/')) {
+    console.log('✅ Using existing URL:', result.url);
+    return result.url;
+  }
 
-        return `/post/${postId}`;
-
-      case 'user':
-      case 'author':
-        return `/user/${result.id}`;
-
-      case 'category':
-        return `/category/${result.id}`;
-
-      default:
-        return result.url || '#';
-    }
+  // Get the best available ID (prefer originalId, then databaseId, then id)
+  const getId = (): string => {
+    const candidates = [result.originalId, result.databaseId, result.id].filter(Boolean);
+    return candidates[0] || result.id;
   };
+
+  // Simple ID cleaning - only remove common prefixes if they exist
+  const cleanId = (id: string): string => {
+    if (!id) return '';
+    
+    // Remove common prefixes but be more conservative
+    const prefixesToRemove = [
+      'sanity_post_', 
+      'sanity_user_', 
+      'sanity_category_',
+      'supabase_user_'
+    ];
+    
+    for (const prefix of prefixesToRemove) {
+      if (id.startsWith(prefix)) {
+        return id.substring(prefix.length);
+      }
+    }
+    
+    return id;
+  };
+
+  const rawId = getId();
+  const cleanedId = cleanId(rawId);
+  
+  console.log('🔄 ID processing:', { rawId, cleanedId });
+
+  switch (result.type) {
+    case 'article': {
+      const postUrl = `/post/${cleanedId}`;
+      console.log('📝 Article URL generated:', postUrl);
+      return postUrl;
+    }
+
+    case 'user': {
+      const userUrl = `/user/${cleanedId}`;
+      console.log('👤 User URL generated:', userUrl);
+      return userUrl;
+    }
+
+    case 'author': {
+      // Try author route first, fallback to user route
+      const authorUrl = `/author/${cleanedId}`;
+      console.log('✍️ Author URL generated:', authorUrl);
+      return authorUrl;
+    }
+
+    case 'category': {
+      const categoryUrl = `/blog/category/${encodeURIComponent(cleanedId)}`;
+      console.log('🏷️ Category URL generated:', categoryUrl);
+      return categoryUrl;
+    }
+
+    default:
+      console.warn('⚠️ Unknown result type, using fallback:', result.type);
+      return result.url || '/';
+  }
+};
 
 
   // Debounced search
@@ -298,22 +355,95 @@ const NewNavbar = () => {
     }
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      // Navigate to search results page with all results
-      router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
-      setIsSearchExpanded(false);
-      setShowSearchResults(false);
-    }
-  };
+  
 
-  const handleResultClick = (result: SearchResult) => {
-    router.push(result.url);
+  const handleResultClick = async (result: SearchResult) => {
+  
+  try {
+    // Generate the URL
+    const url = getResultUrl(result);
+    console.log('🔗 Generated URL:', url);
+    
+    // Validate URL
+    if (!url || url === '#' || url === '/') {
+      console.error('❌ Invalid URL generated:', url);
+      // Show user feedback
+      alert('Unable to navigate to this result. Please try again.');
+      return;
+    }
+    
+    // Clear search state
     setIsSearchExpanded(false);
     setShowSearchResults(false);
     setSearchQuery('');
-  };
+    setIsOpen(false); // Close mobile sidebar if open
+    
+    // Check if we're already on the target page
+    if (pathname === url) {
+      console.log('📍 Already on target page:', url);
+      return;
+    }
+    
+    // Navigate using Next.js router
+    console.log('🚀 Navigating to:', url);
+    router.push(url);
+    
+  } catch (error) {
+    console.error('❌ Navigation error:', error);
+    
+    // More robust fallback
+    try {
+      const fallbackUrl = getResultUrl(result);
+      if (fallbackUrl && fallbackUrl !== '#' && fallbackUrl !== '/') {
+        console.log('🔄 Attempting fallback navigation to:', fallbackUrl);
+        window.location.href = fallbackUrl;
+      } else {
+        throw new Error('Fallback URL also invalid');
+      }
+    } catch (fallbackError) {
+      console.error('❌ Fallback navigation failed:', fallbackError);
+      // Show user feedback
+      alert('Navigation failed. Please try refreshing the page.');
+    }
+  }
+};
+
+
+const handleSearchSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  console.log('🔍 Search submitted:', searchQuery);
+  
+  if (!searchQuery.trim()) {
+    return;
+  }
+  
+  try {
+    // Clear search state first
+    setIsSearchExpanded(false);
+    setShowSearchResults(false);
+    setIsOpen(false); // Close mobile sidebar if open
+    
+    // Navigate to search results page
+    const searchUrl = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+    console.log('🔗 Navigating to search page:', searchUrl);
+    
+    // Clear search query after navigation
+    setSearchQuery('');
+    
+    // Use Next.js router for better navigation
+    await router.push(searchUrl);
+    
+  } catch (error) {
+    console.error('❌ Search navigation error:', error);
+    
+    // Fallback to window.location
+    const fallbackUrl = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+    window.location.href = fallbackUrl;
+  }
+};
+
+// And your "See all results" button should use handleSearchSubmit which should look like this:
+
 
   // Close search on escape key
   useEffect(() => {
