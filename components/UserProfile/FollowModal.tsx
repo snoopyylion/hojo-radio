@@ -81,7 +81,7 @@ export const FollowModal: React.FC<FollowModalProps> = ({
       }));
 
       await onFollow(userId, isCurrentlyFollowing);
-    } catch (error) {
+    } catch {
       // Revert on error
       setFollowingStates(prev => ({
         ...prev,
