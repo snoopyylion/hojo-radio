@@ -541,20 +541,6 @@ const handleCloseFollowersModal = () => {
 
           <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
             <div className="flex items-center">
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center transition-colors">
-                <BarChart3 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">Total Views</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
-                  {topPosts.reduce((sum, post) => sum + post.views, 0).toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-            <div className="flex items-center">
               <div className="w-12 h-12 bg-pink-100 dark:bg-pink-900/30 rounded-lg flex items-center justify-center transition-colors">
                 <Heart className="w-6 h-6 text-pink-600 dark:text-pink-400" />
               </div>

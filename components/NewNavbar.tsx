@@ -244,83 +244,151 @@ const NewNavbar = () => {
     }
   };
 
+  const getDatabaseId = (result: SearchResult): string => {
+  console.log('🔍 Getting database ID for result:', {
+    id: result.id,
+    type: result.type,
+    databaseId: result.databaseId,
+    originalId: result.originalId
+  });
+
+  // Priority order: databaseId > originalId > cleaned id
+  if (result.databaseId) {
+    console.log('✅ Using databaseId:', result.databaseId);
+    return result.databaseId;
+  }
+
+  if (result.originalId) {
+    console.log('✅ Using originalId:', result.originalId);
+    return result.originalId;
+  }
+
+  // Clean the ID by removing common prefixes if they exist
+  const cleanUserId = (userId: string): string => {
+    // Remove common prefixes that might be added by your search API
+    const prefixes = ['supabase_user_', 'user_', 'sanity_user_'];
+    
+    for (const prefix of prefixes) {
+      if (userId.startsWith(prefix)) {
+        return userId.replace(prefix, '');
+      }
+    }
+    
+    return userId;
+  };
+
+  const cleanId = cleanUserId(result.id);
+  console.log('✅ Final database ID:', cleanId);
+  return cleanId;
+};
   // Add the getResultUrl function from your search results page
   const getResultUrl = (result: SearchResult): string => {
-    console.log('🔗 Generating URL for result:', {
+    console.log('Generating URL for result:', { id: result.id, type: result.type });
+
+    switch (result.type) {
+      case 'article':
+        let postId = result.url.includes('/post/')
+          ? result.url.split('/post/')[1].split('/')[0]
+          : result.id;
+
+        // If prefixed with "sanity_post_", strip it
+        if (postId.startsWith('sanity_post_')) {
+          postId = postId.replace('sanity_post_', '');
+        }
+
+        return `/post/${postId}`;
+
+       case 'user':
+      case 'author':
+        // Based on your logs, originalId contains the correct database ID
+        let userId = result.originalId || result.databaseId || result.id;
+        
+        // If we still don't have a userId, try getDatabaseId
+        if (!userId) {
+          userId = getDatabaseId(result);
+        }
+        
+        console.log('🔍 User ID options:', {
+          id: result.id,
+          originalId: result.originalId,
+          databaseId: result.databaseId,
+          selected: userId
+        });
+        
+        console.log('User URL generated:', `/user/${userId}`);
+        return `/user/${userId}`;
+
+      case 'category':
+        return `/blog/category/${getDatabaseId(result)}`;
+
+      default:
+        return result.url || '#';
+    }
+  };
+
+  // Replace the handleResultClick function with this improved version
+  const handleResultClick = async (result: SearchResult, event?: React.MouseEvent | React.TouchEvent) => {
+    // Prevent event bubbling and default behavior
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    console.log('🖱️ Result clicked:', {
       id: result.id,
       type: result.type,
       originalId: result.originalId,
       databaseId: result.databaseId,
-      url: result.url
+      title: result.title
     });
 
-    // If result already has a valid URL path, use it
-    if (result.url && result.url.startsWith('/')) {
-      console.log('✅ Using existing URL:', result.url);
-      return result.url;
-    }
+    try {
+      // Generate the URL
+      const url = getResultUrl(result);
+      console.log('🔗 Generated URL:', url);
 
-    // Get the best available ID (prefer originalId, then databaseId, then id)
-    const getId = (): string => {
-      const candidates = [result.originalId, result.databaseId, result.id].filter(Boolean);
-      return candidates[0] || result.id;
-    };
+      // Validate URL
+      if (!url || url === '#' || url === '/') {
+        console.error('❌ Invalid URL generated:', url);
+        alert('Unable to navigate to this result. Please try again.');
+        return;
+      }
 
-    // Simple ID cleaning - only remove common prefixes if they exist
-    const cleanId = (id: string): string => {
-      if (!id) return '';
+      // Clear search state immediately
+      setIsSearchExpanded(false);
+      setShowSearchResults(false);
+      setSearchQuery('');
+      setIsOpen(false);
 
-      // Remove common prefixes but be more conservative
-      const prefixesToRemove = [
-        'sanity_post_',
-        'sanity_user_',
-        'sanity_category_',
-        'supabase_user_'
-      ];
+      // Check if we're already on the target page
+      if (pathname === url) {
+        console.log('📍 Already on target page:', url);
+        return;
+      }
 
-      for (const prefix of prefixesToRemove) {
-        if (id.startsWith(prefix)) {
-          return id.substring(prefix.length);
+      // Add a small delay to ensure state updates are processed
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Navigate using Next.js router
+      console.log('🚀 Navigating to:', url);
+      await router.push(url);
+
+    } catch (error) {
+      console.error('❌ Navigation error:', error);
+
+      // Fallback navigation
+      try {
+        const fallbackUrl = getResultUrl(result);
+        if (fallbackUrl && fallbackUrl !== '#' && fallbackUrl !== '/') {
+          console.log('🔄 Attempting fallback navigation to:', fallbackUrl);
+          window.location.href = fallbackUrl;
+        } else {
+          throw new Error('Fallback URL also invalid');
         }
+      } catch (fallbackError) {
+        console.error('❌ Fallback navigation failed:', fallbackError);
+        alert('Navigation failed. Please try refreshing the page.');
       }
-
-      return id;
-    };
-
-    const rawId = getId();
-    const cleanedId = cleanId(rawId);
-
-    console.log('🔄 ID processing:', { rawId, cleanedId });
-
-    switch (result.type) {
-      case 'article': {
-        const postUrl = `/post/${cleanedId}`;
-        console.log('📝 Article URL generated:', postUrl);
-        return postUrl;
-      }
-
-      case 'user': {
-        const userUrl = `/user/${cleanedId}`;
-        console.log('👤 User URL generated:', userUrl);
-        return userUrl;
-      }
-
-      case 'author': {
-        // Try author route first, fallback to user route
-        const authorUrl = `/author/${cleanedId}`;
-        console.log('✍️ Author URL generated:', authorUrl);
-        return authorUrl;
-      }
-
-      case 'category': {
-        const categoryUrl = `/blog/category/${encodeURIComponent(cleanedId)}`;
-        console.log('🏷️ Category URL generated:', categoryUrl);
-        return categoryUrl;
-      }
-
-      default:
-        console.warn('⚠️ Unknown result type, using fallback:', result.type);
-        return result.url || '/';
     }
   };
 
@@ -357,56 +425,6 @@ const NewNavbar = () => {
 
 
 
-  const handleResultClick = async (result: SearchResult) => {
-
-    try {
-      // Generate the URL
-      const url = getResultUrl(result);
-      console.log('🔗 Generated URL:', url);
-
-      // Validate URL
-      if (!url || url === '#' || url === '/') {
-        console.error('❌ Invalid URL generated:', url);
-        // Show user feedback
-        alert('Unable to navigate to this result. Please try again.');
-        return;
-      }
-
-      // Clear search state
-      setIsSearchExpanded(false);
-      setShowSearchResults(false);
-      setSearchQuery('');
-      setIsOpen(false); // Close mobile sidebar if open
-
-      // Check if we're already on the target page
-      if (pathname === url) {
-        console.log('📍 Already on target page:', url);
-        return;
-      }
-
-      // Navigate using Next.js router
-      console.log('🚀 Navigating to:', url);
-      router.push(url);
-
-    } catch (error) {
-      console.error('❌ Navigation error:', error);
-
-      // More robust fallback
-      try {
-        const fallbackUrl = getResultUrl(result);
-        if (fallbackUrl && fallbackUrl !== '#' && fallbackUrl !== '/') {
-          console.log('🔄 Attempting fallback navigation to:', fallbackUrl);
-          window.location.href = fallbackUrl;
-        } else {
-          throw new Error('Fallback URL also invalid');
-        }
-      } catch (fallbackError) {
-        console.error('❌ Fallback navigation failed:', fallbackError);
-        // Show user feedback
-        alert('Navigation failed. Please try refreshing the page.');
-      }
-    }
-  };
 
 
   const handleSearchSubmit = async (e: React.FormEvent) => {
@@ -638,8 +656,10 @@ const NewNavbar = () => {
                       {searchResults.map((result) => (
                         <button
                           key={result.id}
-                          onClick={() => handleResultClick(result)}
-                          className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left group"
+                          onClick={(e) => handleResultClick(result, e)}
+                          onTouchEnd={(e) => handleResultClick(result, e)}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left group cursor-pointer"
+                          type="button"
                         >
                           <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-gray-300 transition-colors">
                             {result.image ? (
@@ -848,62 +868,43 @@ const NewNavbar = () => {
               </form>
 
               {/* Mobile Search Results */}
-              {showSearchResults && searchResults.length > 0 && (
-                <div className="mt-4 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
-                  <div className="p-2">
-                    {searchResults.map((result) => (
-                      <button
-                        key={result.id}
-                        onClick={() => handleResultClick(result)}
-                        className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"
-                      >
-                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
-                          {result.image ? (
-                            <Image
-                              width={32}
-                              height={32}
-                              src={result.image}
-                              alt={result.title}
-                              className="w-full h-full rounded-full object-cover"
-                            />
-                          ) : (
-                            <>
-                              {result.type === 'user' && <User size={16} className="text-gray-600" />}
-                              {result.type === 'article' && <BookOpen size={16} className="text-gray-600" />}
-                              {result.type === 'author' && <User size={16} className="text-gray-600" />}
-                              {result.type === 'category' && <div className="text-gray-600 text-xs font-semibold">#</div>}
-                            </>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 text-sm truncate">{result.title}</p>
-                          {result.subtitle && (
-                            <p className="text-xs text-gray-500 truncate">{result.subtitle}</p>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-400 capitalize">
-                          {result.type}
-                        </div>
-                      </button>
-                    ))}
-
-                    {searchQuery && (
-                      <button
-                        onClick={handleSearchSubmit}
-                        className="w-full flex items-center gap-3 p-3 hover:bg-pink-50 rounded-lg transition-colors text-left border-t border-gray-100 mt-2"
-                      >
-                        <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
-                          <Search size={16} className="text-pink-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900 text-sm">See all results</p>
-                          <p className="text-xs text-gray-500">View complete search results</p>
-                        </div>
-                      </button>
+              {searchResults.map((result) => (
+                <button
+                  key={result.id}
+                  onClick={(e) => handleResultClick(result, e)}
+                  onTouchEnd={(e) => handleResultClick(result, e)}
+                  className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left cursor-pointer active:bg-gray-100"
+                  type="button"
+                >
+                  <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                    {result.image ? (
+                      <Image
+                        width={32}
+                        height={32}
+                        src={result.image}
+                        alt={result.title}
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                    ) : (
+                      <>
+                        {result.type === 'user' && <User size={16} className="text-gray-600" />}
+                        {result.type === 'article' && <BookOpen size={16} className="text-gray-600" />}
+                        {result.type === 'author' && <User size={16} className="text-gray-600" />}
+                        {result.type === 'category' && <div className="text-gray-600 text-xs font-semibold">#</div>}
+                      </>
                     )}
                   </div>
-                </div>
-              )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 text-sm truncate">{result.title}</p>
+                    {result.subtitle && (
+                      <p className="text-xs text-gray-500 truncate">{result.subtitle}</p>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-400 capitalize">
+                    {result.type}
+                  </div>
+                </button>
+              ))}
             </motion.div>
           )}
         </AnimatePresence>
