@@ -1,7 +1,7 @@
 // components/Dashboard/FollowersFollowingSection.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, UserPlus, UserMinus, X } from 'lucide-react';
 import { useAppContext } from '@/context/AppContext';
@@ -44,17 +44,7 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
   const [loading, setLoading] = useState(false);
   const [followOperations, setFollowOperations] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchFollowersAndFollowing();
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
-
-  const fetchFollowersAndFollowing = async () => {
+  const fetchFollowersAndFollowing = useCallback(async () => {
     if (!user?.id) return;
 
     setLoading(true);
@@ -71,7 +61,7 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
       const followersData = await followersResponse.json();
       const followingData = await followingResponse.json();
 
-      const followersWithStatus = await checkFollowBackStatus(followersData.users, 'followers');
+      const followersWithStatus = await checkFollowBackStatus(followersData.users);
       const followingWithStatus = await checkFollowingStatus(followingData.users);
 
       setFollowers(followersWithStatus);
@@ -81,9 +71,19 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
-  const checkFollowBackStatus = async (users: FollowUser[], type: 'followers'): Promise<FollowUser[]> => {
+  useEffect(() => {
+    if (user?.id) {
+      fetchFollowersAndFollowing();
+    }
+  }, [user?.id, fetchFollowersAndFollowing]);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  const checkFollowBackStatus = async (users: FollowUser[]): Promise<FollowUser[]> => {
     if (!user?.id || users.length === 0) return users;
 
     try {
@@ -125,7 +125,7 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
       const followingStatusPromises = users.map(async (followedUser) => {
         const response = await fetch(`/api/follow/check?userId=${followedUser.id}`);
         if (response.ok) {
-          const data = await response.json();
+          await response.json();
           return {
             ...followedUser,
             is_following_back: true // Current user is following them
@@ -295,10 +295,10 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
             onClick={onFollowersClick}
             className="flex flex-col items-center p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors flex-1"
           >
-            <span className="text-lg font-bold text-gray-900 dark:text-white">
+            <span className="text-lg font-bold text-gray-900 dark:text-white font-sora">
               {loading ? '...' : followers.length}
             </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">Followers</span>
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">Followers</span>
           </button>
           
           <div className="w-px h-8 bg-gray-200 dark:bg-gray-700"></div>
@@ -307,10 +307,10 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
             onClick={onFollowingClick}
             className="flex flex-col items-center p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors flex-1"
           >
-            <span className="text-lg font-bold text-gray-900 dark:text-white">
+            <span className="text-lg font-bold text-gray-900 dark:text-white font-sora">
               {loading ? '...' : following.length}
             </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">Following</span>
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">Following</span>
           </button>
         </div>
       </div>

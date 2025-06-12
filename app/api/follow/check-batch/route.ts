@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { auth } from '@clerk/nextjs/server';
 
+type FollowRecord = {
+    follower_id?: string;
+    following_id?: string;
+};
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -72,19 +77,20 @@ export async function POST(request: NextRequest) {
 
         // Create a map of user_id -> boolean indicating follow status
         const followStatuses: Record<string, boolean> = {};
-        
+
         // Initialize all users as not following
         user_ids.forEach(id => {
             followStatuses[id] = false;
         });
 
         // Mark users that are actually following as true
-        data?.forEach(follow => {
-            const targetId = (follow as Record<string, any>)[targetField];
-            if (targetId) {
+        data?.forEach((follow: FollowRecord) => {
+            const targetId = follow[targetField as keyof FollowRecord];
+            if (typeof targetId === 'string') {
                 followStatuses[targetId] = true;
             }
         });
+
 
         return NextResponse.json({
             success: true,
