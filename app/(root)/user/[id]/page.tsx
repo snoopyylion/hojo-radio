@@ -430,7 +430,7 @@ const UserProfilePage = () => {
                 No posts yet
               </h3>
               <p className="text-gray-500 dark:text-gray-400 text-center max-w-sm leading-relaxed">
-                This user hasn't shared any posts yet. Check back later to see their content.
+                This user hasn&apos;t shared any posts yet. Check back later to see their content.
               </p>
             </div>
           );
@@ -497,7 +497,7 @@ const UserProfilePage = () => {
             User not found
           </h1>
           <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-            The user you're looking for doesn't exist or may have been removed.
+            The user you&apos;re looking for doesn&apos;t exist or may have been removed.
           </p>
         </div>
       </div>
