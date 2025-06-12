@@ -11,10 +11,37 @@ import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
 import { ProfileTabs } from '@/components/UserProfile/ProfileTabs';
 import { PostsList } from '@/components/UserProfile/PostList';
 import { AboutSection } from '@/components/UserProfile/AboutSection';
-import { VerifiedNewsList } from '@/components/UserProfile/VerifiedNewsList';
 import { UserActivity } from '@/components/UserProfile/UserActivity';
 import { FollowModal } from '@/components/UserProfile/FollowModal';
 import VerifiedList from '@/components/VerifiedList';
+
+
+interface SanityPost {
+  _id: string;
+  title?: string;
+  body?: PortableTextBlock[];
+  description?: string;
+  excerpt?: string;
+  mainImage?: {
+    asset?: {
+      url?: string;
+    };
+  };
+  likes?: number;
+  comments?: number;
+  publishedAt?: string;
+  _createdAt: string;
+  _updatedAt: string;
+}
+
+interface PortableTextBlock {
+  children?: PortableTextChild[];
+}
+
+interface PortableTextChild {
+  text?: string;
+}
+
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -71,7 +98,6 @@ const UserProfilePage = () => {
 
   // Content state
   const [posts, setPosts] = useState<UserPost[]>([]);
-  const [verifiedNews, setVerifiedNews] = useState<VerifiedNews[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
 
@@ -103,7 +129,7 @@ const UserProfilePage = () => {
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
-      
+
       // Get user profile with followers/following counts
       const { data, error } = await supabase
         .from('users')
@@ -182,85 +208,90 @@ const UserProfilePage = () => {
   };
 
   const fetchUserPosts = async () => {
-  if (!profile?.sanity_author_id || profile.role !== 'author') {
-    console.log('No Sanity author ID found or user is not an author', {
-      sanity_author_id: profile?.sanity_author_id,
-      role: profile?.role
-    });
-    return;
-  }
-
-  try {
-    setPostsLoading(true);
-    
-    console.log('Fetching posts for author:', profile.sanity_author_id);
-    
-    // First, let's check if the author exists in Sanity
-    const authorCheck = await client.fetch(
-      `*[_type == "author" && _id == $authorId][0]`,
-      { authorId: profile.sanity_author_id }
-    );
-    
-    console.log('Author check result:', authorCheck);
-    
-    if (!authorCheck) {
-      console.error('Author not found in Sanity with ID:', profile.sanity_author_id);
-      setPosts([]);
+    if (!profile?.sanity_author_id || profile.role !== 'author') {
+      console.log('No Sanity author ID found or user is not an author', {
+        sanity_author_id: profile?.sanity_author_id,
+        role: profile?.role
+      });
       return;
     }
-    
-    // Fetch posts from Sanity using the author's Sanity ID
-    const sanityPosts = await client.fetch(POSTS_BY_AUTHOR_QUERY, {
-      id: profile.sanity_author_id
-    });
 
-    console.log('Sanity posts fetched:', sanityPosts);
+    try {
+      setPostsLoading(true);
 
-    // Transform Sanity posts to match your UserPost interface
-    const postsData: UserPost[] = sanityPosts.map((post: any) => ({
-      id: post._id,
-      title: post.title || '',
-      content: post.body ? post.body.map((block: any) => 
-        block.children?.map((child: any) => child.text).join('') || ''
-      ).join('\n') : '',
-      excerpt: post.description || post.excerpt || '',
-      image_url: post.mainImage?.asset?.url || null,
-      media_urls: post.mainImage?.asset?.url ? [post.mainImage.asset.url] : [],
-      author_id: profile.id,
-      author: {
-        id: profile.id,
-        first_name: profile.first_name,
-        last_name: profile.last_name,
-        username: profile.username,
-        image_url: profile.image_url,
-        is_verified: profile.role === 'author'
-      },
-      likes_count: post.likes || 0,
-      comments_count: post.comments || 0,
-      bookmarks_count: 0,
-      shares_count: 0,
-      published_at: post.publishedAt || post._createdAt,
-      created_at: post._createdAt,
-      updated_at: post._updatedAt,
-      is_liked: false,
-      is_bookmarked: false,
-      visibility: 'public',
-    }));
+      console.log('Fetching posts for author:', profile.sanity_author_id);
 
-    console.log('Transformed posts:', postsData);
-    setPosts(postsData);
+      // First, let's check if the author exists in Sanity
+      const authorCheck = await client.fetch(
+        `*[_type == "author" && _id == $authorId][0]`,
+        { authorId: profile.sanity_author_id }
+      );
 
-    // Update profile with posts count
-    if (profile) {
-      setProfile(prev => prev ? { ...prev, posts_count: postsData.length } : null);
+      console.log('Author check result:', authorCheck);
+
+      if (!authorCheck) {
+        console.error('Author not found in Sanity with ID:', profile.sanity_author_id);
+        setPosts([]);
+        return;
+      }
+
+      // Fetch posts from Sanity using the author's Sanity ID
+      const sanityPosts = await client.fetch(POSTS_BY_AUTHOR_QUERY, {
+        id: profile.sanity_author_id
+      });
+
+      console.log('Sanity posts fetched:', sanityPosts);
+
+      // Transform Sanity posts to match your UserPost interface
+      const postsData: UserPost[] = sanityPosts.map((post: SanityPost) => ({
+        id: post._id,
+        title: post.title || '',
+        content: post.body
+          ? post.body
+            .map((block: PortableTextBlock) =>
+              block.children?.map((child: PortableTextChild) => child.text).join('') || ''
+            )
+            .join('\n')
+          : '',
+        excerpt: post.description || post.excerpt || '',
+        image_url: post.mainImage?.asset?.url || null,
+        media_urls: post.mainImage?.asset?.url ? [post.mainImage.asset.url] : [],
+        author_id: profile.id,
+        author: {
+          id: profile.id,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          username: profile.username,
+          image_url: profile.image_url,
+          is_verified: profile.role === 'author',
+        },
+        likes_count: post.likes || 0,
+        comments_count: post.comments || 0,
+        bookmarks_count: 0,
+        shares_count: 0,
+        published_at: post.publishedAt || post._createdAt,
+        created_at: post._createdAt,
+        updated_at: post._updatedAt,
+        is_liked: false,
+        is_bookmarked: false,
+        visibility: 'public',
+      }));
+
+
+      console.log('Transformed posts:', postsData);
+      setPosts(postsData);
+
+      // Update profile with posts count
+      if (profile) {
+        setProfile(prev => prev ? { ...prev, posts_count: postsData.length } : null);
+      }
+    } catch (error) {
+      console.error('Error fetching user posts from Sanity:', error);
+      setPosts([]);
+    } finally {
+      setPostsLoading(false);
     }
-  } catch (error) {
-    console.error('Error fetching user posts from Sanity:', error);
-    setPosts([]);
-  } finally {
-    setPostsLoading(false);
-  }
-};
+  };
 
 
   const fetchUserActivity = async () => {
@@ -361,39 +392,39 @@ const UserProfilePage = () => {
   };
 
   const handleModalFollow = async (userId: string, isCurrentlyFollowing: boolean) => {
-  if (!user?.id) return;
+    if (!user?.id) return;
 
-  try {
-    const response = await fetch('/api/follow', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        action: isCurrentlyFollowing ? 'unfollow' : 'follow',
-        following_id: userId,
-      }),
-    });
+    try {
+      const response = await fetch('/api/follow', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: isCurrentlyFollowing ? 'unfollow' : 'follow',
+          following_id: userId,
+        }),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to update follow status');
-    }
-    
-    // Refresh the modal data only if the operation was successful
-    if (data.success) {
-      if (followersModalOpen) {
-        fetchFollowers();
-      } else if (followingModalOpen) {
-        fetchFollowing();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update follow status');
       }
+
+      // Refresh the modal data only if the operation was successful
+      if (data.success) {
+        if (followersModalOpen) {
+          fetchFollowers();
+        } else if (followingModalOpen) {
+          fetchFollowing();
+        }
+      }
+    } catch (error) {
+      console.error('Error updating follow status:', error);
+      alert('Failed to update follow status. Please try again.');
     }
-  } catch (error) {
-    console.error('Error updating follow status:', error);
-    alert('Failed to update follow status. Please try again.');
-  }
-};
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -402,7 +433,7 @@ const UserProfilePage = () => {
           return (
             <div className="text-center py-8">
               <p className="text-gray-600 dark:text-gray-400">
-                This user doesn't have any posts to display.
+                This user doesn&apos;t have any posts to display.
               </p>
             </div>
           );
@@ -444,7 +475,7 @@ const UserProfilePage = () => {
             User not found
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            The user you're looking for doesn't exist.
+            The user you&apos;re looking for doesn&apos;t exist.
           </p>
         </div>
       </div>

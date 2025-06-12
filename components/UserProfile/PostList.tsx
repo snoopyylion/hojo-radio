@@ -68,7 +68,7 @@ export const PostsList: React.FC<PostsListProps> = ({ posts, loading = false }) 
           No posts yet
         </h3>
         <p className="text-gray-600 dark:text-gray-400">
-          This author hasn't published any posts yet.
+          This author hasn&apos;t published any posts yet.
         </p>
       </div>
     );

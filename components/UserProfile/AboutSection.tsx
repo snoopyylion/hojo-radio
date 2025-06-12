@@ -6,8 +6,7 @@ import { gsap } from 'gsap';
 import { 
   Mail, 
   MapPin, 
-  Calendar, 
-  Globe, 
+  Calendar,
   User, 
   Shield,
   Award,

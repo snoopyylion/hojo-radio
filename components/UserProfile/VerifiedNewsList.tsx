@@ -1,11 +1,10 @@
 // components/UserProfile/VerifiedNewsList.tsx
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import Image from 'next/image';
-import Link from 'next/link';
-import { Shield, ExternalLink, Calendar, Eye, TrendingUp } from 'lucide-react';
+import { Shield, ExternalLink, Calendar, Eye } from 'lucide-react';
 
 interface VerifiedNews {
   id: string;
