@@ -1,5 +1,3 @@
-// Updated CreatePostForm with better markdown handling and validation
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -8,7 +6,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import MDEditor from '@uiw/react-md-editor';
 import { Button } from './ui/button';
-import { Send, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Send, AlertCircle, Eye, EyeOff, Plus, X, Hash, Image as ImageIcon } from 'lucide-react';
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { createPostItem } from "@/lib/action";
@@ -29,6 +27,7 @@ const CreatePostForm = () => {
     const [categoryOptions, setCategoryOptions] = useState<{ _id: string, title: string }[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [previewMode, setPreviewMode] = useState<'edit' | 'preview'>('edit');
+    const [focusedField, setFocusedField] = useState<string | null>(null);
     const router = useRouter();
 
     // Fetch categories from Sanity
@@ -163,7 +162,7 @@ const CreatePostForm = () => {
         try {
             new URL(string);
             return true;
-        } catch (_) {
+        } catch {
             return false;
         }
     };
@@ -181,190 +180,262 @@ const CreatePostForm = () => {
             .replace(/^(\s*)\d+\.\s+/gm, '$11. ');
     };
 
+    // Remove a category
+    const removeCategory = (categoryId: string) => {
+        setCategories(prev => prev.filter(id => id !== categoryId));
+    };
+
+    // Add a category
+    const addCategory = (categoryId: string) => {
+        if (!categories.includes(categoryId)) {
+            setCategories(prev => [...prev, categoryId]);
+            if (errors.categories) {
+                setErrors(prev => ({ ...prev, categories: "" }));
+            }
+        }
+    };
+
     return (
-        <form
-            action={formAction}
-            className="w-full max-w-4xl mx-auto p-6 md:p-8 bg-white dark:bg-gray-900 rounded-2xl shadow-xl space-y-6 border border-gray-100 dark:border-gray-800 transition-colors"
-        >
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Create New Post</h2>
-
-            {/* Info alert about content guidelines */}
-            <div className="flex gap-2 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
-                <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-blue-700 dark:text-blue-300">
-                    <p className="font-medium">Content Guidelines:</p>
-                    <ul className="mt-1 space-y-1">
-                        <li>• Use descriptive headings to structure your content</li>
-                        <li>• Keep paragraphs concise and readable</li>
-                        <li>• Use direct image links under 5MB for best performance</li>
-                    </ul>
-                </div>
-            </div>
-
-            {/* Title */}
-            <div>
-                <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Title *
-                </label>
-                <Input
-                    id="title"
-                    name="title"
-                    className="w-full rounded-xl border border-gray-300 dark:border-gray-600 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-800 dark:text-white"
-                    required
-                    placeholder="Enter a compelling post title"
-                    onChange={(e) => {
-                        if (errors.title && e.target.value.length >= 3) {
-                            setErrors(prev => ({ ...prev, title: "" }));
-                        }
-                    }}
-                />
-                {errors.title && <p className="text-sm text-red-500 mt-1">{errors.title}</p>}
-            </div>
-
-            {/* Description */}
-            <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Description *
-                </label>
-                <Textarea
-                    id="description"
-                    name="description"
-                    className="w-full rounded-xl border border-gray-300 dark:border-gray-600 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-800 dark:text-white"
-                    required
-                    placeholder="Write a brief, engaging summary of your post"
-                    rows={3}
-                    onChange={(e) => {
-                        if (errors.description && e.target.value.length >= 10) {
-                            setErrors(prev => ({ ...prev, description: "" }));
-                        }
-                    }}
-                />
-                {errors.description && <p className="text-sm text-red-500 mt-1">{errors.description}</p>}
-            </div>
-
-            {/* Categories */}
-            <div>
-                <label htmlFor="categoryIds" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Categories * (Hold Ctrl/Cmd to select multiple)
-                </label>
-                <select
-                    name="categoryIds"
-                    id="categoryIds"
-                    multiple
-                    className="w-full rounded-xl border border-gray-300 dark:border-gray-600 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-800 dark:text-white min-h-[120px]"
-                    onChange={(e) => {
-                        const selected = [...e.target.selectedOptions].map(option => option.value);
-                        setCategories(selected);
-                        if (errors.categories && selected.length > 0) {
-                            setErrors(prev => ({ ...prev, categories: "" }));
-                        }
-                    }}
-                >
-                    {categoryOptions.map((cat) => (
-                        <option key={cat._id} value={cat._id} className="py-2">
-                            {cat.title}
-                        </option>
-                    ))}
-                </select>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Selected: {categories.length} categor{categories.length === 1 ? 'y' : 'ies'}
+        <div className="w-full max-w-2xl mx-auto">
+            {/* Header */}
+            <div className="mb-12 text-center">
+                <h1 className="text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+                    Share your story
+                </h1>
+                <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+                    Create compelling content that resonates with your audience
                 </p>
-                {errors.categories && <p className="text-sm text-red-500 mt-1">{errors.categories}</p>}
             </div>
 
-            {/* Image URL */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Featured Image *
-                </label>
-                <ImageUploader
-                    onImageReady={(url) => {
-                        setImageUrl(url);
-                        if (errors.imageUrl && url) {
-                            setErrors(prev => ({ ...prev, imageUrl: "" }));
-                        }
-                    }}
-                />
-                {errors.imageUrl && <p className="text-sm text-red-500 mt-1">{errors.imageUrl}</p>}
-            </div>
+            <form action={formAction} className="space-y-8">
+                
+                {/* Title Field */}
+                <div className="space-y-2">
+                    <div className="relative">
+                        <Input
+                            id="title"
+                            name="title"
+                            className={`w-full text-2xl font-medium border-0 border-b-2 rounded-none bg-transparent px-0 py-4 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-[#EF3866] transition-colors ${
+                                focusedField === 'title' ? 'border-[#EF3866]' : 'border-gray-200 dark:border-gray-700'
+                            }`}
+                            required
+                            placeholder="Your compelling headline..."
+                            onFocus={() => setFocusedField('title')}
+                            onBlur={() => setFocusedField(null)}
+                            onChange={(e) => {
+                                if (errors.title && e.target.value.length >= 3) {
+                                    setErrors(prev => ({ ...prev, title: "" }));
+                                }
+                            }}
+                        />
+                    </div>
+                    {errors.title && (
+                        <p className="text-sm text-red-500 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {errors.title}
+                        </p>
+                    )}
+                </div>
 
-            {/* Content Editor */}
-            <div data-color-mode="auto">
-                <div className="flex items-center justify-between mb-2">
-                    <label htmlFor="body" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Content * (Markdown supported)
-                    </label>
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {body.length} characters
+                {/* Description Field */}
+                <div className="space-y-2">
+                    <div className="relative">
+                        <Textarea
+                            id="description"
+                            name="description"
+                            className={`w-full text-lg border-0 border-b-2 rounded-none bg-transparent px-0 py-4 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-[#EF3866] resize-none transition-colors ${
+                                focusedField === 'description' ? 'border-[#EF3866]' : 'border-gray-200 dark:border-gray-700'
+                            }`}
+                            required
+                            placeholder="Write a captivating summary that draws readers in..."
+                            rows={3}
+                            onFocus={() => setFocusedField('description')}
+                            onBlur={() => setFocusedField(null)}
+                            onChange={(e) => {
+                                if (errors.description && e.target.value.length >= 10) {
+                                    setErrors(prev => ({ ...prev, description: "" }));
+                                }
+                            }}
+                        />
+                    </div>
+                    {errors.description && (
+                        <p className="text-sm text-red-500 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {errors.description}
+                        </p>
+                    )}
+                </div>
+
+                {/* Categories Section */}
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                        <Hash className="w-4 h-4" />
+                        <span className="text-sm font-medium">Categories</span>
+                    </div>
+                    
+                    {/* Selected Categories */}
+                    {categories.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            {categories.map(categoryId => {
+                                const category = categoryOptions.find(cat => cat._id === categoryId);
+                                return category ? (
+                                    <span
+                                        key={categoryId}
+                                        className="inline-flex items-center gap-1 px-3 py-1 bg-[#EF3866]/10 text-[#EF3866] dark:bg-[#EF3866]/20 rounded-full text-sm font-medium"
+                                    >
+                                        {category.title}
+                                        <button
+                                            type="button"
+                                            onClick={() => removeCategory(categoryId)}
+                                            className="hover:bg-[#EF3866]/20 rounded-full p-0.5 transition-colors"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </span>
+                                ) : null;
+                            })}
+                        </div>
+                    )}
+
+                    {/* Available Categories */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {categoryOptions
+                            .filter(cat => !categories.includes(cat._id))
+                            .map((cat) => (
+                                <button
+                                    key={cat._id}
+                                    type="button"
+                                    onClick={() => addCategory(cat._id)}
+                                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-[#EF3866] hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors text-left"
+                                >
+                                    <Plus className="w-3 h-3" />
+                                    {cat.title}
+                                </button>
+                            ))}
+                    </div>
+                    
+                    {errors.categories && (
+                        <p className="text-sm text-red-500 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {errors.categories}
+                        </p>
+                    )}
+                </div>
+
+                {/* Featured Image Section */}
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                        <ImageIcon className="w-4 h-4" />
+                        <span className="text-sm font-medium">Featured Image</span>
+                    </div>
+                    
+                    <div className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:border-[#EF3866] transition-colors">
+                        <ImageUploader
+                            onImageReady={(url) => {
+                                setImageUrl(url);
+                                if (errors.imageUrl && url) {
+                                    setErrors(prev => ({ ...prev, imageUrl: "" }));
+                                }
+                            }}
+                        />
+                    </div>
+                    
+                    {errors.imageUrl && (
+                        <p className="text-sm text-red-500 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {errors.imageUrl}
+                        </p>
+                    )}
+                </div>
+
+                {/* Content Editor */}
+                <div className="space-y-4" data-color-mode="auto">
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Tell your story
                         </span>
-                        <button
-                            type="button"
-                            onClick={() => setPreviewMode(prev => prev === 'edit' ? 'preview' : 'edit')}
-                            className="flex items-center gap-1 text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {body.length} characters
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setPreviewMode(prev => prev === 'edit' ? 'preview' : 'edit')}
+                                className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-[#EF3866] transition-colors"
+                            >
+                                {previewMode === 'edit' ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                                {previewMode === 'edit' ? 'Preview' : 'Edit'}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden focus-within:border-[#EF3866] transition-colors">
+                        <MDEditor
+                            id="body"
+                            value={body}
+                            onChange={handleEditorChange}
+                            preview={previewMode}
+                            height={300}
+                            style={{ 
+                                backgroundColor: 'transparent',
+                                border: 'none'
+                            }}
+                            textareaProps={{ 
+                                placeholder: `Start writing your story...
+
+Use **bold** for emphasis, *italics* for subtlety
+# Headers for structure
+- Lists for clarity
+
+Your authentic voice matters most.`,
+                                style: {
+                                    fontSize: '16px',
+                                    lineHeight: '1.6',
+                                    padding: '16px'
+                                }
+                            }}
+                            previewOptions={{ 
+                                disallowedElements: ["style"],
+                                className: "prose dark:prose-invert max-w-none p-4"
+                            }}
+                        />
+                    </div>
+                    
+                    {errors.body && (
+                        <p className="text-sm text-red-500 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {errors.body}
+                        </p>
+                    )}
+                </div>
+
+                {/* Submit Section */}
+                <div className="pt-8 border-t border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Ready to inspire others?
+                        </p>
+                        <Button
+                            type="submit"
+                            className="bg-[#EF3866] hover:bg-[#EF3866]/90 text-white px-8 py-2 rounded-full font-medium transition-all transform hover:scale-105 disabled:opacity-50 disabled:scale-100"
+                            disabled={isPending || isSubmitting}
                         >
-                            {previewMode === 'edit' ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                            {previewMode === 'edit' ? 'Preview' : 'Edit'}
-                        </button>
+                            {isPending || isSubmitting ? (
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    Publishing...
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    Publish Story
+                                    <Send className="w-4 h-4" />
+                                </div>
+                            )}
+                        </Button>
                     </div>
                 </div>
-                <MDEditor
-                    id="body"
-                    value={body}
-                    onChange={handleEditorChange}
-                    preview={previewMode}
-                    height={400}
-                    style={{ 
-                        borderRadius: 12, 
-                        overflow: "hidden",
-                        backgroundColor: 'transparent'
-                    }}
-                    textareaProps={{ 
-                        placeholder: `Write your content here using Markdown...
-
-Example:
-# Main Heading
-## Subheading
-**Bold text** and *italic text*
-- Bullet point
-1. Numbered list
-
-[Link text](https://example.com)
-![Image alt text](image-url)
-                        `
-                    }}
-                    previewOptions={{ 
-                        disallowedElements: ["style"],
-                        className: "prose dark:prose-invert max-w-none"
-                    }}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Minimum 50 characters required. Use markdown for formatting.
-                </p>
-                {errors.body && <p className="text-sm text-red-500 mt-1">{errors.body}</p>}
-            </div>
-
-            {/* Submit Button */}
-            <div className="flex gap-4">
-                <Button
-                    type="submit"
-                    className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors px-6 py-3 rounded-xl shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    disabled={isPending || isSubmitting}
-                >
-                    {isPending || isSubmitting ? (
-                        <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            Creating Post...
-                        </>
-                    ) : (
-                        <>
-                            Create Post
-                            <Send className="w-4 h-4" />
-                        </>
-                    )}
-                </Button>
-            </div>
-        </form>
+            </form>
+        </div>
     );
 };
 

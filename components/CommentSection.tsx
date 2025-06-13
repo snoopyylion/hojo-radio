@@ -5,7 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import { formatDistanceToNow } from "date-fns";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { ThumbsUp, ThumbsDown, MessageSquare, User, Send, AlertCircle, Loader2, MoreHorizontal } from "lucide-react";
+import { ThumbsUp, ThumbsDown, MessageSquare, User, AlertCircle, Loader2, MoreHorizontal } from "lucide-react";
 import toast from "react-hot-toast";
 import Image from "next/image";
 

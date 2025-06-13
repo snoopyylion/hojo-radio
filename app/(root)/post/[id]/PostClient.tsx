@@ -1,4 +1,6 @@
+
 "use client";
+import { ReactNode } from 'react';
 import { client } from '@/sanity/lib/client';
 import { notFound } from 'next/navigation';
 import { PortableText } from '@portabletext/react';
@@ -6,6 +8,7 @@ import type { PortableTextReactComponents } from '@portabletext/react';
 import Image from 'next/image';
 import { formatDate } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { ChevronUp, ChevronLeft, ChevronRight, Heart, Bookmark, Share2, Clock, Eye, MessageCircle } from 'lucide-react';
@@ -70,96 +73,97 @@ interface PostClientProps {
   id: string;
 }
 
-const markdownComponents = {
-  h1: ({ children }: any) => (
-    <h1 className="text-3xl md:text-4xl font-light text-gray-900 dark:text-white mb-8 mt-12 first:mt-0 leading-tight">
+const markdownComponents: Components = {
+  h1: ({ children, ...props }) => (
+    <h1 {...props} className="text-3xl md:text-4xl font-light text-gray-900 dark:text-white mb-8 mt-12 first:mt-0 leading-tight">
       {children}
     </h1>
   ),
-  h2: ({ children }: any) => (
-    <h2 className="text-2xl md:text-3xl font-light text-gray-900 dark:text-white mb-6 mt-10 first:mt-0 leading-tight">
+  h2: ({ children, ...props }) => (
+    <h2 {...props} className="text-2xl md:text-3xl font-light text-gray-900 dark:text-white mb-6 mt-10 first:mt-0 leading-tight">
       {children}
     </h2>
   ),
-  h3: ({ children }: any) => (
-    <h3 className="text-xl md:text-2xl font-light text-gray-900 dark:text-white mb-4 mt-8 first:mt-0 leading-tight">
+  h3: ({ children, ...props }) => (
+    <h3 {...props} className="text-xl md:text-2xl font-light text-gray-900 dark:text-white mb-4 mt-8 first:mt-0 leading-tight">
       {children}
     </h3>
   ),
-  h4: ({ children }: any) => (
-    <h4 className="text-lg md:text-xl font-medium text-gray-900 dark:text-white mb-3 mt-6 first:mt-0">
+  h4: ({ children, ...props }) => (
+    <h4 {...props} className="text-lg md:text-xl font-medium text-gray-900 dark:text-white mb-3 mt-6 first:mt-0">
       {children}
     </h4>
   ),
-  h5: ({ children }: any) => (
-    <h5 className="text-base md:text-lg font-medium text-gray-900 dark:text-white mb-2 mt-4 first:mt-0">
+  h5: ({ children, ...props }) => (
+    <h5 {...props} className="text-base md:text-lg font-medium text-gray-900 dark:text-white mb-2 mt-4 first:mt-0">
       {children}
     </h5>
   ),
-  h6: ({ children }: any) => (
-    <h6 className="text-sm md:text-base font-medium text-gray-900 dark:text-white mb-2 mt-4 first:mt-0">
+  h6: ({ children, ...props }) => (
+    <h6 {...props} className="text-sm md:text-base font-medium text-gray-900 dark:text-white mb-2 mt-4 first:mt-0">
       {children}
     </h6>
   ),
-  p: ({ children }: any) => (
-    <p className="mb-6 text-gray-800 dark:text-gray-200 leading-relaxed text-lg md:text-xl font-light">
+  p: ({ children, ...props }) => (
+    <p {...props} className="mb-6 text-gray-800 dark:text-gray-200 leading-relaxed text-lg md:text-xl font-light">
       {children}
     </p>
   ),
-  blockquote: ({ children }: any) => (
-    <blockquote className="my-8 pl-6 border-l-4 border-[#EF3866] dark:border-[#ff7a9c] italic text-lg md:text-xl text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/30 py-4 pr-4 rounded-r-lg">
+  blockquote: ({ children, ...props }) => (
+    <blockquote {...props} className="my-8 pl-6 border-l-4 border-[#EF3866] dark:border-[#ff7a9c] italic text-lg md:text-xl text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/30 py-4 pr-4 rounded-r-lg">
       {children}
     </blockquote>
   ),
-  ul: ({ children }: any) => (
-    <ul className="mb-6 pl-6 space-y-2 text-gray-800 dark:text-gray-200 text-lg md:text-xl leading-relaxed">
+  ul: ({ children, ...props }) => (
+    <ul {...props} className="mb-6 pl-6 space-y-2 text-gray-800 dark:text-gray-200 text-lg md:text-xl leading-relaxed">
       {children}
     </ul>
   ),
-  ol: ({ children }: any) => (
-    <ol className="mb-6 pl-6 space-y-2 text-gray-800 dark:text-gray-200 text-lg md:text-xl leading-relaxed list-decimal">
+  ol: ({ children, ...props }) => (
+    <ol {...props} className="mb-6 pl-6 space-y-2 text-gray-800 dark:text-gray-200 text-lg md:text-xl leading-relaxed list-decimal">
       {children}
     </ol>
   ),
-  li: ({ children }: any) => (
-    <li className="mb-2 text-gray-800 dark:text-gray-200 leading-relaxed">
+  li: ({ children, ...props }) => (
+    <li {...props} className="mb-2 text-gray-800 dark:text-gray-200 leading-relaxed">
       {children}
     </li>
   ),
-  strong: ({ children }: any) => (
-    <strong className="font-semibold text-[#EF3866] dark:text-[#ff7a9c]">
+  strong: ({ children, ...props }) => (
+    <strong {...props} className="font-semibold text-[#EF3866] dark:text-[#ff7a9c]">
       {children}
     </strong>
   ),
-  em: ({ children }: any) => (
-    <em className="italic text-gray-700 dark:text-gray-300">
+  em: ({ children, ...props }) => (
+    <em {...props} className="italic text-gray-700 dark:text-gray-300">
       {children}
     </em>
   ),
-  code: ({ children, className }: any) => {
+  code: ({ children, className, ...props }) => {
     const isInline = !className?.includes('language-');
 
     if (isInline) {
       return (
-        <code className="bg-gray-100 dark:bg-gray-800 text-[#EF3866] dark:text-[#ff7a9c] px-2 py-1 rounded text-sm font-mono">
+        <code {...props} className="bg-gray-100 dark:bg-gray-800 text-[#EF3866] dark:text-[#ff7a9c] px-2 py-1 rounded text-sm font-mono">
           {children}
         </code>
       );
     }
 
     return (
-      <code className={`${className} block bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 p-4 rounded-lg overflow-x-auto text-sm font-mono`}>
+      <code {...props} className={`${className || ''} block bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 p-4 rounded-lg overflow-x-auto text-sm font-mono`}>
         {children}
       </code>
     );
   },
-  pre: ({ children }: any) => (
-    <pre className="mb-6 bg-gray-100 dark:bg-gray-800 p-6 rounded-lg overflow-x-auto border border-gray-200 dark:border-gray-700">
+  pre: ({ children, ...props }) => (
+    <pre {...props} className="mb-6 bg-gray-100 dark:bg-gray-800 p-6 rounded-lg overflow-x-auto border border-gray-200 dark:border-gray-700">
       {children}
     </pre>
   ),
-  a: ({ href, children }: any) => (
+  a: ({ href, children, ...props }) => (
     <a
+      {...props}
       href={href}
       className="text-[#EF3866] dark:text-[#ff7a9c] font-medium hover:underline transition-colors underline-offset-2"
       target={href?.startsWith('http') ? '_blank' : undefined}
@@ -168,10 +172,11 @@ const markdownComponents = {
       {children}
     </a>
   ),
-  img: ({ src, alt }: any) => (
+  img: ({ src, alt, ...props }) => (
     <figure className="my-8 first:mt-0">
       <div className="relative w-full">
         <img
+          {...props}
           src={src}
           alt={alt || 'Content image'}
           className="w-full h-auto rounded-lg shadow-sm"
@@ -184,42 +189,43 @@ const markdownComponents = {
       )}
     </figure>
   ),
-  hr: () => (
-    <hr className="my-12 border-0 h-px bg-gray-200 dark:bg-gray-700" />
+  hr: (props) => (
+    <hr {...props} className="my-12 border-0 h-px bg-gray-200 dark:bg-gray-700" />
   ),
-  table: ({ children }: any) => (
+  table: ({ children, ...props }) => (
     <div className="overflow-x-auto my-8">
-      <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+      <table {...props} className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
         {children}
       </table>
     </div>
   ),
-  thead: ({ children }: any) => (
-    <thead className="bg-gray-50 dark:bg-gray-700">
+  thead: ({ children, ...props }) => (
+    <thead {...props} className="bg-gray-50 dark:bg-gray-700">
       {children}
     </thead>
   ),
-  tbody: ({ children }: any) => (
-    <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+  tbody: ({ children, ...props }) => (
+    <tbody {...props} className="divide-y divide-gray-200 dark:divide-gray-600">
       {children}
     </tbody>
   ),
-  tr: ({ children }: any) => (
-    <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+  tr: ({ children, ...props }) => (
+    <tr {...props} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
       {children}
     </tr>
   ),
-  th: ({ children }: any) => (
-    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+  th: ({ children, ...props }) => (
+    <th {...props} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
       {children}
     </th>
   ),
-  td: ({ children }: any) => (
-    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
+  td: ({ children, ...props }) => (
+    <td {...props} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
       {children}
     </td>
   ),
 };
+
 
 const ptComponents: Partial<PortableTextReactComponents> = {
   types: {
