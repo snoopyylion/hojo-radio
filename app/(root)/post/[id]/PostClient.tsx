@@ -1,6 +1,5 @@
 
 "use client";
-import { ReactNode } from 'react';
 import { client } from '@/sanity/lib/client';
 import { notFound } from 'next/navigation';
 import { PortableText } from '@portabletext/react';
@@ -301,7 +300,6 @@ export default function PostClient({ id }: PostClientProps) {
   const [saved, setSaved] = useState(false);
   const [estimatedReadTime, setEstimatedReadTime] = useState(0);
 
-  const router = useRouter();
   const { likeCount, hasLiked, toggleLike, loading, isSignedIn } = useLikes(id);
   const { refreshUserLikes } = useUserLikes();
 
@@ -456,7 +454,7 @@ export default function PostClient({ id }: PostClientProps) {
           text: post.description,
           url: window.location.href,
         });
-      } catch (error) {
+      } catch {
         // Fallback to copying URL
         navigator.clipboard.writeText(window.location.href);
       }
