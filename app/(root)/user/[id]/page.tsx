@@ -4,8 +4,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { useAppContext } from '@/context/AppContext';
 import { UserProfile, FollowUser, UserPost } from '@/types/user';
-import { client } from '@/sanity/lib/client'; // Your Sanity client
-import { POSTS_BY_AUTHOR_QUERY } from '@/sanity/lib/queries'; // Your query
+import { client } from '@/sanity/lib/client';
+import { POSTS_BY_AUTHOR_QUERY } from '@/sanity/lib/queries';
 // Import your components
 import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
 import { ProfileTabs } from '@/components/UserProfile/ProfileTabs';
@@ -13,8 +13,21 @@ import { PostsList } from '@/components/UserProfile/PostList';
 import { AboutSection } from '@/components/UserProfile/AboutSection';
 import { UserActivity } from '@/components/UserProfile/UserActivity';
 import { FollowModal } from '@/components/UserProfile/FollowModal';
-import VerifiedList from '@/components/VerifiedList';
+import { VerifiedNewsList } from '@/components/UserProfile/VerifiedNewsList';
 
+// Add VerifiedNews interface
+interface VerifiedNews {
+  id: string;
+  title: string;
+  excerpt: string;
+  source: string;
+  published_at: string;
+  verified_at: string;
+  image_url?: string;
+  external_url: string;
+  views_count: number;
+  credibility_score: number;
+}
 
 interface SanityPost {
   _id: string;
@@ -42,7 +55,6 @@ interface PortableTextChild {
   text?: string;
 }
 
-
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -54,10 +66,8 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 interface ExtendedUserProfile extends UserProfile {
   cover_image_url?: string;
   role: 'user' | 'author';
-  sanity_author_id?: string; // Add this to link to Sanity author
+  sanity_author_id?: string;
 }
-
-
 
 interface ActivityItem {
   id: string;
@@ -88,7 +98,9 @@ const UserProfilePage = () => {
   // Content state
   const [posts, setPosts] = useState<UserPost[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [verifiedNews, setVerifiedNews] = useState<VerifiedNews[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
+  const [verifiedNewsLoading, setVerifiedNewsLoading] = useState(false);
 
   // Modal state
   const [followersModalOpen, setFollowersModalOpen] = useState(false);
@@ -109,6 +121,8 @@ const UserProfilePage = () => {
     if (profile?.id) {
       if (activeTab === 'posts' && profile.role === 'author') {
         fetchUserPosts();
+      } else if (activeTab === 'verified') {
+        fetchUserVerifiedNews();
       } else if (activeTab === 'custom') {
         fetchUserActivity();
       }
@@ -152,7 +166,7 @@ const UserProfilePage = () => {
         cover_image_url: data.cover_image_url,
         location: data.location,
         role: data.role || 'user',
-        sanity_author_id: data.sanity_author_id, // This should be set when user becomes author
+        sanity_author_id: data.sanity_author_id,
         followers_count: followersCount || 0,
         following_count: followingCount || 0,
         posts_count: 0,
@@ -185,7 +199,7 @@ const UserProfilePage = () => {
         .eq('following_id', id)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (error && error.code !== 'PGRST116') {
         throw error;
       }
 
@@ -266,7 +280,6 @@ const UserProfilePage = () => {
         visibility: 'public',
       }));
 
-
       console.log('Transformed posts:', postsData);
       setPosts(postsData);
 
@@ -282,6 +295,33 @@ const UserProfilePage = () => {
     }
   };
 
+  // New function to fetch verified news for the profile user
+  const fetchUserVerifiedNews = async () => {
+    if (!profile?.id) return;
+
+    try {
+      setVerifiedNewsLoading(true);
+
+      const response = await fetch(`/api/user-verified-news?userId=${profile.id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch verified news');
+      }
+
+      const data = await response.json();
+      setVerifiedNews(data.verifiedNews || []);
+    } catch (error) {
+      console.error('Error fetching user verified news:', error);
+      setVerifiedNews([]);
+    } finally {
+      setVerifiedNewsLoading(false);
+    }
+  };
 
   const fetchUserActivity = async () => {
     if (!profile?.id) return;
@@ -333,7 +373,6 @@ const UserProfilePage = () => {
       }
     } catch (error) {
       console.error('Error updating follow status:', error);
-      // You might want to show a toast notification here
       alert('Failed to update follow status. Please try again.');
     } finally {
       setFollowLoading(false);
@@ -401,7 +440,6 @@ const UserProfilePage = () => {
         throw new Error(data.error || 'Failed to update follow status');
       }
 
-      // Refresh the modal data only if the operation was successful
       if (data.success) {
         if (followersModalOpen) {
           fetchFollowers();
@@ -452,7 +490,10 @@ const UserProfilePage = () => {
       case 'verified':
         return (
           <div className="px-4 sm:px-6 lg:px-8">
-            <VerifiedList />
+            <VerifiedNewsList 
+              news={verifiedNews} 
+              loading={verifiedNewsLoading}
+            />
           </div>
         );
       case 'custom':
@@ -522,7 +563,7 @@ const UserProfilePage = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="sticky top-16 sm:top-20 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-800/50">
+      <div className="top-16 sm:top-20 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-800/50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <ProfileTabs
             activeTab={activeTab}

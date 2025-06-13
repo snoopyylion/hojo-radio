@@ -1,10 +1,16 @@
 // components/UserProfile/VerifiedNewsList.tsx
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import Image from 'next/image';
-import { Shield, ExternalLink, Calendar, Eye } from 'lucide-react';
+import { Shield, ExternalLink, Calendar, Eye, ChevronDown, X, AlertTriangle } from 'lucide-react';
+
+interface NewsSource {
+  name: string;
+  url: string;
+  credibility_score: number;
+}
 
 interface VerifiedNews {
   id: string;
@@ -15,8 +21,13 @@ interface VerifiedNews {
   verified_at: string;
   image_url?: string;
   external_url: string;
+  sources?: NewsSource[]; // Parsed from matched_sources
   views_count: number;
   credibility_score: number;
+  is_fake?: boolean; // Based on verdict and credibility_score
+  has_matching_source?: boolean; // Based on matched_sources availability
+  verdict?: string; // From database
+  confidence_level?: string; // From database
 }
 
 interface VerifiedNewsListProps {
@@ -29,6 +40,8 @@ export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({
   loading = false 
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [selectedArticle, setSelectedArticle] = useState<string | null>(null);
+  const [showSourceModal, setShowSourceModal] = useState(false);
 
   useEffect(() => {
     if (containerRef.current && !loading) {
@@ -55,10 +68,84 @@ export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({
   };
 
   const getCredibilityColor = (score: number) => {
-    if (score >= 90) return 'text-green-600 bg-green-100';
-    if (score >= 75) return 'text-blue-600 bg-blue-100';
-    if (score >= 60) return 'text-yellow-600 bg-yellow-100';
-    return 'text-red-600 bg-red-100';
+    if (score >= 80) return 'text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-950/50';
+    if (score >= 60) return 'text-blue-700 bg-blue-50 dark:text-blue-300 dark:bg-blue-950/50';
+    if (score >= 40) return 'text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-950/50';
+    return 'text-red-700 bg-red-50 dark:text-red-300 dark:bg-red-950/50';
+  };
+
+  const getVerdictColor = (verdict: string) => {
+    switch (verdict?.toLowerCase()) {
+      case 'verified':
+      case 'true':
+        return 'text-emerald-700 dark:text-emerald-300';
+      case 'likely fake':
+      case 'fake':
+      case 'false':
+        return 'text-red-700 dark:text-red-300';
+      case 'misleading':
+        return 'text-orange-700 dark:text-orange-300';
+      default:
+        return 'text-amber-700 dark:text-amber-300';
+    }
+  };
+
+  const handleReadFullArticle = (article: VerifiedNews) => {
+    // Check if article has sources from matched_sources
+    if (article.sources && article.sources.length > 1) {
+      setSelectedArticle(article.id);
+      setShowSourceModal(true);
+    } else if (article.sources && article.sources.length === 1) {
+      // Single source, navigate directly
+      const url = article.sources[0].url;
+      if (url && url !== '#' && url.startsWith('http')) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    } else if (article.external_url && article.external_url !== '#' && article.external_url.startsWith('http')) {
+      // Fallback to external_url
+      window.open(article.external_url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleSourceSelect = (url: string) => {
+    if (url && url !== '#' && url.startsWith('http')) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+    setShowSourceModal(false);
+    setSelectedArticle(null);
+  };
+
+  const closeModal = () => {
+    setShowSourceModal(false);
+    setSelectedArticle(null);
+  };
+
+  // Check if article should show "Read Full Article" link
+  const shouldShowReadLink = (article: VerifiedNews) => {
+    // Hide for fake news
+    if (article.is_fake) return false;
+    
+    // Hide if explicitly marked as having no matching source
+    if (article.has_matching_source === false) return false;
+    
+    // Show if has valid sources from matched_sources
+    if (article.sources && article.sources.length > 0) {
+      const hasValidSources = article.sources.some(source => 
+        source.url && source.url !== '#' && source.url.startsWith('http')
+      );
+      if (hasValidSources) return true;
+    }
+    
+    // Show if has valid external_url
+    if (article.external_url && article.external_url !== '#' && article.external_url.startsWith('http')) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  const getSelectedArticle = () => {
+    return news.find(article => article.id === selectedArticle);
   };
 
   if (loading) {
@@ -88,76 +175,177 @@ export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({
           No verified news yet
         </h3>
         <p className="text-gray-600 dark:text-gray-400">
-          No verified news articles have been shared yet.
+          No verified news articles have been processed yet.
         </p>
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className="space-y-6">
-      {news.map((article) => (
-        <div
-          key={article.id}
-          className="news-item group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 hover:shadow-lg hover:border-[#EF3866]/30 transition-all duration-300"
-        >
-          <div className="flex gap-4">
-            {article.image_url && (
-              <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden flex-shrink-0">
-                <Image
-                  src={article.image_url}
-                  alt={article.title}
-                  width={96}
-                  height={96}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-              </div>
-            )}
-            
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-[#EF3866] transition-colors line-clamp-2">
-                  {article.title}
-                </h3>
-                <div className="flex items-center gap-2 ml-4">
-                  <div className={`px-2 py-1 rounded-full text-xs font-semibold ${getCredibilityColor(article.credibility_score)}`}>
-                    {article.credibility_score}%
-                  </div>
-                  <Shield size={16} className="text-[#EF3866]" />
+    <>
+      <div ref={containerRef} className="space-y-6">
+        {news.map((article) => (
+          <div
+            key={article.id}
+            className="news-item group bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl p-6 hover:shadow-lg hover:border-slate-400/30 dark:hover:border-slate-500/30 transition-all duration-300"
+          >
+            <div className="flex gap-4">
+              {article.image_url && (
+                <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden flex-shrink-0">
+                  <Image
+                    src={article.image_url}
+                    alt={article.title}
+                    width={96}
+                    height={96}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
                 </div>
-              </div>
+              )}
               
-              <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
-                {article.excerpt}
-              </p>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Calendar size={12} />
-                    <span>{formatDate(article.published_at)}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors line-clamp-2">
+                    {article.title}
+                  </h3>
+                  <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                    <div className={`px-2 py-1 rounded-full text-xs font-semibold ${getCredibilityColor(article.credibility_score)}`}>
+                      {article.credibility_score}%
+                    </div>
+                    {article.is_fake ? (
+                      <div className="flex items-center gap-1">
+                        <AlertTriangle size={16} className="text-red-500" />
+                        <span className="text-xs text-red-500 font-semibold">FAKE</span>
+                      </div>
+                    ) : (
+                      <Shield size={16} className="text-slate-600 dark:text-slate-400" />
+                    )}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Eye size={12} />
-                    <span>{article.views_count}</span>
-                  </div>
-                  <span className="font-medium text-[#EF3866]">{article.source}</span>
                 </div>
                 
-                <a
-                  href={article.external_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-[#EF3866] hover:text-[#d7325a] text-sm font-medium transition-colors"
-                >
-                  <span>Read Full Article</span>
-                  <ExternalLink size={14} />
-                </a>
+                {article.verdict && (
+                  <div className="mb-2">
+                    <span className={`text-sm font-semibold ${getVerdictColor(article.verdict)}`}>
+                      Verdict: {article.verdict}
+                    </span>
+                    {article.confidence_level && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                        ({article.confidence_level} confidence)
+                      </span>
+                    )}
+                  </div>
+                )}
+                
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
+                  {article.excerpt}
+                </p>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <Calendar size={12} />
+                      <span>{formatDate(article.published_at)}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Eye size={12} />
+                      <span>{article.views_count}</span>
+                    </div>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">{article.source}</span>
+                    {article.sources && article.sources.length > 1 && (
+                      <span className="text-blue-600 dark:text-blue-400 text-xs">
+                        {article.sources.length} sources available
+                      </span>
+                    )}
+                  </div>
+                  
+                  {shouldShowReadLink(article) && (
+                    <button
+                      onClick={() => handleReadFullArticle(article)}
+                      className="flex items-center gap-1 text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100 text-sm font-medium transition-colors"
+                    >
+                      <span>Read Full Article</span>
+                      {article.sources && article.sources.length > 1 ? (
+                        <ChevronDown size={14} />
+                      ) : (
+                        <ExternalLink size={14} />
+                      )}
+                    </button>
+                  )}
+                </div>
+                
+                {/* Show message for fake news or no sources */}
+                {(article.is_fake || (!article.sources?.length && !article.external_url)) && (
+                  <div className="mt-3 p-2 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800/50">
+                    <p className="text-xs text-orange-700 dark:text-orange-300">
+                      {article.is_fake 
+                        ? "⚠️ This article has been identified as potentially fake or misleading." 
+                        : "ℹ️ No reliable sources found for this article."}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
+        ))}
+      </div>
+
+      {/* Responsive Source Selection Modal */}
+      {showSourceModal && selectedArticle && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white dark:bg-black rounded-xl w-full max-w-[95vw] sm:max-w-lg md:max-w-xl lg:max-w-2xl max-h-[90vh] sm:max-h-[85vh] overflow-hidden border border-gray-200 dark:border-gray-800 shadow-2xl">
+            {/* Header */}
+            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-800">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-tight">
+                    Choose Source to Read
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1 sm:mt-2 leading-relaxed">
+                    This news is available from multiple verified sources. Choose which one to read:
+                  </p>
+                </div>
+                <button
+                  onClick={closeModal}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 -m-1 flex-shrink-0"
+                  aria-label="Close modal"
+                >
+                  <X size={18} className="sm:hidden" />
+                  <X size={20} className="hidden sm:block" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Sources List */}
+            <div className="p-3 sm:p-6 space-y-2 sm:space-y-3 max-h-[60vh] sm:max-h-96 overflow-y-auto">
+              {getSelectedArticle()?.sources
+                ?.filter(source => source.url && source.url !== '#' && source.url.startsWith('http'))
+                .map((source, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleSourceSelect(source.url)}
+                  className="w-full text-left p-3 sm:p-4 border border-gray-200 dark:border-gray-800 rounded-lg hover:border-slate-400/50 dark:hover:border-slate-600/50 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-slate-500/20 dark:focus:ring-slate-400/20"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900 dark:text-white text-sm sm:text-base leading-tight">
+                        {source.name}
+                      </h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate leading-relaxed">
+                        {source.url}
+                      </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className={`px-2 py-1 rounded-full text-xs font-semibold ${getCredibilityColor(source.credibility_score)}`}>
+                          {source.credibility_score}% credible
+                        </div>
+                      </div>
+                    </div>
+                    <ExternalLink size={14} className="text-slate-600 dark:text-slate-400 ml-2 flex-shrink-0 sm:w-4 sm:h-4" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      ))}
-    </div>
+      )}
+    </>
   );
 };
