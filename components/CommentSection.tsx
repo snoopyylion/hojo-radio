@@ -5,7 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import { formatDistanceToNow } from "date-fns";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { ThumbsUp, ThumbsDown, MessageSquare, User, Send, AlertCircle, Loader2 } from "lucide-react";
+import { ThumbsUp, ThumbsDown, MessageSquare, User, Send, AlertCircle, Loader2, MoreHorizontal } from "lucide-react";
 import toast from "react-hot-toast";
 import Image from "next/image";
 
@@ -178,18 +178,11 @@ export default function CommentSection({ postId }: Props) {
 
   if (isLoading) {
     return (
-      <div className="font-sora mt-8">
-        <div className="flex items-center gap-2 mb-6">
-          <span className="inline-block w-8 h-1 bg-[#EF3866] dark:bg-[#ff7a9c]"></span>
-          <h3 className="text-2xl font-sora font-bold text-gray-900 dark:text-white flex items-center">
-            <MessageSquare size={20} className="mr-2" /> 
-            Discussion
-          </h3>
-        </div>
-        <div className="flex justify-center py-10">
-          <div className="flex flex-col items-center">
-            <Loader2 className="h-8 w-8 text-[#EF3866] animate-spin" />
-            <p className="mt-2 text-gray-600 dark:text-gray-300 text-sm font-sora">Loading comments...</p>
+      <div className="mt-8 border-t border-gray-100 dark:border-gray-800 pt-8">
+        <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center space-y-3">
+            <div className="w-8 h-8 border-2 border-gray-200 dark:border-gray-700 border-t-[#EF3866] rounded-full animate-spin"></div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading comments...</p>
           </div>
         </div>
       </div>
@@ -198,201 +191,175 @@ export default function CommentSection({ postId }: Props) {
 
   if (error) {
     return (
-      <div className="font-sora mt-8">
-        <div className="flex items-center gap-2 mb-6">
-          <span className="inline-block w-8 h-1 bg-[#EF3866] dark:bg-[#ff7a9c]"></span>
-          <h3 className="text-2xl font-sora font-bold text-gray-900 dark:text-white">Discussion</h3>
-        </div>
-        <div className="p-6 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg shadow border border-red-100 dark:border-red-800/50">
-          <div className="flex items-center gap-3 mb-3">
-            <AlertCircle size={24} />
-            <p className="font-medium font-sora">Error loading comments</p>
+      <div className="mt-8 border-t border-gray-100 dark:border-gray-800 pt-8">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400 mb-4">Failed to load comments</p>
+            <Button 
+              onClick={fetchComments}
+              variant="outline"
+              size="sm"
+              className="text-[#EF3866] border-[#EF3866] hover:bg-[#EF3866] hover:text-white"
+            >
+              Try again
+            </Button>
           </div>
-          <p className="mb-4 text-red-600 dark:text-red-300 font-sora">{error}</p>
-          <Button 
-            onClick={fetchComments} 
-            className="mt-2 bg-red-600 hover:bg-red-700 text-white border-none font-sora"
-          >
-            Try Again
-          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="font-sora mt-8">
-      {/* Comment stats */}
-      <div className="flex items-center justify-between mb-6 px-2">
-        <p className="text-gray-600 dark:text-gray-400 font-sora">
-          <span className="font-medium text-gray-900 dark:text-white">{comments.length}</span> comments in this discussion
-        </p>
-        <div className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-600 dark:text-gray-300 font-sora">
-          Sort by latest
+    <div className="mt-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-center space-x-3">
+          <h3 className="text-xl font-light text-gray-900 dark:text-white">
+            Comments
+          </h3>
+          <span className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full">
+            {comments.length}
+          </span>
         </div>
       </div>
       
       {/* Comment input */}
       {user ? (
-        <div className="mb-8 bg-white dark:bg-gray-800  dark:text-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-3 mb-4">
+        <div className="mb-12">
+          <div className="flex items-start space-x-3">
             {user.imageUrl ? (
-              <div className="relative h-10 w-10">
-                <Image 
-                  src={user.imageUrl} 
-                  alt={user.fullName || "User"} 
-                  width={40} 
-                  height={40}
-                  className="rounded-full object-cover border-2 border-[#EF3866] dark:border-[#ff7a9c]" 
-                />
-              </div>
+              <Image 
+                src={user.imageUrl} 
+                alt={user.fullName || "User"} 
+                width={40} 
+                height={40}
+                className="rounded-full object-cover ring-2 ring-gray-100 dark:ring-gray-800" 
+              />
             ) : (
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#EF3866] to-pink-400 flex items-center justify-center text-white font-medium font-sora">
+              <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 text-sm font-medium">
                 {user.firstName?.charAt(0) || "U"}
               </div>
             )}
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white font-sora">{user.fullName}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-sora">Signed in as {user.primaryEmailAddress?.emailAddress}</p>
-            </div>
-          </div>
-          
-          <div className="relative">
-            <Textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Share your thoughts on this article..."
-              rows={3}
-              className="w-full border-2 dark:border-gray-700 rounded-xl focus:border-[#EF3866] dark:focus:border-[#ff7a9c] focus:ring-1 focus:ring-[#EF3866] dark:focus:ring-[#ff7a9c] transition-colors p-4 resize-none bg-gray-50 dark:bg-gray-900 font-sora"
-            />
             
-            <div className="flex justify-end mt-3">
-              <Button 
-                onClick={handleSubmit} 
-                disabled={loading || !newComment.trim()}
-                className={`bg-gradient-to-r from-[#EF3866] to-[#F06292] text-white px-5 py-2 rounded-full hover:brightness-110 transition flex items-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-sora`}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>Posting...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send size={16} />
-                    <span>Post Comment</span>
-                  </>
-                )}
-              </Button>
+            <div className="flex-1">
+              <Textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Join the discussion..."
+                rows={3}
+                className="w-full text-center border-0 border-gray-200 dark:border-gray-700 rounded-none focus:border-[#EF3866]  bg-transparent resize-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 px-0 py-3"
+              />
+              
+              <div className="flex items-center justify-between mt-3">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Commenting as <span className="font-medium">{user.fullName}</span>
+                </p>
+                <Button 
+                  onClick={handleSubmit} 
+                  disabled={loading || !newComment.trim()}
+                  size="sm"
+                  className="bg-[#EF3866] hover:bg-[#EF3866]/90 text-white px-4 py-2 h-8 text-sm disabled:opacity-50"
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Post"
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       ) : (
-        <div className="mb-8 bg-gray-50 dark:bg-gray-800/50 p-5 rounded-xl text-center border border-dashed border-gray-300 dark:border-gray-700">
-          <User size={32} className="mx-auto text-gray-400 mb-2" />
-          <p className="text-gray-700 dark:text-gray-300 font-sora">Sign in to join the discussion and leave a comment.</p>
+        <div className="mb-12 text-center py-8 bg-gray-50 dark:bg-gray-900/30 rounded-lg border border-gray-200 dark:border-gray-700">
+          <User className="w-8 h-8 text-gray-400 mx-auto mb-3" />
+          <p className="text-gray-600 dark:text-gray-400 mb-4">Join the conversation</p>
+          <p className="text-sm text-gray-500 dark:text-gray-500">Sign in to leave a comment</p>
         </div>
       )}
-      
-      <div className="flex items-center gap-2 mb-6">
-        <span className="inline-block w-8 h-1 bg-[#EF3866] dark:bg-[#ff7a9c]"></span>
-        <h3 className="text-2xl font-sora font-bold text-gray-900 dark:text-white flex items-center">
-          <MessageSquare size={20} className="mr-2" /> 
-          Discussion
-        </h3>
-      </div>
 
-      {/* Display comments */}
+      {/* Comments list */}
       {comments.length === 0 ? (
-        <div className="bg-gray-50 dark:bg-gray-800/30 p-10 rounded-xl text-center border border-dashed border-gray-200 dark:border-gray-700">
-          <MessageSquare size={40} className="mx-auto text-gray-400 mb-3" />
-          <p className="text-gray-700 dark:text-gray-300 font-sora text-lg">No comments yet.</p>
-          <p className="text-gray-500 dark:text-gray-400 mt-1 font-sora">Be the first to share your thoughts on this article!</p>
+        <div className="text-center py-16">
+          <MessageSquare className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+          <p className="text-gray-500 dark:text-gray-400 mb-2">No comments yet</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">Be the first to share your thoughts</p>
         </div>
       ) : (
-        <ul className="space-y-6">
-          {comments.map((comment) => (
-            <li key={comment.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden transition-all hover:shadow-lg border border-gray-100 dark:border-gray-700">
-              {/* Comment header with user info */}
-              <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#EF3866] to-pink-400 flex items-center justify-center text-white font-bold font-sora">
-                    {getInitials(comment.user_first_name, comment.user_last_name)}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 dark:text-white font-sora">
-                      {`${comment.user_first_name} ${comment.user_last_name}`}
-                    </p>
-                    <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 font-sora">
-                      <span>{formatTimeAgo(comment.created_at)} ago</span>
-                      <span className="inline-block h-1 w-1 rounded-full bg-gray-400 mx-2"></span>
-                      <span>Reader</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Comment body */}
-              <div className="p-4 md:p-6">
-                <p className="text-gray-800 dark:text-gray-200 font-sora leading-relaxed">
-                  {comment.comment}
-                </p>
-              </div>
-              
-              {/* Comment footer with reactions */}
-              <div className="flex items-center justify-between px-4 md:px-6 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700">
-                <div className="flex gap-4">
-                  <button
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors font-sora ${
-                      comment.userReaction === 'like' 
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
-                    onClick={() => handleReaction(comment.id, "like")}
-                    disabled={submittingReaction === comment.id}
-                    aria-label="Like comment"
-                  >
-                    <ThumbsUp size={16} className={comment.userReaction === 'like' ? "fill-current" : ""} />
-                    <span className="text-sm font-medium">{comment.likes || 0}</span>
-                  </button>
-                  
-                  <button
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors font-sora ${
-                      comment.userReaction === 'dislike'
-                        ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
-                    onClick={() => handleReaction(comment.id, "dislike")}
-                    disabled={submittingReaction === comment.id}
-                    aria-label="Dislike comment"
-                  >
-                    <ThumbsDown size={16} className={comment.userReaction === 'dislike' ? "fill-current" : ""} />
-                    <span className="text-sm font-medium">{comment.dislikes || 0}</span>
-                  </button>
+        <div className="space-y-8">
+          {comments.map((comment, index) => (
+            <article key={comment.id} className="group">
+              <div className="flex items-start space-x-3">
+                {/* Avatar */}
+                <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 text-xs font-medium flex-shrink-0">
+                  {getInitials(comment.user_first_name, comment.user_last_name)}
                 </div>
                 
-                <div className="text-xs text-gray-500 dark:text-gray-400 font-sora">
-                  {submittingReaction === comment.id && (
-                    <span className="flex items-center gap-1">
-                      <Loader2 size={12} className="animate-spin" />
-                      Processing...
+                {/* Comment content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                      {`${comment.user_first_name} ${comment.user_last_name}`}
+                    </h4>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {formatTimeAgo(comment.created_at)} ago
                     </span>
-                  )}
+                  </div>
+                  
+                  <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed mb-3">
+                    {comment.comment}
+                  </p>
+                  
+                  {/* Reaction buttons */}
+                  <div className="flex items-center space-x-1">
+                    <button
+                      className={`flex items-center space-x-1 px-2 py-1 rounded-md text-xs transition-colors ${
+                        comment.userReaction === 'like' 
+                          ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                          : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                      onClick={() => handleReaction(comment.id, "like")}
+                      disabled={submittingReaction === comment.id}
+                    >
+                      <ThumbsUp className={`w-3 h-3 ${comment.userReaction === 'like' ? 'fill-current' : ''}`} />
+                      <span>{comment.likes || 0}</span>
+                    </button>
+                    
+                    <button
+                      className={`flex items-center space-x-1 px-2 py-1 rounded-md text-xs transition-colors ${
+                        comment.userReaction === 'dislike'
+                          ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                          : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                      onClick={() => handleReaction(comment.id, "dislike")}
+                      disabled={submittingReaction === comment.id}
+                    >
+                      <ThumbsDown className={`w-3 h-3 ${comment.userReaction === 'dislike' ? 'fill-current' : ''}`} />
+                      <span>{comment.dislikes || 0}</span>
+                    </button>
+                    
+                    <button className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <MoreHorizontal className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </li>
+              
+              {/* Divider (except for last comment) */}
+              {index < comments.length - 1 && (
+                <div className="mt-8 border-b border-gray-100 dark:border-gray-800"></div>
+              )}
+            </article>
           ))}
-        </ul>
+        </div>
       )}
       
-      {/* Load more comments button (if needed) */}
-      {comments.length > 5 && (
-        <div className="mt-8 text-center">
-          <button className="inline-flex items-center gap-2 text-[#EF3866] dark:text-[#ff7a9c] font-medium hover:underline font-sora">
-            Load more comments
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
+      {/* Load more (if needed) */}
+      {comments.length > 10 && (
+        <div className="mt-12 text-center">
+          <button className="text-sm text-gray-500 dark:text-gray-400 hover:text-[#EF3866] dark:hover:text-[#ff7a9c] transition-colors">
+            Show more comments
           </button>
         </div>
       )}

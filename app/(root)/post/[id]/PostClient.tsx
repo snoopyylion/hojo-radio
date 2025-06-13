@@ -8,12 +8,17 @@ import { formatDate } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Heart, Bookmark, Volume2 } from 'lucide-react';
+import { ChevronUp, ChevronLeft, ChevronRight, Heart, Bookmark, Share2, Clock, Eye, MessageCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CommentSection from '@/components/CommentSection';
 import type { PortableTextBlock } from '@portabletext/types';
 import { useLikes } from '../../../../hooks/likes/useLikes';
 import { useUserLikes } from '../../../../hooks/user-likes/useUserLikes';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+// Register GSAP plugins
+gsap.registerPlugin(ScrollTrigger);
 
 // Define interfaces for type safety
 interface PostImage {
@@ -65,20 +70,177 @@ interface PostClientProps {
   id: string;
 }
 
+const markdownComponents = {
+  h1: ({ children }: any) => (
+    <h1 className="text-3xl md:text-4xl font-light text-gray-900 dark:text-white mb-8 mt-12 first:mt-0 leading-tight">
+      {children}
+    </h1>
+  ),
+  h2: ({ children }: any) => (
+    <h2 className="text-2xl md:text-3xl font-light text-gray-900 dark:text-white mb-6 mt-10 first:mt-0 leading-tight">
+      {children}
+    </h2>
+  ),
+  h3: ({ children }: any) => (
+    <h3 className="text-xl md:text-2xl font-light text-gray-900 dark:text-white mb-4 mt-8 first:mt-0 leading-tight">
+      {children}
+    </h3>
+  ),
+  h4: ({ children }: any) => (
+    <h4 className="text-lg md:text-xl font-medium text-gray-900 dark:text-white mb-3 mt-6 first:mt-0">
+      {children}
+    </h4>
+  ),
+  h5: ({ children }: any) => (
+    <h5 className="text-base md:text-lg font-medium text-gray-900 dark:text-white mb-2 mt-4 first:mt-0">
+      {children}
+    </h5>
+  ),
+  h6: ({ children }: any) => (
+    <h6 className="text-sm md:text-base font-medium text-gray-900 dark:text-white mb-2 mt-4 first:mt-0">
+      {children}
+    </h6>
+  ),
+  p: ({ children }: any) => (
+    <p className="mb-6 text-gray-800 dark:text-gray-200 leading-relaxed text-lg md:text-xl font-light">
+      {children}
+    </p>
+  ),
+  blockquote: ({ children }: any) => (
+    <blockquote className="my-8 pl-6 border-l-4 border-[#EF3866] dark:border-[#ff7a9c] italic text-lg md:text-xl text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/30 py-4 pr-4 rounded-r-lg">
+      {children}
+    </blockquote>
+  ),
+  ul: ({ children }: any) => (
+    <ul className="mb-6 pl-6 space-y-2 text-gray-800 dark:text-gray-200 text-lg md:text-xl leading-relaxed">
+      {children}
+    </ul>
+  ),
+  ol: ({ children }: any) => (
+    <ol className="mb-6 pl-6 space-y-2 text-gray-800 dark:text-gray-200 text-lg md:text-xl leading-relaxed list-decimal">
+      {children}
+    </ol>
+  ),
+  li: ({ children }: any) => (
+    <li className="mb-2 text-gray-800 dark:text-gray-200 leading-relaxed">
+      {children}
+    </li>
+  ),
+  strong: ({ children }: any) => (
+    <strong className="font-semibold text-[#EF3866] dark:text-[#ff7a9c]">
+      {children}
+    </strong>
+  ),
+  em: ({ children }: any) => (
+    <em className="italic text-gray-700 dark:text-gray-300">
+      {children}
+    </em>
+  ),
+  code: ({ children, className }: any) => {
+    const isInline = !className?.includes('language-');
+
+    if (isInline) {
+      return (
+        <code className="bg-gray-100 dark:bg-gray-800 text-[#EF3866] dark:text-[#ff7a9c] px-2 py-1 rounded text-sm font-mono">
+          {children}
+        </code>
+      );
+    }
+
+    return (
+      <code className={`${className} block bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 p-4 rounded-lg overflow-x-auto text-sm font-mono`}>
+        {children}
+      </code>
+    );
+  },
+  pre: ({ children }: any) => (
+    <pre className="mb-6 bg-gray-100 dark:bg-gray-800 p-6 rounded-lg overflow-x-auto border border-gray-200 dark:border-gray-700">
+      {children}
+    </pre>
+  ),
+  a: ({ href, children }: any) => (
+    <a
+      href={href}
+      className="text-[#EF3866] dark:text-[#ff7a9c] font-medium hover:underline transition-colors underline-offset-2"
+      target={href?.startsWith('http') ? '_blank' : undefined}
+      rel={href?.startsWith('http') ? 'noopener noreferrer' : undefined}
+    >
+      {children}
+    </a>
+  ),
+  img: ({ src, alt }: any) => (
+    <figure className="my-8 first:mt-0">
+      <div className="relative w-full">
+        <img
+          src={src}
+          alt={alt || 'Content image'}
+          className="w-full h-auto rounded-lg shadow-sm"
+        />
+      </div>
+      {alt && (
+        <figcaption className="text-sm text-gray-500 dark:text-gray-400 mt-3 text-center italic">
+          {alt}
+        </figcaption>
+      )}
+    </figure>
+  ),
+  hr: () => (
+    <hr className="my-12 border-0 h-px bg-gray-200 dark:bg-gray-700" />
+  ),
+  table: ({ children }: any) => (
+    <div className="overflow-x-auto my-8">
+      <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({ children }: any) => (
+    <thead className="bg-gray-50 dark:bg-gray-700">
+      {children}
+    </thead>
+  ),
+  tbody: ({ children }: any) => (
+    <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+      {children}
+    </tbody>
+  ),
+  tr: ({ children }: any) => (
+    <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+      {children}
+    </tr>
+  ),
+  th: ({ children }: any) => (
+    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+      {children}
+    </th>
+  ),
+  td: ({ children }: any) => (
+    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
+      {children}
+    </td>
+  ),
+};
 
 const ptComponents: Partial<PortableTextReactComponents> = {
   types: {
     image: ({ value }) => {
       if (!value?.asset?.url) return null;
       return (
-        <div className="relative w-full aspect-video my-8">
-          <Image
-            src={value.asset.url}
-            alt={value.alt || 'Post image'}
-            fill
-            className="object-cover rounded-xl shadow-md"
-          />
-        </div>
+        <figure className="my-12 first:mt-0">
+          <div className="relative w-full aspect-video">
+            <Image
+              src={value.asset.url}
+              alt={value.alt || 'Post image'}
+              fill
+              className="object-cover"
+            />
+          </div>
+          {value.alt && (
+            <figcaption className="text-sm text-gray-500 dark:text-gray-400 mt-3 text-center italic">
+              {value.alt}
+            </figcaption>
+          )}
+        </figure>
       );
     },
   },
@@ -86,41 +248,151 @@ const ptComponents: Partial<PortableTextReactComponents> = {
     link: ({ children, value }) => {
       const rel = value?.href && !value.href.startsWith('/') ? 'noreferrer noopener' : undefined;
       return (
-        <a href={value?.href || '#'} rel={rel} className="text-[#EF3866] dark:text-[#ff7a9c] font-medium hover:underline transition-colors">
+        <a
+          href={value?.href || '#'}
+          rel={rel}
+          className="text-[#EF3866] dark:text-[#ff7a9c] font-medium hover:underline transition-colors underline-offset-2"
+        >
           {children}
         </a>
       );
     },
   },
+  block: {
+    normal: ({ children }) => (
+      <p className="mb-6 text-gray-800 dark:text-gray-200 leading-relaxed text-lg">
+        {children}
+      </p>
+    ),
+    h1: ({ children }) => (
+      <h1 className="text-3xl md:text-4xl font-light text-gray-900 dark:text-white mb-8 mt-12 first:mt-0">
+        {children}
+      </h1>
+    ),
+    h2: ({ children }) => (
+      <h2 className="text-2xl md:text-3xl font-light text-gray-900 dark:text-white mb-6 mt-10 first:mt-0">
+        {children}
+      </h2>
+    ),
+    h3: ({ children }) => (
+      <h3 className="text-xl md:text-2xl font-light text-gray-900 dark:text-white mb-4 mt-8 first:mt-0">
+        {children}
+      </h3>
+    ),
+    blockquote: ({ children }) => (
+      <blockquote className="my-8 pl-6 border-l-2 border-[#EF3866] dark:border-[#ff7a9c] italic text-lg text-gray-700 dark:text-gray-300">
+        {children}
+      </blockquote>
+    ),
+  },
 };
 
 export default function PostClient({ id }: PostClientProps) {
   const [post, setPost] = useState<Post | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // ✅ Renamed to avoid conflict
-  const [, setShowNavigation] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [readingProgress, setReadingProgress] = useState(0);
+  const [saved, setSaved] = useState(false);
+  const [estimatedReadTime, setEstimatedReadTime] = useState(0);
+
   const router = useRouter();
   const { likeCount, hasLiked, toggleLike, loading, isSignedIn } = useLikes(id);
   const { refreshUserLikes } = useUserLikes();
 
-  // States for scroll tracking and boundaries
-  const [atTop, setAtTop] = useState(true);
-  const [atBottom, setAtBottom] = useState(false);
+  // Animation refs
+  const heroRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
+  const scrollTopRef = useRef<HTMLButtonElement>(null);
 
-  // New states for improved scroll navigation
-  const [scrollDirection, setScrollDirection] = useState<'none' | 'up' | 'down'>('none');
-  const scrollAttemptTimer = useRef<NodeJS.Timeout | null>(null);
-  const [navigationIntent, setNavigationIntent] = useState<'none' | 'prev' | 'next'>('none');
-  const navigationConfirmationCounter = useRef(0);
-  const navigationMaxConfirmations = 3; // Increased from 2 to give more time
+  // Scroll progress tracking
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrolled = window.scrollY;
+      const maxHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = Math.min((scrolled / maxHeight) * 100, 100);
+      setReadingProgress(progress);
+      setShowScrollTop(scrolled > 400);
+    };
 
-  const [saved, setSaved] = useState(false);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // GSAP Animations
+  useEffect(() => {
+    if (!isLoading && post) {
+      const tl = gsap.timeline();
+
+      // Hero animation
+      if (heroRef.current) {
+        gsap.set(heroRef.current, { opacity: 0, y: 30 });
+        tl.to(heroRef.current, {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          ease: "power3.out"
+        });
+      }
+
+      // Content fade in
+      if (contentRef.current) {
+        gsap.set(contentRef.current, { opacity: 0, y: 20 });
+        tl.to(contentRef.current, {
+          opacity: 1,
+          y: 0,
+          duration: 0.6,
+          ease: "power2.out"
+        }, "-=0.4");
+      }
+
+      // Progress bar animation
+      if (progressBarRef.current) {
+        gsap.set(progressBarRef.current, { scaleX: 0, transformOrigin: "left" });
+      }
+
+      // Scroll top button
+      if (scrollTopRef.current) {
+        gsap.set(scrollTopRef.current, { scale: 0, rotation: -180 });
+      }
+    }
+  }, [isLoading, post]);
+
+  // Progress bar update
+  useEffect(() => {
+    if (progressBarRef.current) {
+      gsap.to(progressBarRef.current, {
+        scaleX: readingProgress / 100,
+        duration: 0.1,
+        ease: "none"
+      });
+    }
+  }, [readingProgress]);
+
+  // Scroll top button animation
+  useEffect(() => {
+    if (scrollTopRef.current) {
+      if (showScrollTop) {
+        gsap.to(scrollTopRef.current, {
+          scale: 1,
+          rotation: 0,
+          duration: 0.3,
+          ease: "back.out(1.7)"
+        });
+      } else {
+        gsap.to(scrollTopRef.current, {
+          scale: 0,
+          rotation: -180,
+          duration: 0.3,
+          ease: "back.in(1.7)"
+        });
+      }
+    }
+  }, [showScrollTop]);
 
   useEffect(() => {
     const fetchPost = async () => {
       try {
-        // If id is undefined or empty, throw error to prevent unnecessary API call
         if (!id) {
           throw new Error("Missing post ID");
         }
@@ -140,145 +412,64 @@ export default function PostClient({ id }: PostClientProps) {
         if (!fetchedPost) {
           notFound();
         }
+
         setPost(fetchedPost);
+
+        // Calculate reading time
+        const wordCount = (fetchedPost.body as string || '').split(' ').length;
+        const readTime = Math.ceil(wordCount / 200); // Average reading speed
+        setEstimatedReadTime(readTime);
       } catch (error) {
         console.error("Failed to fetch post:", error);
       } finally {
-        setIsLoading(false); // ✅ Updated to use renamed variable
+        setIsLoading(false);
       }
     };
 
     fetchPost();
   }, [id]);
 
-  useEffect(() => {
-    // Reset navigation confirmation counter when navigation intent changes
-    navigationConfirmationCounter.current = 0;
-
-    // Clear any existing timer when navigation intent changes
-    if (scrollAttemptTimer.current) {
-      clearTimeout(scrollAttemptTimer.current);
-      scrollAttemptTimer.current = null;
-    }
-  }, [navigationIntent]);
-
-   const handleLikeClick = async () => {
+  const handleLikeClick = async () => {
     await toggleLike();
-    // Refresh user's total likes count after liking/unliking
     refreshUserLikes();
   };
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      const previousScrollY = lastScrollY;
+  const scrollToTop = () => {
+    gsap.to(window, {
+      scrollTo: { y: 0 },
+      duration: 1,
+      ease: "power2.out"
+    });
+  };
 
-      // Calculate scroll direction
-      if (currentScrollY < previousScrollY) {
-        setScrollDirection('up');
-      } else if (currentScrollY > previousScrollY) {
-        setScrollDirection('down');
+  const handleShare = async () => {
+    if (navigator.share && post) {
+      try {
+        await navigator.share({
+          title: post.title,
+          text: post.description,
+          url: window.location.href,
+        });
+      } catch (error) {
+        // Fallback to copying URL
+        navigator.clipboard.writeText(window.location.href);
       }
-
-      // Show navigation hint if user scrolls down
-      setShowNavigation(currentScrollY > 200);
-
-      // Determine if we're at boundaries
-      const windowHeight = window.innerHeight;
-      const documentHeight = document.documentElement.scrollHeight;
-
-      const isAtTop = currentScrollY < 50;
-      const isAtBottom = (windowHeight + currentScrollY) >= documentHeight - 50;
-
-      setAtTop(isAtTop);
-      setAtBottom(isAtBottom);
-
-      // IMPROVED MOBILE SCROLL: Use debounce for navigation
-      const isMobile = window.innerWidth < 768;
-      const timeoutDuration = isMobile ? 800 : 400; // Longer timeout for mobile
-
-      // REVERSED DIRECTION: Check for continued scrolling at boundaries
-      // When at bottom and trying to scroll DOWN, we want to go to PREVIOUS post
-      if (isAtBottom && scrollDirection === 'down' && post?.prevPost?._id) {
-        if (navigationIntent === 'prev') {
-          // Clear existing timer
-          if (scrollAttemptTimer.current) {
-            clearTimeout(scrollAttemptTimer.current);
-          }
-
-          // Capture the prevPost _id before the timeout
-          const prevPostId = post.prevPost._id;
-
-          // Set new timer with debounce
-          scrollAttemptTimer.current = setTimeout(() => {
-            navigationConfirmationCounter.current += 1;
-
-            if (navigationConfirmationCounter.current >= navigationMaxConfirmations) {
-              router.push(`/post/${prevPostId}`);
-              setNavigationIntent('none');
-              navigationConfirmationCounter.current = 0;
-            }
-          }, timeoutDuration);
-        } else {
-          setNavigationIntent('prev');
-          navigationConfirmationCounter.current = 1;
-        }
-      }
-      // When at top and trying to scroll UP, we want to go to NEXT post
-      else if (isAtTop && scrollDirection === 'up' && post?.nextPost?._id) {
-        if (navigationIntent === 'next') {
-          // Clear existing timer
-          if (scrollAttemptTimer.current) {
-            clearTimeout(scrollAttemptTimer.current);
-          }
-
-          // Capture the nextPost _id before the timeout
-          const nextPostId = post.nextPost._id;
-
-          // Set new timer with debounce
-          scrollAttemptTimer.current = setTimeout(() => {
-            navigationConfirmationCounter.current += 1;
-
-            if (navigationConfirmationCounter.current >= navigationMaxConfirmations) {
-              router.push(`/post/${nextPostId}`);
-              setNavigationIntent('none');
-              navigationConfirmationCounter.current = 0;
-            }
-          }, timeoutDuration);
-        } else {
-          setNavigationIntent('next');
-          navigationConfirmationCounter.current = 1;
-        }
-      }
-
-      // Reset intent if user starts scrolling normally again
-      else if (!isAtTop && !isAtBottom) {
-        setNavigationIntent('none');
-        navigationConfirmationCounter.current = 0;
-        if (scrollAttemptTimer.current) {
-          clearTimeout(scrollAttemptTimer.current);
-          scrollAttemptTimer.current = null;
-        }
-      }
-
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY, post, router, scrollDirection, navigationIntent]);
+    } else {
+      // Fallback to copying URL
+      navigator.clipboard.writeText(window.location.href);
+    }
+  };
 
   // Determine content type
   const isPortableText = post?.body && typeof post.body === 'object' && Array.isArray(post.body);
   const isMarkdown = post?.body && typeof post.body === 'string';
 
-  if (isLoading) { // ✅ Updated to use renamed variable
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="h-6 w-32 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
-          <div className="h-10 w-64 bg-gray-300 dark:bg-gray-600 rounded mb-8"></div>
-          <div className="h-48 w-full max-w-md bg-gray-200 dark:bg-gray-700 rounded"></div>
+        <div className="relative w-16 h-16">
+          <div className="absolute inset-0 border-4 border-gray-200 dark:border-gray-800 rounded-full"></div>
+          <div className="absolute inset-0 border-4 border-transparent border-t-[#EF3866] rounded-full animate-spin"></div>
         </div>
       </div>
     );
@@ -287,268 +478,247 @@ export default function PostClient({ id }: PostClientProps) {
   if (!post) return notFound();
 
   return (
-    <div className="bg-white dark:bg-gray-900 transition-colors duration-300 min-h-screen" ref={scrollRef}>
-      {/* Scroll Indicators - Only show when actively trying to navigate */}
-      {navigationIntent === 'prev' && atBottom && post?.prevPost && (
-        <div className="fixed bottom-0 inset-x-0 bg-gradient-to-t from-[#EF3866]/80 to-transparent h-32 z-40 flex items-end justify-center pb-12 text-white">
-          <div className="animate-bounce flex flex-col items-center">
-            <ChevronDown size={24} className="mb-2" />
-            <p className="text-sm md:text-base font-medium bg-black/30 px-4 py-2 rounded-full backdrop-blur-sm">
-              Continue scrolling for previous post
-              <span className="ml-2 inline-flex items-center justify-center bg-white text-[#EF3866] w-6 h-6 rounded-full">
-                {navigationConfirmationCounter.current}/{navigationMaxConfirmations}
-              </span>
-            </p>
-          </div>
-        </div>
-      )}
-
-      {navigationIntent === 'next' && atTop && post?.nextPost && (
-        <div className="fixed top-0 inset-x-0 bg-gradient-to-b from-[#EF3866]/80 to-transparent h-32 z-40 flex items-start justify-center pt-12 text-white">
-          <div className="animate-bounce flex flex-col items-center">
-            <ChevronUp size={24} className="mb-2" />
-            <p className="text-sm md:text-base font-medium bg-black/30 px-4 py-2 rounded-full backdrop-blur-sm">
-              Continue scrolling for next post
-              <span className="ml-2 inline-flex items-center justify-center bg-white text-[#EF3866] w-6 h-6 rounded-full">
-                {navigationConfirmationCounter.current}/{navigationMaxConfirmations}
-              </span>
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* "End of Posts" indicator when there's no previous/next post */}
-      {scrollDirection === 'down' && atBottom && !post?.prevPost && (
-        <div className="fixed bottom-0 inset-x-0 bg-gradient-to-t from-gray-400/50 dark:from-gray-700/50 to-transparent h-16 z-40 flex items-end justify-center pb-4">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            ― End of posts ―
-          </p>
-        </div>
-      )}
-
-      {scrollDirection === 'up' && atTop && !post?.nextPost && (
-        <div className="fixed top-0 inset-x-0 bg-gradient-to-b from-gray-400/50 dark:from-gray-700/50 to-transparent h-16 z-40 flex items-start justify-center pt-4">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            ― Beginning of posts ―
-          </p>
-        </div>
-      )}
-
-      {/* Hero Section with parallax effect */}
-      <section className="pt-[120px] md:pt-[150px] bg-gradient-to-r from-pink-100 via-white to-purple-100 dark:from-pink-950 dark:via-gray-950 dark:to-purple-950 py-16 text-center px-4 md:px-10 transition-colors duration-300 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/img/heroimg.png')] opacity-5"></div>
-        <div className="relative z-10">
-          <p className="uppercase text-sm text-gray-500 dark:text-gray-400 tracking-widest transition-colors">
-            {formatDate(post.publishedAt || post._createdAt || '')}
-          </p>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-gray-900 dark:text-white mt-4 transition-colors leading-tight">
-            {post.title}
-          </h1>
-          {post.description && (
-            <p className="mt-4 max-w-2xl mx-auto text-base md:text-lg text-gray-600 dark:text-gray-300 transition-colors">
-              {post.description}
-            </p>
-          )}
-        </div>
-      </section>
-
-      {/* ACTION BUTTONS */}
-      <div className="sticky top-4 z-30 mt-6 flex justify-center gap-3 md:gap-4 flex-wrap px-4">
-        <div className="flex gap-3 md:gap-4 backdrop-blur-md bg-white/70 dark:bg-black/70 p-2 rounded-full shadow-lg border border-gray-100 dark:border-gray-800">
-          <button
-      onClick={handleLikeClick}
-      disabled={loading || !isSignedIn}
-      className={`
-        flex items-center gap-2 px-3 py-2 rounded-full transition-all duration-200
-        ${hasLiked 
-          ? 'bg-red-50 text-red-600 hover:bg-red-100' 
-          : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-        }
-        ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}
-        ${!isSignedIn ? 'opacity-50 cursor-not-allowed' : ''}
-      `}
-      title={!isSignedIn ? 'Sign in to like posts' : hasLiked ? 'Unlike this post' : 'Like this post'}
-    >
-      <Heart 
-        className={`w-5 h-5 transition-all duration-200 ${
-          hasLiked ? 'fill-current text-red-600' : 'text-gray-400'
-        }`}
-      />
-      <span className="font-medium">
-        {loading ? '...' : likeCount}
-      </span>
-      {!isSignedIn && (
-        <span className="text-xs text-gray-400 ml-1">
-          (Sign in to like)
-        </span>
-      )}
-    </button>
-
-          <button
-            onClick={() => setSaved(prev => !prev)}
-            className={`${saved ? 'bg-gradient-to-r from-yellow-500 to-amber-500' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'} px-4 py-2 rounded-full hover:brightness-110 transition flex items-center gap-2 shadow-md text-sm md:text-base`}
-          >
-            <Bookmark size={18} className={saved ? "fill-white text-white" : ""} />
-            <span className="hidden md:block">{saved ? 'Saved' : 'Save'}</span>
-          </button>
-
-          <button className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-full hover:brightness-110 transition flex items-center gap-2 shadow-md text-sm md:text-base">
-            <Volume2 size={18} />
-            <span className="hidden md:block">Listen</span>
-          </button>
-        </div>
+    <div className="min-h-screen bg-white dark:bg-black transition-colors duration-300">
+      {/* Reading Progress Bar */}
+      <div className="fixed top-0 left-0 right-0 h-1 bg-gray-100 dark:bg-gray-900 z-50">
+        <div
+          ref={progressBarRef}
+          className="h-full bg-[#EF3866] dark:bg-[#ff7a9c] transform origin-left"
+        />
       </div>
 
-      {/* Main Post Section - IMPROVED NEWSPAPER/BLOG STYLE */}
-      <section className="px-4 md:px-10 py-10 max-w-4xl mx-auto">
-        {post.mainImage?.asset?.url && (
-          <div className="w-full aspect-video relative rounded-xl overflow-hidden shadow-xl mb-12 group">
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent z-10"></div>
-            <Image
-              src={post.mainImage.asset.url}
-              alt={post.mainImage.alt || post.title}
-              fill
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
-              priority
-            />
-          </div>
-        )}
-
-        {/* Author + Category */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          {post.author && (
-            <div className="flex items-center gap-4">
-              {post.author.imageUrl || post.author.image?.asset?.url ? (
-                <div className="relative">
-                  <Image
-                    src={post.author.imageUrl || post.author.image?.asset?.url || '/placeholder-avatar.png'}
-                    alt={post.author.name || "Author"}
-                    width={60}
-                    height={60}
-                    className="rounded-full border-2 border-[#EF3866] object-cover shadow-md"
-                  />
-                  <span className="absolute bottom-0 right-0 bg-green-500 h-3 w-3 rounded-full border-2 border-white dark:border-black"></span>
-                </div>
-              ) : (
-                <div className="w-[60px] h-[60px] rounded-full bg-gradient-to-br from-[#EF3866] to-pink-400 flex items-center justify-center text-white text-lg font-bold">
-                  {post.author.name?.charAt(0) || "A"}
-                </div>
-              )}
-              <div>
-                <p className="font-semibold text-lg text-gray-900 dark:text-white transition-colors">
-                  {post.author.name}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 transition-colors">
-                  @{post.author.name?.toLowerCase().replace(/\s+/g, '')}
-                </p>
-              </div>
-            </div>
-          )}
+      {/* Minimal Header */}
+      <header className="pt-[120px] pb-8 px-4 md:px-8 lg:px-16 max-w-4xl mx-auto">
+        <div ref={heroRef}>
+          {/* Categories */}
           {post.categories && post.categories.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
-              {post.categories.map(category => (
-                <span key={category.title} className="inline-block bg-[#fce7f3] dark:bg-[#EF3866] dark:text-white text-[#d7325a] text-sm font-medium px-4 py-1 rounded-full shadow-sm transition-colors">
+            <div className="mb-6">
+              {post.categories.map((category, index) => (
+                <span
+                  key={category.title}
+                  className="inline-block text-sm font-medium text-[#EF3866] dark:text-[#ff7a9c] mr-4"
+                >
+                  {index > 0 && <span className="text-gray-300 mr-4">•</span>}
                   {category.title}
                 </span>
               ))}
             </div>
           )}
-        </div>
 
-        {/* IMPROVED POST CONTENT - International News/Blog Style */}
-        <div className="bg-white dark:bg-gray-900 p-0 md:p-0 rounded-xl transition-colors">
-          {/* First letter styling for newspaper feel */}
-          <div className="text-gray-800 dark:text-gray-200 prose prose-lg md:prose-xl max-w-none 
-                        prose-headings:font-serif prose-headings:tracking-tight prose-headings:font-bold
-                        prose-p:leading-relaxed prose-p:tracking-wide prose-p:font-serif
-                        prose-strong:text-[#EF3866] dark:prose-strong:text-[#ff7a9c]
-                        prose-a:text-[#EF3866] dark:prose-a:text-[#ff7a9c] prose-a:no-underline prose-a:font-medium
-                        prose-blockquote:border-l-4 prose-blockquote:border-[#EF3866] prose-blockquote:pl-6 prose-blockquote:italic
-                        prose-blockquote:text-gray-700 dark:prose-blockquote:text-gray-300
-                        prose-img:rounded-xl prose-img:shadow-lg
-                        dark:prose-headings:text-white dark:prose-p:text-gray-200 
-                        dark:prose-strong:text-white dark:prose-li:text-gray-300 
-                        transition-colors
-                        first-letter:text-6xl first-letter:font-serif first-letter:font-bold 
-                        first-letter:mr-3 first-letter:float-left first-letter:text-[#EF3866]
-                        dark:first-letter:text-[#ff7a9c]">
+          {/* Title */}
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-light text-gray-900 dark:text-white mb-6 leading-tight tracking-tight">
+            {post.title}
+          </h1>
+
+          {/* Subtitle */}
+          {post.description && (
+            <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-8 font-light leading-relaxed">
+              {post.description}
+            </p>
+          )}
+
+          {/* Meta Information */}
+          <div className="flex flex-wrap items-center gap-6 text-sm text-gray-500 dark:text-gray-400 mb-8">
+            <time className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              {formatDate(post.publishedAt || post._createdAt || '')}
+            </time>
+            <span className="flex items-center gap-2">
+              <Eye className="w-4 h-4" />
+              {estimatedReadTime} min read
+            </span>
+          </div>
+
+          {/* Author */}
+          {post.author && (
+            <div className="flex items-center gap-4 pb-8 border-b border-gray-100 dark:border-gray-800">
+              {post.author.imageUrl || post.author.image?.asset?.url ? (
+                <Image
+                  src={post.author.imageUrl || post.author.image?.asset?.url || '/placeholder-avatar.png'}
+                  alt={post.author.name || "Author"}
+                  width={48}
+                  height={48}
+                  className="rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#EF3866] to-pink-400 flex items-center justify-center text-white font-medium">
+                  {post.author.name?.charAt(0) || "A"}
+                </div>
+              )}
+              <div>
+                <p className="font-medium text-gray-900 dark:text-white">
+                  {post.author.name}
+                </p>
+                {post.author.bio && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {post.author.bio}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Hero Image */}
+      {post.mainImage?.asset?.url && (
+        <div className="mb-12 px-4 md:px-8 lg:px-16">
+          <div className="max-w-4xl mx-auto">
+            <figure>
+              <div className="w-full aspect-video relative">
+                <Image
+                  src={post.mainImage.asset.url}
+                  alt={post.mainImage.alt || post.title}
+                  fill
+                  className="object-cover rounded-lg"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+                  priority
+                />
+              </div>
+              {post.mainImage.alt && (
+                <figcaption className="text-sm text-gray-500 dark:text-gray-400 mt-3 text-center italic">
+                  {post.mainImage.alt}
+                </figcaption>
+              )}
+            </figure>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <article className="px-4 md:px-8 lg:px-16 max-w-4xl mx-auto">
+        <div ref={contentRef}>
+          {/* Content */}
+          <div className="max-w-none mb-16">
             {isPortableText && (
-              <PortableText
-                value={post.body as PortableTextBlock[]}
-                components={ptComponents}
-              />
+              <div className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                <PortableText
+                  value={post.body as PortableTextBlock[]}
+                  components={ptComponents}
+                />
+              </div>
             )}
             {isMarkdown && (
-              <ReactMarkdown>{post.body as string}</ReactMarkdown>
+              <div className="markdown-content [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                <ReactMarkdown components={markdownComponents}>
+                  {post.body as string}
+                </ReactMarkdown>
+              </div>
             )}
           </div>
 
-          {/* Pull quote for visual interest */}
-          <div className="my-8 md:my-12 px-6 py-10 border-l-4 border-[#EF3866] dark:border-[#ff7a9c] bg-gray-50 dark:bg-gray-800/50 rounded-r-xl">
-            <p className="text-xl md:text-2xl font-serif italic text-gray-700 dark:text-gray-200">
-              &quot;{post.description || "An interesting perspective on modern journalism and digital media consumption."}&quot;
-            </p>
-            {post.author && (
-              <p className="text-right mt-4 text-[#EF3866] dark:text-white font-medium">—{post.author.name}</p>
+          {/* Engagement Actions - Sticky */}
+          <div className="sticky bottom-8 z-40 mb-16">
+            <div className="flex justify-center">
+              <div className="flex items-center gap-4 bg-white/90 dark:bg-black/90 backdrop-blur-md border border-gray-200 dark:border-gray-800 rounded-full px-6 py-3 shadow-lg">
+                <button
+                  onClick={handleLikeClick}
+                  disabled={loading || !isSignedIn}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 ${hasLiked
+                      ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    } ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                  title={!isSignedIn ? 'Sign in to like posts' : hasLiked ? 'Unlike this post' : 'Like this post'}
+                >
+                  <Heart
+                    className={`w-5 h-5 transition-all duration-200 ${hasLiked ? 'fill-current text-red-600' : 'text-gray-600 dark:text-gray-400'
+                      }`}
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {loading ? '...' : likeCount}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setSaved(prev => !prev)}
+                  className={`p-2 rounded-full transition-all duration-200 hover:scale-105 ${saved
+                      ? 'text-yellow-600 hover:bg-yellow-50'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  title={saved ? 'Remove from saved' : 'Save for later'}
+                >
+                  <Bookmark className={`w-5 h-5 ${saved ? 'fill-current' : ''}`} />
+                </button>
+
+                <button
+                  onClick={handleShare}
+                  className="p-2 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 hover:scale-105"
+                  title="Share this post"
+                >
+                  <Share2 className="w-5 h-5" />
+                </button>
+
+                <a
+                  href="#comments"
+                  className="p-2 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 hover:scale-105"
+                  title="Jump to comments"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Comments Section */}
+          <section id="comments" className="border-t border-gray-100 dark:border-gray-800 pt-12">
+            <h2 className="text-2xl md:text-3xl font-light text-gray-900 dark:text-white mb-8">
+              Discussion
+            </h2>
+            <CommentSection postId={post._id} />
+          </section>
+        </div>
+      </article>
+
+      {/* Navigation */}
+      {(post.prevPost || post.nextPost) && (
+        <nav className="border-t border-gray-100 dark:border-gray-800 mt-16 pt-8 px-4 md:px-8 lg:px-16 max-w-4xl mx-auto">
+          <div className="flex justify-between items-center">
+            {post.prevPost ? (
+              <Link
+                href={`/post/${post.prevPost._id}`}
+                className="flex items-center gap-3 text-gray-600 dark:text-gray-400 hover:text-[#EF3866] dark:hover:text-[#ff7a9c] transition-colors group"
+              >
+                <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                <div>
+                  <p className="text-sm">Previous</p>
+                  <p className="font-medium">{post.prevPost.title}</p>
+                </div>
+              </Link>
+            ) : (
+              <div />
+            )}
+
+            {post.nextPost ? (
+              <Link
+                href={`/post/${post.nextPost._id}`}
+                className="flex items-center gap-3 text-gray-600 dark:text-gray-400 hover:text-[#EF3866] dark:hover:text-[#ff7a9c] transition-colors group text-right"
+              >
+                <div>
+                  <p className="text-sm">Next</p>
+                  <p className="font-medium">{post.nextPost.title}</p>
+                </div>
+                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            ) : (
+              <div />
             )}
           </div>
-        </div>
+        </nav>
+      )}
 
-        {/* IMPROVED Discussion Section */}
-        <div className="mt-12 bg-gray-50 dark:bg-gray-800/40 p-8 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 transition-colors">
-          <h2 className="text-2xl font-serif font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-            <span className="inline-block w-8 h-1 bg-[#EF3866] dark:bg-[#ff7a9c] mr-3"></span>
-            Join the Discussion
-          </h2>
-          <CommentSection postId={post._id} />
-        </div>
-      </section>
+      {/* Scroll to Top Button */}
+      <button
+        ref={scrollTopRef}
+        onClick={scrollToTop}
+        className="fixed bottom-8 right-8 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white p-3 rounded-full shadow-lg hover:shadow-xl z-50 transition-all duration-300 hover:border-[#EF3866]/30"
+        style={{ opacity: showScrollTop ? 1 : 0, pointerEvents: showScrollTop ? 'auto' : 'none' }}
+        aria-label="Scroll to top"
+      >
+        <ChevronUp size={20} />
+      </button>
 
-      {/* Bottom Navigation Bar */}
-      <div className="sticky bottom-0 inset-x-0 bg-white/90 dark:bg-black/90 backdrop-blur-md shadow-lg border-t border-gray-200 dark:border-gray-800 p-4 z-20">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          {post.prevPost ? (
-            <Link href={`/post/${post.prevPost._id}`} className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-[#EF3866] dark:hover:text-[#EF3866] transition-colors">
-              <ChevronLeft size={18} />
-              <span className="hidden sm:inline">Previous</span>
-            </Link>
-          ) : (
-            <div className="w-24"></div>
-          )}
-
-          <div className="flex space-x-6">
-            <button className="text-gray-700 dark:text-gray-300 hover:text-[#EF3866] dark:hover:text-[#EF3866] transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-              </svg>
-            </button>
-            <button className="text-gray-700 dark:text-gray-300 hover:text-[#EF3866] dark:hover:text-[#EF3866] transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-              </svg>
-            </button>
-            <button className="text-gray-700 dark:text-gray-300 hover:text-[#EF3866] dark:hover:text-[#EF3866] transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-              </svg>
-            </button>
-          </div>
-
-          {post.nextPost ? (
-            <Link href={`/post/${post.nextPost._id}`} className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-[#EF3866] dark:hover:text-[#EF3866] transition-colors">
-              <span className="hidden sm:inline">Next</span>
-              <ChevronRight size={18} />
-            </Link>
-          ) : (
-            <div className="w-24"></div>
-          )}
-        </div>
-      </div>
+      {/* Bottom padding */}
+      <div className="h-16" />
     </div>
   );
 }
