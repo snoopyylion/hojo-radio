@@ -7,6 +7,22 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// Define types for better type safety
+interface SourceObject {
+  name?: string;
+  url?: string;
+  credibility_score?: number;
+}
+
+type MatchedSource = string | SourceObject;
+type MatchedSources = MatchedSource[] | string | null | undefined;
+
+interface ParsedSource {
+  name: string;
+  url: string;
+  credibility_score: number;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -46,8 +62,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Helper function to parse matched_sources
-    const parseMatchedSources = (matched_sources: any) => {
+    // Helper function to parse matched_sources with proper typing
+    const parseMatchedSources = (matched_sources: MatchedSources): ParsedSource[] => {
       if (!matched_sources) return [];
       
       try {
@@ -68,7 +84,7 @@ export async function GET(request: NextRequest) {
             // If it's already an object with name and url
             return {
               name: source.name || `Source ${index + 1}`,
-              url: source.url || source,
+              url: source.url || source.name || '#',
               credibility_score: source.credibility_score || 75
             };
           });
@@ -76,12 +92,14 @@ export async function GET(request: NextRequest) {
         
         // If it's a JSON string, parse it
         if (typeof matched_sources === 'string') {
-          const parsed = JSON.parse(matched_sources);
+          const parsed: unknown = JSON.parse(matched_sources);
           if (Array.isArray(parsed)) {
-            return parsed.map((source, index) => ({
-              name: typeof source === 'string' ? `Source ${index + 1}` : (source.name || `Source ${index + 1}`),
-              url: typeof source === 'string' ? source : (source.url || source),
-              credibility_score: typeof source === 'object' ? (source.credibility_score || 75) : 75
+            return parsed.map((source: unknown, index: number) => ({
+              name: typeof source === 'string' ? `Source ${index + 1}` : 
+                    (typeof source === 'object' && source !== null && 'name' in source && typeof source.name === 'string' ? source.name : `Source ${index + 1}`),
+              url: typeof source === 'string' ? source : 
+                   (typeof source === 'object' && source !== null && 'url' in source && typeof source.url === 'string' ? source.url : '#'),
+              credibility_score: typeof source === 'object' && source !== null && 'credibility_score' in source && typeof source.credibility_score === 'number' ? source.credibility_score : 75
             }));
           }
         }
@@ -98,7 +116,7 @@ export async function GET(request: NextRequest) {
       const sources = parseMatchedSources(item.matched_sources);
       const isFake = item.verdict?.toLowerCase().includes('fake') || 
                      item.verdict?.toLowerCase().includes('false') ||
-                     item.credibility_score < 30;
+                     (item.credibility_score !== null && item.credibility_score < 30);
       
       return {
         id: item.id,
