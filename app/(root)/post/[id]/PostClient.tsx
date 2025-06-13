@@ -11,7 +11,6 @@ import type { Components } from 'react-markdown';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { ChevronUp, ChevronLeft, ChevronRight, Heart, Bookmark, Share2, Clock, Eye, MessageCircle } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import CommentSection from '@/components/CommentSection';
 import type { PortableTextBlock } from '@portabletext/types';
 import { useLikes } from '../../../../hooks/likes/useLikes';
