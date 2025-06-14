@@ -7,8 +7,8 @@ export default function Home() {
   return (
     <div className="">
       <Hero/>
-      <KeyFeature/>
       <HomeNewsSection />
+      <KeyFeature/>
       <OurMission/>
     </div>
   );
