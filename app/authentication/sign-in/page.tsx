@@ -2,12 +2,12 @@
 
 import { Suspense } from "react";
 import { SignInContent } from "./SignInContent";
-import  LoadingSpinner  from "../../../components/auth/LoadingSpinner";
+import LoadingSpinner from "../../../components/auth/LoadingSpinner";
 
 // Loading fallback component
 function SignInLoading() {
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
+    <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center transition-colors duration-200">
       <LoadingSpinner />
     </div>
   );

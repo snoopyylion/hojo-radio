@@ -14,9 +14,9 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const images = [
-    "/img/login1.png",
-    "/img/login2.png",
-    "/img/login3.png",
+    "/img/loginimg1.png",
+    "/img/loginimg2.png",
+    "/img/loginimg3.png",
   ];
 
   // Initial animation for image slider
@@ -86,8 +86,10 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
             {images.map((_, index) => (
               <button
                 key={index}
-                className={`w-5 h-2 rounded-full border-none cursor-pointer transition-colors duration-300 ${
-                  index === currentSlide ? 'bg-white' : 'bg-white/50'
+                className={`h-2 rounded-full border-none cursor-pointer transition-all duration-300 ${
+                  index === currentSlide 
+                    ? 'w-8 bg-white' 
+                    : 'w-5 bg-white/50'
                 }`}
                 onClick={() => setCurrentSlide(index)}
                 onMouseEnter={handleDotHover}

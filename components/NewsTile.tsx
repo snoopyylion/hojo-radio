@@ -110,36 +110,37 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
             {/* Engagement Actions */}
             <div className="flex items-center gap-2 sm:gap-4">
               <button
-                onClick={handleLike}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all duration-200 ${
-                  isLiked
-                    ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400'
-                }`}
-              >
-                <Heart 
-                  className={`w-3 h-3 sm:w-4 sm:h-4 transition-all duration-200 ${
-                    isLiked ? 'fill-current' : ''
-                  }`} 
-                />
-                <span className="font-medium">Like</span>
-              </button>
+  onClick={handleLike}
+  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all duration-200 ${
+    isLiked
+      ? 'bg-[#ffe6ec] dark:bg-[#4a1a22] text-[#EF3866]'
+      : 'bg-white dark:bg-black text-[#EF3866] hover:bg-[#ffe6ec] dark:hover:bg-[#1a1a1a]'
+  }`}
+>
+  <Heart 
+    className={`w-3 h-3 sm:w-4 sm:h-4 transition-all duration-200 ${
+      isLiked ? 'fill-current' : ''
+    }`} 
+  />
+  <span className="font-medium">Like</span>
+</button>
 
-              <button
-                onClick={handleBookmark}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all duration-200 ${
-                  isBookmarked
-                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400'
-                }`}
-              >
-                <Bookmark 
-                  className={`w-3 h-3 sm:w-4 sm:h-4 transition-all duration-200 ${
-                    isBookmarked ? 'fill-current' : ''
-                  }`} 
-                />
-                <span className="font-medium">Save</span>
-              </button>
+<button
+  onClick={handleBookmark}
+  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all duration-200 ${
+    isBookmarked
+      ? 'bg-[#ffe6ec] dark:bg-[#4a1a22] text-[#EF3866]'
+      : 'bg-white dark:bg-black text-[#EF3866] hover:bg-[#ffe6ec] dark:hover:bg-[#1a1a1a]'
+  }`}
+>
+  <Bookmark 
+    className={`w-3 h-3 sm:w-4 sm:h-4 transition-all duration-200 ${
+      isBookmarked ? 'fill-current' : ''
+    }`} 
+  />
+  <span className="font-medium">Save</span>
+</button>
+
             </div>
           </div>
 

@@ -338,7 +338,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
                                 Dashboard Access
                               </p>
                             </div>
-                            <p className={`font-bold text-lg leading-tight ${isDarkMode ? 'text-white' : 'text-black'} truncate`}>
+                            <p className={`font-bold text-lg capitalize leading-tight ${isDarkMode ? 'text-white' : 'text-black'} truncate`}>
                               {loading ? 'Loading...' : (userProfile?.first_name || user?.firstName || 'User')}
                             </p>
                             <p className={`text-sm font-medium ${isDarkMode ? 'text-white/70' : 'text-black/70'}`}>
