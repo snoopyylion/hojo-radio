@@ -166,7 +166,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
         )}
       </AnimatePresence>
 
-      {/* Modern Mobile Menu */}
+      {/* Sidebar */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -184,7 +184,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
             <div className={`
               ${isDarkMode 
                 ? 'bg-black/95 border-white/10' 
-                : 'bg-white/95 border-black/10'
+                : 'bg-white border-black/10'
               }
               backdrop-blur-xl rounded-3xl border shadow-2xl overflow-hidden
             `}>
@@ -231,7 +231,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
               </div>
 
               {/* Navigation Grid */}
-              <div className="px-6 pb-6">
+              <div className="px-6 pb-6 mt-[10px]">
                 <div className="grid grid-cols-2 gap-3">
                   {navItems.map((item) => {
                     const Icon = item.icon;
@@ -245,7 +245,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
                           group relative p-4 rounded-2xl transition-all duration-300
                           ${isActive 
                             ? `${isDarkMode ? 'bg-[#EF3866]/20 border-[#EF3866]/30' : 'bg-[#EF3866]/10 border-[#EF3866]/20'} border`
-                            : `${isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'} border border-transparent`
+                            : `${isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-black/10'} border border-transparent`
                           }
                           hover:scale-[1.02] hover:shadow-lg
                         `}
@@ -313,11 +313,6 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
                                   <UserButton.MenuItems>
                                     <UserButton.Action
                                       label="Dashboard"
-                                      labelIcon={<User size={16} />}
-                                      onClick={() => router.push("/hashedpage")}
-                                    />
-                                    <UserButton.Action
-                                      label="My Profile"
                                       labelIcon={<User size={16} />}
                                       onClick={() => router.push("/hashedpage")}
                                     />

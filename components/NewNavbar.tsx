@@ -702,24 +702,9 @@ const NewNavbar = () => {
                       <UserButton afterSignOutUrl="/">
                         <UserButton.MenuItems>
                           <UserButton.Action
-                            label="Settings"
-                            labelIcon={<Settings size={16} />}
-                            onClick={() => router.push("/settings")}
-                          />
-                          <UserButton.Action
                             label="Dashboard"
                             labelIcon={<User size={16} />}
-                            onClick={() => router.push("/dashboard")}
-                          />
-                          <UserButton.Action
-                            label="Billing"
-                            labelIcon={<CreditCard size={16} />}
-                            onClick={() => router.push("/billing")}
-                          />
-                          <UserButton.Action
-                            label="My Profile"
-                            labelIcon={<User size={16} />}
-                            onClick={() => router.push("/profile")}
+                            onClick={() => router.push("/hashedpage")}
                           />
                         </UserButton.MenuItems>
                       </UserButton>
