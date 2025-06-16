@@ -22,7 +22,7 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
 
   useEffect(() => {
     if (tabsRef.current) {
-      gsap.fromTo(tabsRef.current, 
+      gsap.fromTo(tabsRef.current,
         { opacity: 0, y: 20 },
         { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }
       );
@@ -30,17 +30,29 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
   }, []);
 
   useEffect(() => {
-    if (indicatorRef.current && tabsRef.current) {
+    const updateIndicator = () => {
+      if (!indicatorRef.current || !tabsRef.current) return;
       const activeButton = tabsRef.current.querySelector(`[data-tab="${activeTab}"]`) as HTMLElement;
       if (activeButton) {
+        const offsetLeft = activeButton.offsetLeft - tabsRef.current.scrollLeft;
         gsap.to(indicatorRef.current, {
           width: activeButton.offsetWidth,
-          x: activeButton.offsetLeft,
+          x: offsetLeft,
           duration: 0.3,
           ease: "power2.out"
         });
       }
-    }
+    };
+
+    updateIndicator();
+
+    window.addEventListener("resize", updateIndicator);
+    tabsRef.current?.addEventListener("scroll", updateIndicator);
+
+    return () => {
+      window.removeEventListener("resize", updateIndicator);
+      tabsRef.current?.removeEventListener("scroll", updateIndicator);
+    };
   }, [activeTab]);
 
   const tabs = [
@@ -68,29 +80,43 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
   ];
 
   return (
-    <div className="relative">
-      <div ref={tabsRef} className="flex overflow-x-auto scrollbar-hide">
+    <div className="relative bg-white dark:bg-black/70 backdrop-blur-md border border-gray-200/50 dark:border-gray-800/50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+      <div ref={tabsRef} className="flex overflow-x-auto scrollbar-hide divide-x divide-gray-200/50 dark:divide-gray-800/50">
         {tabs.map((tab) => {
           const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+
           return (
             <button
               key={tab.id}
               data-tab={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex items-center gap-2 px-4 sm:px-6 py-4 font-semibold text-sm whitespace-nowrap transition-all duration-300 ${
-                activeTab === tab.id
-                  ? 'text-[#EF3866]'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
+              className={`relative flex items-center gap-2 sm:gap-3 px-5 sm:px-7 py-4 font-medium text-sm sm:text-base whitespace-nowrap transition-all duration-300 group ${isActive
+                  ? 'text-black dark:text-white bg-gray-100 dark:bg-gray-900'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/40'
+                }`}
             >
-              <Icon size={16} />
-              <span>{tab.label}</span>
+              {/* Icon */}
+              <div
+                className={`p-2 rounded-xl transition-all duration-300 ${isActive
+                    ? 'bg-[#EF3866] text-white'
+                    : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-[#EF3866]/10 text-gray-500 dark:text-gray-400'
+                  }`}
+              >
+                <Icon size={18} />
+              </div>
+
+              {/* Label */}
+              <span className="font-semibold tracking-wide">{tab.label}</span>
+
+              {/* Count badge */}
               {'count' in tab && tab.count !== undefined && (
-                <span className={`px-2 py-0.5 rounded-full text-xs ${
-                  activeTab === tab.id 
-                    ? 'bg-[#EF3866] text-white' 
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                }`}>
+                <span
+                  className={`ml-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${isActive
+                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                    }`}
+                >
                   {tab.count}
                 </span>
               )}
@@ -98,12 +124,14 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
           );
         })}
       </div>
-      
-      {/* Animated Indicator */}
+
+      {/* Subtle Pink Indicator */}
       <div
         ref={indicatorRef}
-        className="absolute bottom-0 h-0.5 bg-gradient-to-r from-[#EF3866] to-[#d7325a] transition-all duration-300 rounded-full"
+        className="absolute bottom-0 h-1 bg-[#EF3866] transition-all duration-300 rounded-full"
       />
     </div>
+
+
   );
 };

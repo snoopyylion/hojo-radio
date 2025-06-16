@@ -4,15 +4,15 @@
 import { useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { gsap } from 'gsap';
-import { 
-  User, 
-  MapPin, 
-  Calendar, 
-  Users, 
-  BookOpen, 
-  UserPlus, 
-  UserMinus, 
-  Mail, 
+import {
+  User,
+  MapPin,
+  Calendar,
+  Users,
+  BookOpen,
+  UserPlus,
+  UserMinus,
+  Mail,
   Shield,
   Verified
 } from 'lucide-react';
@@ -46,7 +46,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   useEffect(() => {
     if (headerRef.current) {
       const tl = gsap.timeline();
-      
+
       gsap.set([avatarRef.current, infoRef.current, statsRef.current, actionsRef.current], {
         opacity: 0,
         y: 30
@@ -58,24 +58,24 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         duration: 0.6,
         ease: "power2.out"
       })
-      .to(infoRef.current, {
-        opacity: 1,
-        y: 0,
-        duration: 0.5,
-        ease: "power2.out"
-      }, "-=0.4")
-      .to(statsRef.current, {
-        opacity: 1,
-        y: 0,
-        duration: 0.4,
-        ease: "power2.out"
-      }, "-=0.3")
-      .to(actionsRef.current, {
-        opacity: 1,
-        y: 0,
-        duration: 0.4,
-        ease: "power2.out"
-      }, "-=0.2");
+        .to(infoRef.current, {
+          opacity: 1,
+          y: 0,
+          duration: 0.5,
+          ease: "power2.out"
+        }, "-=0.4")
+        .to(statsRef.current, {
+          opacity: 1,
+          y: 0,
+          duration: 0.4,
+          ease: "power2.out"
+        }, "-=0.3")
+        .to(actionsRef.current, {
+          opacity: 1,
+          y: 0,
+          duration: 0.4,
+          ease: "power2.out"
+        }, "-=0.2");
     }
   }, []);
 
@@ -115,156 +115,163 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   };
 
   return (
-    <div 
+    <div
       ref={headerRef}
-      className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 overflow-hidden"
+      className="bg-white/70 dark:bg-black/70 backdrop-blur-md rounded-2xl border border-gray-200/50 dark:border-gray-800/50 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
     >
-      {/* Minimal gradient background */}
-      <div className="h-24 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800"></div>
-      
-      <div className="px-6 sm:px-8 pb-8 -mt-12 relative">
-        <div className="flex flex-col sm:flex-row items-start gap-6">
+      {/* Subtle gradient background */}
+      <div className="h-20 bg-gradient-to-r from-gray-50/50 to-gray-100/50 dark:from-gray-900/30 dark:to-gray-800/30"></div>
+
+      <div className="px-8 sm:px-12 pb-10 -mt-10 relative">
+        <div className="flex flex-col lg:flex-row items-start gap-8">
           {/* Avatar Section */}
           <div ref={avatarRef} className="relative flex-shrink-0">
-            <div className="w-24 h-24 sm:w-28 sm:h-28 bg-gradient-to-br from-[#EF3866] to-gray-700 rounded-2xl overflow-hidden border-4 border-white dark:border-black shadow-xl">
+            <div className="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-[#EF3866] to-gray-700 rounded-3xl overflow-hidden border-4 border-white dark:border-black shadow-xl hover:shadow-2xl transition-all duration-300">
               {profile.image_url ? (
                 <Image
                   src={profile.image_url}
                   alt={`${profile.first_name} ${profile.last_name}`}
-                  width={112}
-                  height={112}
+                  width={128}
+                  height={128}
                   className="w-full h-full object-cover"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <User size={32} className="text-white" />
+                  <User size={40} className="text-white" />
                 </div>
               )}
             </div>
-            
+
             {/* Role Badge */}
-            <div className="absolute -bottom-1 -right-1">
-              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getRoleStyles(profile.role)}`}>
+            <div className="absolute -bottom-2 -right-2">
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium shadow-lg ${getRoleStyles(profile.role)}`}>
                 {getRoleIcon(profile.role)}
-                <span className="capitalize">{profile.role}</span>
+                <span className="capitalize font-semibold">{profile.role}</span>
               </div>
             </div>
           </div>
 
           {/* Profile Info */}
           <div className="flex-1 min-w-0 w-full">
-            <div ref={infoRef} className="mb-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            <div ref={infoRef} className="mb-8">
+              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 mb-6">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-3xl sm:text-4xl font-light text-gray-900 dark:text-white tracking-tight">
                       {profile.first_name} {profile.last_name}
                     </h1>
                     {profile.role === 'author' && (
-                      <Verified className="w-5 h-5 text-[#EF3866]" />
+                      <Verified className="w-6 h-6 text-[#EF3866]" />
                     )}
                   </div>
-                  
+
+                  {/* Accent line */}
+                  <div className="w-16 h-0.5 bg-[#EF3866]"></div>
+
                   {profile.username && (
-                    <p className="text-gray-500 dark:text-gray-400 font-medium">@{profile.username}</p>
+                    <p className="text-gray-500 dark:text-gray-400 font-medium text-lg">
+                      @{profile.username}
+                    </p>
                   )}
                 </div>
 
-                {/* Action Buttons - Mobile optimized */}
+                {/* Action Buttons */}
                 {currentUserId && currentUserId !== profile.id && (
                   <div ref={actionsRef} className="flex gap-3">
                     <button
                       onClick={handleFollowClick}
                       disabled={followLoading}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                        isFollowing
-                          ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                          : 'bg-gradient-to-r from-[#EF3866] to-[#d7325a] text-white hover:shadow-lg hover:scale-105'
-                      } ${followLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`group inline-flex items-center gap-3 px-6 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 ${isFollowing
+                          ? 'border border-gray-300 dark:border-gray-600 bg-white dark:bg-black text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 hover:shadow-lg'
+                          : 'border border-[#EF3866] bg-[#EF3866] text-white hover:bg-[#d7325a] hover:shadow-lg'
+                        } ${followLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {followLoading ? (
                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent"></div>
                       ) : isFollowing ? (
-                        <UserMinus size={16} />
+                        <UserMinus size={18} />
                       ) : (
-                        <UserPlus size={16} />
+                        <UserPlus size={18} />
                       )}
                       <span>{isFollowing ? 'Unfollow' : 'Follow'}</span>
                     </button>
 
-                    <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300 font-semibold text-sm">
-                      <Mail size={16} />
+                    <button className="group inline-flex items-center gap-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-black text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 font-medium px-6 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
+                      <Mail size={18} />
                       <span className="hidden sm:inline">Message</span>
                     </button>
                   </div>
                 )}
               </div>
-              
-              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-4">
+
+              {/* Meta Info */}
+              <div className="flex flex-wrap items-center gap-6 text-gray-600 dark:text-gray-400 mb-6">
                 {profile.location && (
-                  <div className="flex items-center gap-1.5">
-                    <MapPin size={14} />
-                    <span>{profile.location}</span>
+                  <div className="flex items-center gap-2">
+                    <MapPin size={16} className="text-[#EF3866]" />
+                    <span className="font-light">{profile.location}</span>
                   </div>
                 )}
-                <div className="flex items-center gap-1.5">
-                  <Calendar size={14} />
-                  <span>Joined {formatDate(profile.created_at)}</span>
+                <div className="flex items-center gap-2">
+                  <Calendar size={16} className="text-[#EF3866]" />
+                  <span className="font-light">Joined {formatDate(profile.created_at)}</span>
                 </div>
               </div>
 
               {profile.bio && (
-                <p className="text-gray-700 dark:text-gray-300 leading-relaxed max-w-2xl">
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed max-w-3xl font-light text-lg">
                   {profile.bio}
                 </p>
               )}
             </div>
 
-            {/* Stats */}
-            <div ref={statsRef} className="flex items-center gap-6 sm:gap-8">
-              <button
-                onClick={onOpenFollowers}
-                className="group flex items-center gap-2 hover:scale-105 transition-transform duration-200"
-              >
-                <Users size={18} className="text-gray-400 group-hover:text-[#EF3866] transition-colors" />
-                <div className="text-left">
-                  <div className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-[#EF3866] transition-colors">
+            {/* Stats Section */}
+            <div ref={statsRef} className="border-t border-gray-200/50 dark:border-gray-800/50 pt-8">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-8">
+                <button
+                  onClick={onOpenFollowers}
+                  className="group text-center hover:scale-105 transition-all duration-300"
+                >
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <Users size={20} className="text-gray-400 group-hover:text-[#EF3866] transition-colors" />
+                  </div>
+                  <div className="font-light text-2xl sm:text-3xl text-gray-900 dark:text-white group-hover:text-[#EF3866] transition-colors tracking-tight">
                     {profile.followers_count}
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                  <div className="text-sm text-gray-600 dark:text-gray-400 font-medium uppercase tracking-wide">
                     Followers
                   </div>
-                </div>
-              </button>
+                </button>
 
-              <button
-                onClick={onOpenFollowing}
-                className="group flex items-center gap-2 hover:scale-105 transition-transform duration-200"
-              >
-                <Users size={18} className="text-gray-400 group-hover:text-[#EF3866] transition-colors" />
-                <div className="text-left">
-                  <div className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-[#EF3866] transition-colors">
+                <button
+                  onClick={onOpenFollowing}
+                  className="group text-center hover:scale-105 transition-all duration-300"
+                >
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <Users size={20} className="text-gray-400 group-hover:text-[#EF3866] transition-colors" />
+                  </div>
+                  <div className="font-light text-2xl sm:text-3xl text-gray-900 dark:text-white group-hover:text-[#EF3866] transition-colors tracking-tight">
                     {profile.following_count}
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                  <div className="text-sm text-gray-600 dark:text-gray-400 font-medium uppercase tracking-wide">
                     Following
                   </div>
-                </div>
-              </button>
+                </button>
 
-              {profile.role === 'author' && (
-                <div className="flex items-center gap-2">
-                  <BookOpen size={18} className="text-gray-400" />
-                  <div className="text-left">
-                    <div className="font-bold text-lg text-gray-900 dark:text-white">
+                {profile.role === 'author' && (
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <BookOpen size={20} className="text-gray-400" />
+                    </div>
+                    <div className="font-light text-2xl sm:text-3xl text-gray-900 dark:text-white tracking-tight">
                       {profile.posts_count}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                    <div className="text-sm text-gray-600 dark:text-gray-400 font-medium uppercase tracking-wide">
                       Posts
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>

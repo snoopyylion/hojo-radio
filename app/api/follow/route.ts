@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
             id,
             first_name,
             last_name,
-            avatar_url,
+            image_url,
             role
           )
         `)
@@ -222,7 +222,7 @@ export async function GET(request: NextRequest) {
             id,
             first_name,
             last_name,
-            avatar_url,
+            image_url,
             role
           )
         `)
