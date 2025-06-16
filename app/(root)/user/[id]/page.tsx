@@ -9,7 +9,6 @@ import { POSTS_BY_AUTHOR_QUERY } from '@/sanity/lib/queries';
 // Import your components
 import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
 import { ProfileTabs } from '@/components/UserProfile/ProfileTabs';
-import { PostsList } from '@/components/UserProfile/PostList';
 import { AboutSection } from '@/components/UserProfile/AboutSection';
 import { UserActivity } from '@/components/UserProfile/UserActivity';
 import { FollowModal } from '@/components/UserProfile/FollowModal';
@@ -46,21 +45,6 @@ interface SanityPost {
   publishedAt?: string;
   _createdAt: string;
   _updatedAt: string;
-}
-
-interface UserProfileProps {
-  user: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    username?: string;
-    bio?: string;
-    image_url?: string;
-    role: 'user' | 'author';
-    followers_count: number;
-    following_count: number;
-  };
-  currentUserId?: string;
 }
 
 interface PortableTextBlock {
@@ -112,7 +96,7 @@ const UserProfilePage = () => {
   const [activeTab, setActiveTab] = useState<'posts' | 'about' | 'verified' | 'custom'>('about');
 
   // Content state
-  const [posts, setPosts] = useState<UserPost[]>([]);
+  const [, setPosts] = useState<UserPost[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [verifiedNews, setVerifiedNews] = useState<VerifiedNews[]>([]);
   const [, setPostsLoading] = useState(false);

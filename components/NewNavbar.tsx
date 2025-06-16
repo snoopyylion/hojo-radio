@@ -40,7 +40,6 @@ const navItems = [
 
 const NewNavbar = () => {
   const { user } = useAppContext();
-  const pathname = usePathname();
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);

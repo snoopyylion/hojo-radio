@@ -9,7 +9,6 @@ import {
   Calendar,
   User, 
   Shield,
-  Award,
   BookOpen
 } from 'lucide-react';
 import { UserProfile } from '@/types/user';

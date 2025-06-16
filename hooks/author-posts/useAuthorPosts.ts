@@ -1,4 +1,5 @@
-// hooks/useAuthorPosts.ts
+"use client";
+
 import { useState, useEffect } from 'react';
 import { UserPost } from '@/types/user';
 
