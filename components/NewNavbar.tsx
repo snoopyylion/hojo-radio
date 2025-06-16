@@ -9,7 +9,7 @@ import Link from "next/link";
 import SignOutBtn from "@/components/SignOutBtn";
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@supabase/supabase-js';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import MobileSidebar from '@/components/MobileSidebar';
 import SearchComponent from '@/components/SearchComponent';
 
