@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
-import { BookOpen, Shield, User, Info } from 'lucide-react';
+import { BookOpen, Shield, User, Info, BarChart3, TrendingUp, MessageCircle, CheckCircle, Crown } from 'lucide-react';
 
 interface ProfileTabsProps {
   activeTab: 'posts' | 'about' | 'verified' | 'custom';
@@ -18,7 +18,6 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
   postsCount
 }) => {
   const tabsRef = useRef<HTMLDivElement>(null);
-  const indicatorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (tabsRef.current) {
@@ -29,31 +28,9 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
     }
   }, []);
 
-  useEffect(() => {
-    const updateIndicator = () => {
-      if (!indicatorRef.current || !tabsRef.current) return;
-      const activeButton = tabsRef.current.querySelector(`[data-tab="${activeTab}"]`) as HTMLElement;
-      if (activeButton) {
-        const offsetLeft = activeButton.offsetLeft - tabsRef.current.scrollLeft;
-        gsap.to(indicatorRef.current, {
-          width: activeButton.offsetWidth,
-          x: offsetLeft,
-          duration: 0.3,
-          ease: "power2.out"
-        });
-      }
-    };
-
-    updateIndicator();
-
-    window.addEventListener("resize", updateIndicator);
-    tabsRef.current?.addEventListener("scroll", updateIndicator);
-
-    return () => {
-      window.removeEventListener("resize", updateIndicator);
-      tabsRef.current?.removeEventListener("scroll", updateIndicator);
-    };
-  }, [activeTab]);
+  const handleTabClick = (tab: 'posts' | 'about' | 'verified' | 'custom') => {
+    onTabChange(tab);
+  };
 
   const tabs = [
     {
@@ -80,58 +57,44 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
   ];
 
   return (
-    <div className="relative bg-white dark:bg-black/70 backdrop-blur-md border border-gray-200/50 dark:border-gray-800/50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
-      <div ref={tabsRef} className="flex overflow-x-auto scrollbar-hide divide-x divide-gray-200/50 dark:divide-gray-800/50">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
+    <div ref={tabsRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 opacity-0">
+      <div className="border-b border-gray-200 dark:border-gray-700 transition-colors">
+        <nav className="-mb-px flex space-x-2 sm:space-x-8 overflow-x-auto scrollbar-hide">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
 
-          return (
-            <button
-              key={tab.id}
-              data-tab={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              className={`relative flex items-center gap-2 sm:gap-3 px-5 sm:px-7 py-4 font-medium text-sm sm:text-base whitespace-nowrap transition-all duration-300 group ${isActive
-                  ? 'text-black dark:text-white bg-gray-100 dark:bg-gray-900'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/40'
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabClick(tab.id)}
+                className={`flex items-center space-x-2 py-4 px-1 sm:px-3 border-b-2 font-medium text-sm transition-colors font-sora whitespace-nowrap ${
+                  isActive
+                    ? 'border-[#EF3866] text-[#EF3866]'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
-            >
-              {/* Icon */}
-              <div
-                className={`p-2 rounded-xl transition-all duration-300 ${isActive
-                    ? 'bg-[#EF3866] text-white'
-                    : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-[#EF3866]/10 text-gray-500 dark:text-gray-400'
-                  }`}
               >
-                <Icon size={18} />
-              </div>
-
-              {/* Label */}
-              <span className="font-semibold tracking-wide">{tab.label}</span>
-
-              {/* Count badge */}
-              {'count' in tab && tab.count !== undefined && (
-                <span
-                  className={`ml-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${isActive
-                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                <Icon className="w-4 h-4" />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                
+                {/* Count badge */}
+                {'count' in tab && tab.count !== undefined && (
+                  <span
+                    className={`ml-1 px-2 py-0.5 rounded-full text-xs font-semibold transition-all duration-300 ${
+                      isActive
+                        ? 'bg-[#EF3866]/10 text-[#EF3866]'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                     }`}
-                >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
       </div>
-
-      {/* Subtle Pink Indicator */}
-      <div
-        ref={indicatorRef}
-        className="absolute bottom-0 h-1 bg-[#EF3866] transition-all duration-300 rounded-full"
-      />
     </div>
-
-
   );
 };

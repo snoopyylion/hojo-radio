@@ -20,11 +20,30 @@ export interface UserPost {
   title: string;
   content: string;
   excerpt: string;
-  published_at: string;
+  image_url?: string | null;
+  media_urls: string[];
+  author_id: string;
+  author: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    username: string;
+    image_url?: string | null;
+    is_verified: boolean;
+  };
   likes_count: number;
   comments_count: number;
-  image_url?: string;
+  bookmarks_count: number;
+  shares_count: number;
+  published_at: string;
+  created_at: string;
+  updated_at: string;
+  is_liked: boolean;
+  is_bookmarked: boolean;
+  visibility: 'public' | 'private';
+  slug?: string;
 }
+
 
 export interface FollowUser {
   id: string;

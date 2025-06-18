@@ -3,19 +3,19 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { supabase } from "@/lib/supabaseClient";
+import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
 import { gsap } from "gsap";
 import {
   TrendingUp,
   CheckCircle,
   User,
-  Mail,
   Crown,
   BarChart3,
   Calendar,
   Eye,
+  Edit3,
   Heart,
   MessageCircle,
-  Shield,
 } from "lucide-react";
 import VerifiedList from '@/components/VerifiedList';
 import { FollowersFollowingSection } from '@/components/Dashboard/FollowersFollowingSection';
@@ -24,16 +24,26 @@ import PageLoader from '@/components/PageLoader';
 import { useUserLikes } from '../../../hooks/user-likes/useUserLikes';
 import { useUserComments } from '../../../hooks/user-comments/useUserComments';
 import { useUserCreatedAt, useUserMemberSince } from '../../../hooks/user-created/useUserCreatedAt';
-import Image from "next/image";
+import UserStatsSection from "@/components/Dashboard/UderStatsSection";
+import { AuthorPostsSection } from '@/components/UserProfile/AuthorPostsSection';
 
+// Fixed UserProfile interface - added missing updated_at
 interface UserProfile {
+  id: string; // Changed from id?: string to id: string
   first_name: string;
   last_name: string;
   username: string;
   email: string;
-  role: string;
-  image_url?: string; // Make it optional since it might not exist
-  profile_completed?: boolean; // Also add this if you're using it
+  role: "user" | "author";
+  image_url?: string;
+  profile_completed?: boolean;
+  bio?: string;
+  location?: string;
+  created_at: string;
+  updated_at: string;
+  followers_count?: number;
+  following_count?: number;
+  posts_count?: number;
 }
 
 interface TopPost {
@@ -53,6 +63,27 @@ interface LoadingState {
   progress: number;
 }
 
+// Fixed transform function with proper null checks
+const transformUserProfileForHeader = (userProfile: UserProfile, user: any): UserProfile => {
+  return {
+    id: user?.id || '',
+    first_name: userProfile.first_name,
+    last_name: userProfile.last_name,
+    username: userProfile.username,
+    email: userProfile.email,
+    role: userProfile.role as "user" | "author",
+    image_url: userProfile.image_url,
+    profile_completed: userProfile.profile_completed,
+    bio: userProfile.bio || '',
+    location: userProfile.location || '',
+    created_at: user?.createdAt?.toISOString() || userProfile.created_at || new Date().toISOString(),
+    updated_at: user?.updatedAt?.toISOString() || userProfile.updated_at || new Date().toISOString(),
+    followers_count: userProfile.followers_count || 0,
+    following_count: userProfile.following_count || 0,
+    posts_count: userProfile.posts_count || 0
+  };
+};
+
 export default function UserDashboard() {
   const { user, isLoaded } = useUser();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -66,7 +97,7 @@ export default function UserDashboard() {
     progress: 0
   });
   const [requestSent, setRequestSent] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'comments' | 'verified' | 'author'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'comments' | 'verified' | 'my-posts' | 'author'>('overview');
   const [, setTabLoading] = useState(false);
   const { totalLikes: userLikedPosts, loading: likesLoading } = useUserLikes();
   const {
@@ -76,10 +107,13 @@ export default function UserDashboard() {
     recentComments,
     loading: commentsLoading
   } = useUserComments();
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [postsCount, setPostsCount] = useState(0);
   const { loading: createdAtLoading } = useUserCreatedAt();
   const { memberSince, daysSinceJoining } = useUserMemberSince();
   const [showFollowersModal, setShowFollowersModal] = useState(false);
-const [followersModalTab, setFollowersModalTab] = useState<'followers' | 'following'>('followers');
+  const [followersModalTab, setFollowersModalTab] = useState<'followers' | 'following'>('followers');
 
   // Animation refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -88,21 +122,113 @@ const [followersModalTab, setFollowersModalTab] = useState<'followers' | 'follow
   const tabsRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // Updated fetchProfileStats function with better error handling and logging
+  const fetchProfileStats = useCallback(async () => {
+  if (!user?.id) {
+    console.log("❌ No user ID available for fetching stats");
+    return;
+  }
 
+  try {
+    console.log("🔄 Fetching profile stats for user:", user.id);
+    const token = await getToken();
+    let newFollowersCount = 0;
+    let newFollowingCount = 0;
+    let newPostsCount = 0;
+
+    // Fetch all stats concurrently to avoid race conditions
+    const [followersPromise, followingPromise, postsPromise] = await Promise.allSettled([
+      // Followers
+      fetch(`/api/follow?type=followers&userId=${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => res.ok ? res.json() : null),
+      
+      // Following  
+      fetch(`/api/follow?type=following&userId=${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => res.ok ? res.json() : null),
+      
+      // Posts (only if user is author)
+      userProfile?.role === 'author' 
+        ? fetch(`/api/users/${user.id}/posts`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).then(res => res.ok ? res.json() : null)
+        : Promise.resolve(null)
+    ]);
+
+    // Process followers
+    if (followersPromise.status === 'fulfilled' && followersPromise.value) {
+      const followersData = followersPromise.value;
+      if (Array.isArray(followersData)) {
+        newFollowersCount = followersData.length;
+      } else if (typeof followersData.count === 'number') {
+        newFollowersCount = followersData.count;
+      } else if (followersData.followers && Array.isArray(followersData.followers)) {
+        newFollowersCount = followersData.followers.length;
+      }
+    }
+
+    // Process following
+    if (followingPromise.status === 'fulfilled' && followingPromise.value) {
+      const followingData = followingPromise.value;
+      if (Array.isArray(followingData)) {
+        newFollowingCount = followingData.length;
+      } else if (typeof followingData.count === 'number') {
+        newFollowingCount = followingData.count;
+      } else if (followingData.following && Array.isArray(followingData.following)) {
+        newFollowingCount = followingData.following.length;
+      }
+    }
+
+    // Process posts
+    if (postsPromise.status === 'fulfilled' && postsPromise.value && userProfile?.role === 'author') {
+      const postsData = postsPromise.value;
+      if (Array.isArray(postsData)) {
+        newPostsCount = postsData.length;
+      } else if (typeof postsData.count === 'number') {
+        newPostsCount = postsData.count;
+      } else if (postsData.posts && Array.isArray(postsData.posts)) {
+        newPostsCount = postsData.posts.length;
+      }
+    }
+
+    console.log("📊 Final counts:", { newFollowersCount, newFollowingCount, newPostsCount });
+
+    // Update all states in batch to prevent multiple re-renders
+    setFollowersCount(newFollowersCount);
+    setFollowingCount(newFollowingCount);
+    setPostsCount(newPostsCount);
+
+    // Update userProfile with a functional update to ensure consistency
+    setUserProfile(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        followers_count: newFollowersCount,
+        following_count: newFollowingCount,
+        posts_count: prev.role === 'author' ? newPostsCount : 0
+      };
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching profile stats:', error);
+  }
+}, [user?.id, getToken, userProfile?.role]);
 
   const handleFollowersClick = () => {
-  setFollowersModalTab('followers');
-  setShowFollowersModal(true);
-};
+    setFollowersModalTab('followers');
+    setShowFollowersModal(true);
+  };
 
-const handleFollowingClick = () => {
-  setFollowersModalTab('following');
-  setShowFollowersModal(true);
-};
+  const handleFollowingClick = () => {
+    setFollowersModalTab('following');
+    setShowFollowersModal(true);
+  };
 
-const handleCloseFollowersModal = () => {
-  setShowFollowersModal(false);
-};
+  const handleCloseFollowersModal = () => {
+    setShowFollowersModal(false);
+  };
+
   // Function to fetch verified news count
   const fetchVerifiedNewsCount = async () => {
     try {
@@ -137,134 +263,108 @@ const handleCloseFollowersModal = () => {
   };
 
   const fetchUserData = useCallback(async () => {
-    if (!user?.id) return;
+  if (!user?.id) {
+    console.log("❌ No user ID available");
+    return;
+  }
 
-    setLoading(true);
-    try {
-      // Stage 1: Loading user profile
-      setLoadingState({
-        stage: 'loading',
-        message: 'Loading your profile...',
-        progress: 25
-      });
+  setLoading(true);
+  try {
+    // Stage 1: Loading user profile
+    setLoadingState({
+      stage: 'loading',
+      message: 'Loading your profile...',
+      progress: 25
+    });
 
-      // ✅ FIXED: Added image_url and profile_completed to the select query
-      const { data: profileData, error: profileError } = await supabase
-        .from('users')
-        .select('first_name, last_name, username, email, role, image_url, profile_completed')
-        .eq('id', user.id)
-        .single();
+    const { data: profileData, error: profileError } = await supabase
+      .from('users')
+      .select('first_name, last_name, username, email, role, image_url, profile_completed')
+      .eq('id', user.id)
+      .single();
 
-      console.log('🔍 Profile query result:', { profileData, profileError });
+    console.log('🔍 Profile query result:', { profileData, profileError });
 
-      if (profileData && !profileError) {
-        setUserProfile(profileData);
-      } else {
-        console.error('❌ Failed to fetch profile:', profileError);
+    let newProfile: UserProfile;
 
-        // ✅ FALLBACK: If database query fails, use Clerk user data
-        if (user) {
-          const fallbackProfile: UserProfile = {
-            first_name: user.firstName || 'User',
-            last_name: user.lastName || '',
-            username: user.username || user.emailAddresses[0]?.emailAddress.split('@')[0] || 'user',
-            email: user.emailAddresses[0]?.emailAddress || '',
-            role: 'user', // default role
-            image_url: user.imageUrl, // ✅ Use Clerk's image URL as fallback
-            profile_completed: false
-          };
-          setUserProfile(fallbackProfile);
-        }
-      }
-
-      // Stage 2: Fetch verified news count
-      await fetchVerifiedNewsCount();
-
-      // Stage 3: Finalizing
-      setLoadingState({
-        stage: 'finalizing',
-        message: 'Preparing your dashboard...',
-        progress: 85
-      });
-
-      // Fetch top 5 posts (mock data for now)
-      const mockTopPosts: TopPost[] = [
-        {
-          id: '1',
-          title: 'The Future of AI in Content Creation',
-          excerpt: 'Exploring how artificial intelligence is revolutionizing the way we create and consume content...',
-          views: 15420,
-          likes: 234,
-          comments: 45,
-          created_at: '2024-12-01',
-          author: 'John Doe'
-        },
-        {
-          id: '2',
-          title: 'Web3 and Decentralized Social Media',
-          excerpt: 'Understanding the shift towards decentralized platforms and what it means for creators...',
-          views: 12890,
-          likes: 198,
-          comments: 32,
-          created_at: '2024-11-28',
-          author: 'Jane Smith'
-        },
-        {
-          id: '3',
-          title: 'Sustainable Technology Trends 2024',
-          excerpt: 'How green technology is shaping the future of innovation and environmental responsibility...',
-          views: 9876,
-          likes: 167,
-          comments: 28,
-          created_at: '2024-11-25',
-          author: 'Mike Johnson'
-        },
-        {
-          id: '4',
-          title: 'The Rise of Remote Work Culture',
-          excerpt: 'Analyzing the permanent shift in work dynamics and its impact on productivity...',
-          views: 8543,
-          likes: 143,
-          comments: 21,
-          created_at: '2024-11-22',
-          author: 'Sarah Wilson'
-        },
-        {
-          id: '5',
-          title: 'Cryptocurrency Market Analysis',
-          excerpt: 'Deep dive into current market trends and future predictions for digital currencies...',
-          views: 7234,
-          likes: 112,
-          comments: 19,
-          created_at: '2024-11-20',
-          author: 'David Brown'
-        }
-      ];
-      setTopPosts(mockTopPosts);
-
-      // Complete loading
-      setLoadingState({
-        stage: 'complete',
-        message: 'Dashboard ready!',
-        progress: 100
-      });
-
-      // Small delay to show completion state
-      setTimeout(() => {
-        setLoading(false);
-      }, 500);
-
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-      setLoading(false);
+    if (profileData && !profileError) {
+      newProfile = {
+        ...profileData,
+        id: user.id,
+        created_at: user.createdAt?.toISOString() || new Date().toISOString(),
+        updated_at: user.updatedAt?.toISOString() || new Date().toISOString(),
+        followers_count: 0,
+        following_count: 0,
+        posts_count: 0
+      };
+    } else {
+      console.error('❌ Failed to fetch profile:', profileError);
+      newProfile = {
+        id: user?.id || '',
+        first_name: user.firstName || 'User',
+        last_name: user.lastName || '',
+        username: user.username || user.emailAddresses?.[0]?.emailAddress.split('@')[0] || 'user',
+        email: user.emailAddresses?.[0]?.emailAddress || '',
+        role: 'user' as const,
+        image_url: user.imageUrl,
+        profile_completed: false,
+        created_at: user.createdAt?.toISOString() || new Date().toISOString(),
+        updated_at: user.updatedAt?.toISOString() || new Date().toISOString(),
+        followers_count: 0,
+        following_count: 0,
+        posts_count: 0
+      };
     }
-  }, [user?.id, user, getToken]);
+
+    console.log("📊 Setting profile:", newProfile);
+    setUserProfile(newProfile);
+
+    // Stage 2: Fetch verified news count
+    await fetchVerifiedNewsCount();
+
+    // Stage 3: Finalizing
+    setLoadingState({
+      stage: 'finalizing',
+      message: 'Preparing your dashboard...',
+      progress: 85
+    });
+
+    // Mock top posts data
+    const mockTopPosts: TopPost[] = [];
+    setTopPosts(mockTopPosts);
+
+    // Complete loading
+    setLoadingState({
+      stage: 'complete',
+      message: 'Dashboard ready!',
+      progress: 100
+    });
+
+    setTimeout(() => {
+      setLoading(false);
+    }, 500);
+
+  } catch (error) {
+    console.error('❌ Error fetching user data:', error);
+    setLoading(false);
+  }
+}, [user?.id, user, getToken]);
+
+
+
+  // Add useEffect to refetch stats when userProfile.role changes
+  useEffect(() => {
+  if (userProfile && !loading && isLoaded) {
+    console.log("🔄 Profile loaded, fetching stats...");
+    fetchProfileStats();
+  }
+}, [userProfile?.id, userProfile?.role, loading, isLoaded, fetchProfileStats]);
 
   useEffect(() => {
-    if (isLoaded && user) {
-      fetchUserData();
-    }
-  }, [isLoaded, user, fetchUserData]);
+  if (isLoaded && user && !userProfile) {
+    fetchUserData();
+  }
+}, [isLoaded, user, userProfile, fetchUserData]);
 
   // Initial animations - Fixed to check for refs before animating
   useEffect(() => {
@@ -310,12 +410,13 @@ const handleCloseFollowersModal = () => {
   }, [loading]);
 
   const handleRequestAuthorAccess = async () => {
-    if (!user) return;
+    // Fixed: Added null check for user
+    if (!user?.id) return;
 
     try {
       const payload = {
         userId: user.id,
-        email: user.emailAddresses[0]?.emailAddress
+        email: user.emailAddresses?.[0]?.emailAddress // Fixed: Added optional chaining
       };
 
       const res = await fetch("/api/authors/request-author", {
@@ -389,20 +490,7 @@ const handleCloseFollowersModal = () => {
     });
   };
 
-  // ✅ ENHANCED: Better image URL handling
-  const getProfileImageUrl = () => {
-    // Priority order: database image_url -> Clerk imageUrl -> null (fallback to initials)
-    return userProfile?.image_url || user?.imageUrl || null;
-  };
-
-  const getUserInitials = () => {
-    if (userProfile?.first_name) {
-      const firstInitial = userProfile.first_name.charAt(0).toUpperCase();
-      const lastInitial = userProfile.last_name ? userProfile.last_name.charAt(0).toUpperCase() : '';
-      return firstInitial + lastInitial;
-    }
-    return user?.firstName?.charAt(0).toUpperCase() || 'U';
-  };
+  
 
   // Show PageLoader during initial loading
   if (!isLoaded || loading) {
@@ -435,159 +523,21 @@ const handleCloseFollowersModal = () => {
       {/* Header Section */}
       <div ref={headerRef} className="bg-white dark:bg-black opacity-0 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center space-x-4">
-              {/* ✅ ENHANCED: Better Profile Image Section with improved error handling */}
-              <div className="relative group">
-                {/* Custom Profile Image with Fallback */}
-                <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-[#EF3866] to-[#FF6B9D] p-0.5">
-                  <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-gray-900">
-                    {getProfileImageUrl() ? (
-                      <Image
-                        src={getProfileImageUrl()!}
-                        alt={`${userProfile.first_name}'s profile`}
-                        className="w-full h-full object-cover"
-                        width={96}
-                        height={96}
-                        onError={(e) => {
-                          // Hide the image and show fallback
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          const parent = target.parentElement;
-                          if (parent) {
-                            const fallback = parent.querySelector('.fallback-avatar') as HTMLElement;
-                            if (fallback) {
-                              fallback.style.display = 'flex';
-                            }
-                          }
-                        }}
-                        onLoad={(e) => {
-                          // Hide fallback if image loads successfully
-                          const target = e.target as HTMLImageElement;
-                          const parent = target.parentElement;
-                          if (parent) {
-                            const fallback = parent.querySelector('.fallback-avatar') as HTMLElement;
-                            if (fallback) {
-                              fallback.style.display = 'none';
-                            }
-                          }
-                        }}
-                      />
-                    ) : null}
-
-                    {/* Fallback Avatar with Initials */}
-                    <div
-                      className="fallback-avatar w-full h-full bg-gradient-to-br from-[#EF3866] to-[#FF6B9D] flex items-center justify-center text-white font-bold text-lg"
-                      style={{ display: getProfileImageUrl() ? 'none' : 'flex' }}
-                    >
-                      {getUserInitials()}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Animated Ring */}
-                <div className="absolute inset-0 rounded-full border-2 border-[#EF3866]/20 animate-pulse pointer-events-none group-hover:border-[#EF3866]/40 transition-colors"></div>
-
-                {/* Online Status Indicator */}
-                <div className="absolute -bottom-[-10px] -right-[-5px] w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full animate-ping"></div>
-              </div>
-
-              {/* User Information */}
-              <div className="flex-1">
-                <div className="flex items-center space-x-2">
-                  <h1 className="text-2xl font-bold text-gray-900  dark:text-white font-sora transition-colors">
-                    Welcome back, {userProfile.first_name}!
-                  </h1>
-
-                  {/* Profile Completion Badge */}
-                  {!userProfile.profile_completed && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
-                      Profile Incomplete
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center space-x-2 mt-1">
-                  <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">
-                    @{userProfile.username}
-                  </p>
-                  <span className="text-gray-400 dark:text-gray-600">•</span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 capitalize">
-                    {userProfile.role}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 sm:mt-0">
-              <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 transition-colors">
-                <Mail className="w-4 h-4" />
-                <span className="font-sora">{userProfile.email}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Section */}
-      <div ref={statsRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 opacity-0">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          
-          <div className="col-span-1 xl:col-span-2">
-            <FollowersFollowingSection 
-  onFollowersClick={handleFollowersClick}
-  onFollowingClick={handleFollowingClick}
-/>
-          </div>
-
-          <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-            <div className="flex items-center">
-              <div className="w-12 h-12 bg-pink-100 dark:bg-pink-900/30 rounded-lg flex items-center justify-center transition-colors">
-                <Heart className="w-6 h-6 text-pink-600 dark:text-pink-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">Posts Liked</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
-                  {likesLoading ? (
-                    <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-8 w-16 inline-block"></span>
-                  ) : (
-                    userLikedPosts.toLocaleString()
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-            <div className="flex items-center">
-              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center transition-colors">
-                <MessageCircle className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">My Comments</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
-                  {commentsLoading ? (
-                    <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-8 w-16 inline-block"></span>
-                  ) : (
-                    totalComments.toLocaleString()
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-            <div className="flex items-center">
-              <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center transition-colors">
-                <Shield className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 font-sora transition-colors">Verified News</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
-                  {verifiedNewsCount}
-                </p>
-              </div>
-            </div>
-          </div>
+          <ProfileHeader
+            profile={{
+              ...transformUserProfileForHeader(userProfile, user),
+              id: user.id, // Explicitly ensure id is present
+              followers_count: followersCount,
+              following_count: followingCount,
+              posts_count: userProfile?.role === 'author' ? postsCount : 0
+            }}
+            currentUserId={user.id}
+            isFollowing={false}
+            followLoading={false}
+            onFollow={() => { }}
+            onOpenFollowers={handleFollowersClick}
+            onOpenFollowing={handleFollowingClick}
+          />
         </div>
       </div>
 
@@ -600,6 +550,7 @@ const handleCloseFollowersModal = () => {
               { id: 'posts', label: 'Top Posts', icon: TrendingUp },
               { id: 'comments', label: 'My Comments', icon: MessageCircle },
               { id: 'verified', label: 'Verified News', icon: CheckCircle },
+              ...(userProfile?.role === 'author' ? [{ id: 'my-posts', label: 'My Posts', icon: Edit3 }] : []),
               { id: 'author', label: 'Author Access', icon: Crown }
             ].map((tab) => {
               const Icon = tab.icon;
@@ -845,6 +796,17 @@ const handleCloseFollowersModal = () => {
           </div>
         )}
 
+        {activeTab === 'my-posts' && (
+          <div>
+            <div className="mb-6">
+            </div>
+            <AuthorPostsSection
+              userId={userProfile.id}
+              isAuthor={userProfile.role === 'author'}
+              userName={`${userProfile.first_name} ${userProfile.last_name}`}
+            />
+          </div>
+        )}
         {activeTab === 'verified' && (
           <div>
             <div className="mb-6">
@@ -929,13 +891,24 @@ const handleCloseFollowersModal = () => {
           </div>
         )}
       </div>
+      {/* Stats Section */}
+      <div ref={statsRef} className="bg-white dark:bg-black rounded-2xl overflow-hidden transition-all duration-300 opacity-0">
+        <UserStatsSection
+          userLikedPosts={userLikedPosts}
+          totalComments={totalComments}
+          verifiedNewsCount={verifiedNewsCount}
+          likesLoading={loading}
+          commentsLoading={loading}
+          verifiedLoading={loading}
+        />
+      </div>
       {showFollowersModal && (
-  <FollowersFollowingSection
-    isModal={true}
-    onClose={handleCloseFollowersModal}
-    initialTab={followersModalTab}
-  />
-)}
+        <FollowersFollowingSection
+          isModal={true}
+          onClose={handleCloseFollowersModal}
+          initialTab={followersModalTab}
+        />
+      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import OurMission from "@/components/OurMission";
 
 export default function Home() {
   return (
-    <div className="">
+    <div className="bg-white">
       <Hero/>
       <HomeNewsSection />
       <KeyFeature/>

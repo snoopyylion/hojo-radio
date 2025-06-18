@@ -265,7 +265,7 @@ const HomeNewsSection = () => {
   }
 
   return (
-    <section ref={sectionRef} className="py-16 px-4 md:px-2 lg:px-2 max-w-7xl mx-auto bg-gray-50/50 dark:bg-gray-900/20">
+    <section ref={sectionRef} className="py-16 px-4 md:px-2 lg:px-2 max-w-7xl mx-auto bg-white dark:bg-gray-900/20">
       {/* Section Header */}
       <div ref={headerRef} className="text-center mb-12">
         <h2 className="text-3xl md:text-4xl lg:text-5xl font-light text-gray-900 dark:text-white mb-6 tracking-tight">
