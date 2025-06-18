@@ -47,24 +47,6 @@ interface UserProfile {
   posts_count?: number;
 }
 
-interface ClerkUser {
-  id?: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  username?: string | null;
-  imageUrl?: string;
-  // Fix: Allow null for createdAt and updatedAt to match Clerk's actual types
-  createdAt?: Date | string | number | null;
-  updatedAt?: Date | string | number | null;
-  created_at?: Date | string | number | null;
-  createdDate?: Date | string | number | null;
-  signUpDate?: Date | string | number | null;
-  firstCreated?: Date | string | number | null;
-  emailAddresses?: Array<{
-    emailAddress: string;
-  }>;
-}
-
 interface TopPost {
   id: string;
   title: string;

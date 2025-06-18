@@ -1,6 +1,5 @@
 // pages/api/post/by-author.ts or app/api/post/by-author/route.ts
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
 import { client } from '@/sanity/lib/client';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
