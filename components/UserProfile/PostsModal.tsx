@@ -52,7 +52,7 @@ export const PostsModal: React.FC<PostsModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Add debug state
-  const [debugInfo, setDebugInfo] = useState<string>('');
+  const [, setDebugInfo] = useState<string>('');
   
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -112,7 +112,7 @@ export const PostsModal: React.FC<PostsModalProps> = ({
       setDebugInfo(`API returned ${data.length} posts for authorId: ${authorId}`);
       
       // Transform the data to match NewsTile expectations
-      const transformedPosts = data.map((post: any) => ({
+      const transformedPosts = data.map((post: Post) => ({
         ...post,
         categories: post.categories || [],
         // Ensure mainImage has the expected structure
@@ -194,7 +194,7 @@ export const PostsModal: React.FC<PostsModalProps> = ({
         <div className="flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-gray-800/50 bg-gray-50/50 dark:bg-gray-800/30">
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              {authorName}'s Posts
+              {authorName}&apos;s Posts
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
               {loading ? 'Loading...' : `${posts.length} post${posts.length !== 1 ? 's' : ''}`}
@@ -241,7 +241,7 @@ export const PostsModal: React.FC<PostsModalProps> = ({
                   </svg>
                 </div>
                 <p className="text-gray-600 dark:text-gray-400">No posts found</p>
-                <p className="text-gray-500 dark:text-gray-500 text-sm mt-1">This author hasn't published any posts yet.</p>
+                <p className="text-gray-500 dark:text-gray-500 text-sm mt-1">This author hasn&apos;t published any posts yet.</p>
               </div>
             </div>
           ) : (

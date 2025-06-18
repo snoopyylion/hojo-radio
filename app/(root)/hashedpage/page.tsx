@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { UserResource } from '@clerk/types';
 import { useAuth, useUser } from "@clerk/nextjs";
 import { supabase } from "@/lib/supabaseClient";
 import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
@@ -46,6 +47,24 @@ interface UserProfile {
   posts_count?: number;
 }
 
+interface ClerkUser {
+  id?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  username?: string | null;
+  imageUrl?: string;
+  // Fix: Allow null for createdAt and updatedAt to match Clerk's actual types
+  createdAt?: Date | string | number | null;
+  updatedAt?: Date | string | number | null;
+  created_at?: Date | string | number | null;
+  createdDate?: Date | string | number | null;
+  signUpDate?: Date | string | number | null;
+  firstCreated?: Date | string | number | null;
+  emailAddresses?: Array<{
+    emailAddress: string;
+  }>;
+}
+
 interface TopPost {
   id: string;
   title: string;
@@ -64,9 +83,13 @@ interface LoadingState {
 }
 
 // Fixed transform function with proper null checks
-const transformUserProfileForHeader = (userProfile: UserProfile, user: any): UserProfile => {
+const transformUserProfileForHeaderV2 = (userProfile: UserProfile, user: UserResource): UserProfile => {
+  // Use the dates from userProfile first (from Supabase), then fall back to Clerk
+  const createdAt = userProfile.created_at || (user.createdAt?.toISOString() ?? new Date().toISOString());
+  const updatedAt = userProfile.updated_at || (user.updatedAt?.toISOString() ?? new Date().toISOString());
+
   return {
-    id: user?.id || '',
+    id: user.id,
     first_name: userProfile.first_name,
     last_name: userProfile.last_name,
     username: userProfile.username,
@@ -74,15 +97,16 @@ const transformUserProfileForHeader = (userProfile: UserProfile, user: any): Use
     role: userProfile.role as "user" | "author",
     image_url: userProfile.image_url,
     profile_completed: userProfile.profile_completed,
-    bio: userProfile.bio || '',
-    location: userProfile.location || '',
-    created_at: user?.createdAt?.toISOString() || userProfile.created_at || new Date().toISOString(),
-    updated_at: user?.updatedAt?.toISOString() || userProfile.updated_at || new Date().toISOString(),
-    followers_count: userProfile.followers_count || 0,
-    following_count: userProfile.following_count || 0,
-    posts_count: userProfile.posts_count || 0
+    bio: userProfile.bio ?? '',
+    location: userProfile.location ?? '',
+    created_at: createdAt,
+    updated_at: updatedAt,
+    followers_count: userProfile.followers_count ?? 0,
+    following_count: userProfile.following_count ?? 0,
+    posts_count: userProfile.posts_count ?? 0
   };
 };
+
 
 export default function UserDashboard() {
   const { user, isLoaded } = useUser();
@@ -99,7 +123,7 @@ export default function UserDashboard() {
   const [requestSent, setRequestSent] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'comments' | 'verified' | 'my-posts' | 'author'>('overview');
   const [, setTabLoading] = useState(false);
-  const { totalLikes: userLikedPosts, loading: likesLoading } = useUserLikes();
+  const { totalLikes: userLikedPosts } = useUserLikes();
   const {
     totalComments,
     commentsThisMonth,
@@ -279,7 +303,7 @@ export default function UserDashboard() {
 
     const { data: profileData, error: profileError } = await supabase
       .from('users')
-      .select('first_name, last_name, username, email, role, image_url, profile_completed')
+      .select('first_name, last_name, username, email, role, image_url, profile_completed, created_at, updated_at')
       .eq('id', user.id)
       .single();
 
@@ -287,34 +311,39 @@ export default function UserDashboard() {
 
     let newProfile: UserProfile;
 
-    if (profileData && !profileError) {
-      newProfile = {
-        ...profileData,
-        id: user.id,
-        created_at: user.createdAt?.toISOString() || new Date().toISOString(),
-        updated_at: user.updatedAt?.toISOString() || new Date().toISOString(),
-        followers_count: 0,
-        following_count: 0,
-        posts_count: 0
-      };
-    } else {
-      console.error('❌ Failed to fetch profile:', profileError);
-      newProfile = {
-        id: user?.id || '',
-        first_name: user.firstName || 'User',
-        last_name: user.lastName || '',
-        username: user.username || user.emailAddresses?.[0]?.emailAddress.split('@')[0] || 'user',
-        email: user.emailAddresses?.[0]?.emailAddress || '',
-        role: 'user' as const,
-        image_url: user.imageUrl,
-        profile_completed: false,
-        created_at: user.createdAt?.toISOString() || new Date().toISOString(),
-        updated_at: user.updatedAt?.toISOString() || new Date().toISOString(),
-        followers_count: 0,
-        following_count: 0,
-        posts_count: 0
-      };
-    }
+if (profileData && !profileError) {
+  newProfile = {
+    ...profileData,
+    id: user.id,
+    // Use Supabase dates if available, otherwise fall back to Clerk
+    created_at: profileData.created_at || (user.createdAt?.toISOString() ?? new Date().toISOString()),
+    updated_at: profileData.updated_at || (user.updatedAt?.toISOString() ?? new Date().toISOString()),
+    followers_count: 0,
+    following_count: 0,
+    posts_count: 0
+  };
+} else {
+  console.error('❌ Failed to fetch profile:', profileError);
+  newProfile = {
+    id: user.id,
+    first_name: user.firstName ?? 'User',
+    last_name: user.lastName ?? '',
+    username: user.username ?? user.emailAddresses?.[0]?.emailAddress.split('@')[0] ?? 'user',
+    email: user.emailAddresses?.[0]?.emailAddress ?? '',
+    role: 'user' as const,
+    image_url: user.imageUrl,
+    profile_completed: false,
+    bio: '',
+    location: '',
+    // Use Clerk dates with proper null checking
+    created_at: user.createdAt?.toISOString() ?? new Date().toISOString(),
+    updated_at: user.updatedAt?.toISOString() ?? new Date().toISOString(),
+    followers_count: 0,
+    following_count: 0,
+    posts_count: 0
+  };
+}
+
 
     console.log("📊 Setting profile:", newProfile);
     setUserProfile(newProfile);
@@ -525,7 +554,7 @@ export default function UserDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <ProfileHeader
             profile={{
-              ...transformUserProfileForHeader(userProfile, user),
+              ...transformUserProfileForHeaderV2(userProfile, user),
               id: user.id, // Explicitly ensure id is present
               followers_count: followersCount,
               following_count: followingCount,

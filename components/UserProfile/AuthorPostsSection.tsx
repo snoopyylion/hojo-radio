@@ -14,6 +14,17 @@ import {
 } from 'lucide-react';
 import { UserPost } from '@/types/user';
 
+interface Like {
+  userId: string;
+  createdAt: string;
+}
+
+interface Comment {
+  userId: string;
+  text: string;
+  createdAt: string;
+}
+
 interface AuthorPostsSectionProps {
   userId: string;
   isAuthor: boolean;
@@ -31,8 +42,8 @@ interface SanityPost {
       url?: string;
     };
   };
-  likes?: any[];
-  comments?: any[];
+  likes?: Like[];
+comments?: Comment[];
   publishedAt?: string;
   _createdAt: string;
   _updatedAt: string;
@@ -195,7 +206,7 @@ export const AuthorPostsSection: React.FC<AuthorPostsSectionProps> = ({
           No Posts Available
         </h3>
         <p className="text-gray-600 dark:text-gray-400 text-center max-w-md leading-relaxed font-light">
-          This user is not an author and doesn't have any posts to display.
+          This user is not an author and doesn&apos;t have any posts to display.
         </p>
       </div>
     );
@@ -265,7 +276,7 @@ export const AuthorPostsSection: React.FC<AuthorPostsSectionProps> = ({
           No Posts Yet
         </h3>
         <p className="text-gray-600 dark:text-gray-400 text-center max-w-md leading-relaxed font-light">
-          {userName} hasn't published any posts yet. Check back later for their latest content and insights.
+          {userName} hasn&apos;t published any posts yet. Check back later for their latest content and insights.
         </p>
       </div>
     );

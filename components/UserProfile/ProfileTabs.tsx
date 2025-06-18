@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
-import { BookOpen, Shield, User, Info, BarChart3, TrendingUp, MessageCircle, CheckCircle, Crown } from 'lucide-react';
+import { BookOpen, Shield, User, Info } from 'lucide-react';
 
 interface ProfileTabsProps {
   activeTab: 'posts' | 'about' | 'verified' | 'custom';

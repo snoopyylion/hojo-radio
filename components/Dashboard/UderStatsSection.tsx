@@ -63,7 +63,6 @@ const StatItem: React.FC<StatItemProps> = ({
 };
 
 const UserStatsSection: React.FC<UserStatsProps> = ({
-  userId,
   userLikedPosts = 0,
   totalComments = 0,
   verifiedNewsCount = 0,

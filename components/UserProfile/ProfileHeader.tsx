@@ -13,8 +13,7 @@ import {
   UserMinus,
   Mail,
   Shield,
-  Verified,
-  X
+  Verified
 } from 'lucide-react';
 import { UserProfile } from '@/types/user';
 import { usePostsCount } from '@/hooks/usePostsCount';

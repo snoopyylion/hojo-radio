@@ -4,8 +4,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { useAppContext } from '@/context/AppContext';
 import { UserProfile, FollowUser, UserPost } from '@/types/user';
-import { client } from '@/sanity/lib/client';
-import { POSTS_BY_AUTHOR_QUERY } from '@/sanity/lib/queries';
 // Import your components
 import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
 import { ProfileTabs } from '@/components/UserProfile/ProfileTabs';
@@ -37,14 +35,17 @@ interface SanityPost {
   excerpt?: string;
   mainImage?: {
     asset?: {
-      url?: string;
+      url: string;
     };
   };
-  likes?: number;
-  comments?: number;
+  likes?: unknown[];
+  comments?: unknown[];
   publishedAt?: string;
   _createdAt: string;
   _updatedAt: string;
+  slug?: {
+    current: string;
+  };
 }
 
 interface PortableTextBlock {
@@ -256,16 +257,16 @@ const fetchUserPosts = async () => {
     console.log('Sanity posts fetched:', sanityPosts);
 
     // Transform Sanity posts to match your UserPost interface
-    const postsData: UserPost[] = sanityPosts.map((post: any) => ({
-      id: post._id,
-      title: post.title || '',
-      content: post.body
-        ? post.body
-          .map((block: any) =>
-            block.children?.map((child: any) => child.text).join('') || ''
-          )
-          .join('\n')
-        : '',
+    const postsData: UserPost[] = sanityPosts.map((post: SanityPost) => ({
+  id: post._id,
+  title: post.title || '',
+  content: post.body
+    ? post.body
+      .map((block: PortableTextBlock) =>
+        block.children?.map((child: PortableTextChild) => child.text).join('') || ''
+      )
+      .join('\n')
+    : '',
       excerpt: post.description || post.excerpt || '',
       image_url: post.mainImage?.asset?.url || null,
       media_urls: post.mainImage?.asset?.url ? [post.mainImage.asset.url] : [],

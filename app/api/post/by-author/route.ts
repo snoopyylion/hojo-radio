@@ -10,8 +10,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
 // Debug query to see all author documents and their fields
 const DEBUG_AUTHORS_QUERY = `
   *[_type == "author"] {
