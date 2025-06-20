@@ -1,3 +1,4 @@
+// Fixed UserDashboard Component
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -18,9 +19,9 @@ import WeeklyTopPosts from "@/components/WeeklyTopPosts";
 import AuthorAccessSection from "@/components/Dashboard/AuthorAccessSection";
 import CommentsSection from "@/components/Dashboard/CommentsSection";
 
-// Fixed UserProfile interface - added missing updated_at
+// Fixed UserProfile interface
 interface UserProfile {
-  id: string; // Changed from id?: string to id: string
+  id: string;
   first_name: string;
   last_name: string;
   username: string;
@@ -37,7 +38,6 @@ interface UserProfile {
   posts_count?: number;
 }
 
-// Update your TopPost interface to match the API response
 interface TopPost {
   id: string;
   title: string;
@@ -56,32 +56,6 @@ interface LoadingState {
   message: string;
   progress: number;
 }
-
-// Fixed transform function with proper null checks
-const transformUserProfileForHeaderV2 = (userProfile: UserProfile, user: UserResource): UserProfile => {
-  // Use the dates from userProfile first (from Supabase), then fall back to Clerk
-  const createdAt = userProfile.created_at || (user.createdAt?.toISOString() ?? new Date().toISOString());
-  const updatedAt = userProfile.updated_at || (user.updatedAt?.toISOString() ?? new Date().toISOString());
-
-  return {
-    id: user.id,
-    first_name: userProfile.first_name,
-    last_name: userProfile.last_name,
-    username: userProfile.username,
-    email: userProfile.email,
-    role: userProfile.role as "user" | "author",
-    image_url: userProfile.image_url,
-    profile_completed: userProfile.profile_completed,
-    bio: userProfile.bio ?? '',
-    location: userProfile.location ?? '',
-    created_at: createdAt,
-    updated_at: updatedAt,
-    followers_count: userProfile.followers_count ?? 0,
-    following_count: userProfile.following_count ?? 0,
-    posts_count: userProfile.posts_count ?? 0
-  };
-};
-
 
 export default function UserDashboard() {
   const { user, isLoaded } = useUser();
@@ -117,7 +91,7 @@ export default function UserDashboard() {
   const tabsRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Updated fetchProfileStats function with better error handling and logging
+  // Updated fetchProfileStats function
   const fetchProfileStats = useCallback(async () => {
     if (!user?.id) {
       console.log("❌ No user ID available for fetching stats");
@@ -131,7 +105,7 @@ export default function UserDashboard() {
       let newFollowingCount = 0;
       let newPostsCount = 0;
 
-      // Fetch all stats concurrently to avoid race conditions
+      // Fetch all stats concurrently
       const [followersPromise, followingPromise, postsPromise] = await Promise.allSettled([
         // Followers
         fetch(`/api/follow?type=followers&userId=${user.id}`, {
@@ -151,7 +125,7 @@ export default function UserDashboard() {
           : Promise.resolve(null)
       ]);
 
-      // Process followers
+      // Process results (same as before)
       if (followersPromise.status === 'fulfilled' && followersPromise.value) {
         const followersData = followersPromise.value;
         if (Array.isArray(followersData)) {
@@ -163,7 +137,6 @@ export default function UserDashboard() {
         }
       }
 
-      // Process following
       if (followingPromise.status === 'fulfilled' && followingPromise.value) {
         const followingData = followingPromise.value;
         if (Array.isArray(followingData)) {
@@ -175,7 +148,6 @@ export default function UserDashboard() {
         }
       }
 
-      // Process posts
       if (postsPromise.status === 'fulfilled' && postsPromise.value && userProfile?.role === 'author') {
         const postsData = postsPromise.value;
         if (Array.isArray(postsData)) {
@@ -189,12 +161,12 @@ export default function UserDashboard() {
 
       console.log("📊 Final counts:", { newFollowersCount, newFollowingCount, newPostsCount });
 
-      // Update all states in batch to prevent multiple re-renders
+      // Update states
       setFollowersCount(newFollowersCount);
       setFollowingCount(newFollowingCount);
       setPostsCount(newPostsCount);
 
-      // Update userProfile with a functional update to ensure consistency
+      // Update userProfile with current stats
       setUserProfile(prev => {
         if (!prev) return null;
         return {
@@ -224,287 +196,225 @@ export default function UserDashboard() {
     setShowFollowersModal(false);
   };
 
-  // Function to fetch verified news count
+  // Function to fetch top posts
   const fetchTopPosts = async () => {
-  try {
-    setLoadingState({
-      stage: 'syncing',
-      message: 'Loading top posts...',
-      progress: 70
-    });
-
-    const token = await getToken();
-    console.log('🔄 Fetching top posts...');
-    
-    const response = await fetch('/api/post/top-weekly?limit=5', {
-      method: 'GET', // Explicitly set GET method
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    console.log('📡 Response status:', response.status);
-
-    if (!response.ok) {
-      let errorDetails;
-      const contentType = response.headers.get('content-type');
-      
-      try {
-        if (contentType && contentType.includes('application/json')) {
-          errorDetails = await response.json();
-        } else {
-          // If not JSON, get as text
-          const errorText = await response.text();
-          errorDetails = { error: errorText || 'Unknown error' };
-        }
-      } catch (parseError) {
-        console.warn('Failed to parse error response:', parseError);
-        errorDetails = { error: `HTTP ${response.status} ${response.statusText}` };
-      }
-      
-      console.error('❌ API Error Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        details: errorDetails
+    try {
+      setLoadingState({
+        stage: 'syncing',
+        message: 'Loading top posts...',
+        progress: 70
       });
+
+      const token = await getToken();
+      console.log('🔄 Fetching top posts...');
       
-      // Handle specific error cases
-      if (response.status === 401) {
-        throw new Error('Authentication failed. Please try logging in again.');
-      } else if (response.status === 403) {
-        throw new Error('Access denied. You may not have permission to view this content.');
-      } else if (response.status === 404) {
-        throw new Error('Top posts endpoint not found. Please check if the API route exists.');
-      } else if (response.status === 405) {
-        throw new Error('Method not allowed. The API endpoint may not support GET requests.');
-      } else if (response.status === 500) {
-        throw new Error(errorDetails.error || 'Server error occurred');
-      } else {
-        throw new Error(`API request failed with status ${response.status}: ${errorDetails.error || response.statusText}`);
+      const response = await fetch('/api/post/top-weekly?limit=5', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
       }
+
+      const data = await response.json();
+      setTopPosts(data.posts || []);
+      
+    } catch (error) {
+      console.error('❌ Error in fetchTopPosts:', error);
+      setTopPosts([]);
+      throw error;
     }
+  };
 
-    const data = await response.json();
-    console.log('📊 Top posts data received:', {
-      postsCount: data.posts?.length || 0,
-      period: data.period,
-      total: data.total
-    });
+  // Function to fetch verified news count
+  const fetchVerifiedNewsCount = async () => {
+    try {
+      setLoadingState({
+        stage: 'syncing',
+        message: 'Fetching verified news data...',
+        progress: 60
+      });
 
-    setTopPosts(data.posts || []);
-    
-  } catch (error) {
-    console.error('❌ Error in fetchTopPosts:', error);
-    setTopPosts([]);
-    throw error;
-  }
-};
+      const token = await getToken();
+      const res = await fetch('/api/news-verification/verification-list?page=1&limit=1000', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-// Fixed fetchVerifiedNewsCount with better error handling
-const fetchVerifiedNewsCount = async () => {
-  try {
-    setLoadingState({
-      stage: 'syncing',
-      message: 'Fetching verified news data...',
-      progress: 60
-    });
-
-    const token = await getToken();
-    const res = await fetch('/api/news-verification/verification-list?page=1&limit=1000', {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (res.ok) {
-      const json = await res.json();
-      if (Array.isArray(json.verifications)) {
-        setVerifiedNewsCount(json.verifications.length);
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.verifications)) {
+          setVerifiedNewsCount(json.verifications.length);
+        } else {
+          setVerifiedNewsCount(0);
+        }
       } else {
         setVerifiedNewsCount(0);
       }
-    } else {
-      const errorText = await res.text();
-      console.error(`Failed to fetch verified news count. Status: ${res.status}, Response:`, errorText);
+    } catch (error) {
+      console.error('Error fetching verified news count:', error);
       setVerifiedNewsCount(0);
     }
-  } catch (error) {
-    console.error('Error fetching verified news count:', error);
-    setVerifiedNewsCount(0);
-  }
-};
+  };
 
-
-const fetchUserData = useCallback(async () => {
-  if (!user?.id) {
-    console.log("❌ No user ID available");
-    return;
-  }
-
-  setLoading(true);
-  try {
-    // Stage 1: Loading user profile
-    setLoadingState({
-      stage: 'loading',
-      message: 'Loading your profile...',
-      progress: 25
-    });
-
-    const token = await getToken();
-    
-    // First, sync user data with Supabase using the correct endpoint
-    setLoadingState({
-      stage: 'loading',
-      message: 'Syncing user data...',
-      progress: 30
-    });
-
-    try {
-      const syncResponse = await fetch('/api/sync-user', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!syncResponse.ok) {
-        const errorText = await syncResponse.text();
-        console.warn(`Sync failed with status ${syncResponse.status}:`, errorText);
-      } else {
-        console.log('✅ User data synced successfully');
-      }
-    } catch (syncError) {
-      console.warn('User sync failed, continuing without sync:', syncError);
-    }
-
-    // Fetch user profile using the correct endpoint
-    setLoadingState({
-      stage: 'loading',
-      message: 'Fetching your profile...',
-      progress: 40
-    });
-
-    try {
-      const profileResponse = await fetch('/api/user/me', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (profileResponse.ok) {
-        const profileData = await profileResponse.json();
-        
-        // Transform the response to match your UserProfile interface
-        const newProfile: UserProfile = {
-          id: user.id,
-          first_name: profileData.first_name || user.firstName || '',
-          last_name: profileData.last_name || user.lastName || '',
-          username: profileData.username || user.username || user.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'user',
-          email: profileData.email || user.emailAddresses?.[0]?.emailAddress || '',
-          role: profileData.role || 'user' as const,
-          image_url: profileData.image_url || user.imageUrl,
-          profile_completed: profileData.profile_completed || false,
-          bio: profileData.bio || '',
-          location: profileData.location || '',
-          created_at: profileData.created_at || user.createdAt?.toISOString() || new Date().toISOString(),
-          updated_at: profileData.updated_at || user.updatedAt?.toISOString() || new Date().toISOString(),
-          followers_count: 0,
-          following_count: 0,
-          posts_count: 0
-        };
-
-        setUserProfile(newProfile);
-        console.log('✅ User profile loaded from API:', newProfile);
-      } else {
-        const errorText = await profileResponse.text();
-        console.error(`Profile fetch failed with status ${profileResponse.status}:`, errorText);
-        
-        // Create a fallback profile
-        createFallbackProfile();
-      }
-    } catch (profileError) {
-      console.error('Profile fetch error:', profileError);
-      createFallbackProfile();
-    }
-
-    // Stage 2: Fetch verified news count
-    setLoadingState({
-      stage: 'syncing',
-      message: 'Fetching verified news data...',
-      progress: 60
-    });
-    
-    try {
-      await fetchVerifiedNewsCount();
-    } catch (verifiedError) {
-      console.warn('Failed to fetch verified news count:', verifiedError);
-      setVerifiedNewsCount(0);
-    }
-
-    // Stage 3: Fetch top posts (if you still need this here)
-    try {
-      await fetchTopPosts();
-    } catch (postsError) {
-      console.warn('Failed to fetch top posts:', postsError);
-      setTopPosts([]);
-    }
-
-    // Stage 4: Finalizing
-    setLoadingState({
-      stage: 'finalizing',
-      message: 'Preparing your dashboard...',
-      progress: 85
-    });
-
-    // Complete loading
-    setLoadingState({
-      stage: 'complete',
-      message: 'Dashboard ready!',
-      progress: 100
-    });
-
-    setTimeout(() => {
-      setLoading(false);
-    }, 500);
-
-  } catch (error) {
-    console.error('❌ Error fetching user data:', error);
-    // Create fallback profile even on error
-    createFallbackProfile();
-    setLoading(false);
-  }
-
-  // Helper function to create fallback profile
-  function createFallbackProfile() {
-    if (!user) {
-      console.error('Cannot create fallback profile: user is null or undefined');
+  // Main function to fetch user data
+  const fetchUserData = useCallback(async () => {
+    if (!user?.id) {
+      console.log("❌ No user ID available");
       return;
     }
-    
-    console.log('Creating fallback profile...');
-    setUserProfile({
-      id: user.id,
-      first_name: user.firstName || '',
-      last_name: user.lastName || '',
-      username: user.username || user.emailAddresses?.[0]?.emailAddress?.split('@')[0] || '',
-      email: user.emailAddresses?.[0]?.emailAddress || '',
-      role: 'user' as const,
-      image_url: user.imageUrl,
-      created_at: user.createdAt?.toISOString() || new Date().toISOString(),
-      updated_at: user.updatedAt?.toISOString() || new Date().toISOString(),
-      followers_count: 0,
-      following_count: 0,
-      posts_count: 0,
-    });
-  }
-}, [user?.id, user, getToken]);
 
+    setLoading(true);
+    try {
+      setLoadingState({
+        stage: 'loading',
+        message: 'Loading your profile...',
+        progress: 25
+      });
+
+      const token = await getToken();
+      
+      // First sync user data
+      setLoadingState({
+        stage: 'loading',
+        message: 'Syncing user data...',
+        progress: 30
+      });
+
+      try {
+        const syncResponse = await fetch('/api/sync-user', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!syncResponse.ok) {
+          console.warn(`Sync failed with status ${syncResponse.status}`);
+        } else {
+          console.log('✅ User data synced successfully');
+        }
+      } catch (syncError) {
+        console.warn('User sync failed, continuing without sync:', syncError);
+      }
+
+      // Fetch user profile
+      setLoadingState({
+        stage: 'loading',
+        message: 'Fetching your profile...',
+        progress: 40
+      });
+
+      try {
+        const profileResponse = await fetch('/api/user/me', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json();
+          
+          // Create the profile object with the ACTUAL data from the database
+          const newProfile: UserProfile = {
+            id: user.id,
+            first_name: profileData.first_name || user.firstName || '',
+            last_name: profileData.last_name || user.lastName || '',
+            username: profileData.username || user.username || user.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'user',
+            email: profileData.email || user.emailAddresses?.[0]?.emailAddress || '',
+            role: profileData.role || 'user' as const, // Use DATABASE role, not Clerk role
+            image_url: profileData.image_url || user.imageUrl,
+            profile_completed: profileData.profile_completed || false,
+            bio: profileData.bio || '',
+            location: profileData.location || '',
+            created_at: profileData.created_at || user.createdAt?.toISOString() || new Date().toISOString(),
+            updated_at: profileData.updated_at || user.updatedAt?.toISOString() || new Date().toISOString(),
+            followers_count: 0, // Will be updated by fetchProfileStats
+            following_count: 0, // Will be updated by fetchProfileStats
+            posts_count: 0 // Will be updated by fetchProfileStats
+          };
+
+          setUserProfile(newProfile);
+          console.log('✅ User profile loaded from API:', newProfile);
+        } else {
+          createFallbackProfile();
+        }
+      } catch (profileError) {
+        console.error('Profile fetch error:', profileError);
+        createFallbackProfile();
+      }
+
+      // Fetch other data
+      try {
+        await fetchVerifiedNewsCount();
+      } catch (verifiedError) {
+        console.warn('Failed to fetch verified news count:', verifiedError);
+        setVerifiedNewsCount(0);
+      }
+
+      try {
+        await fetchTopPosts();
+      } catch (postsError) {
+        console.warn('Failed to fetch top posts:', postsError);
+        setTopPosts([]);
+      }
+
+      setLoadingState({
+        stage: 'finalizing',
+        message: 'Preparing your dashboard...',
+        progress: 85
+      });
+
+      setLoadingState({
+        stage: 'complete',
+        message: 'Dashboard ready!',
+        progress: 100
+      });
+
+      setTimeout(() => {
+        setLoading(false);
+      }, 500);
+
+    } catch (error) {
+      console.error('❌ Error fetching user data:', error);
+      createFallbackProfile();
+      setLoading(false);
+    }
+
+    // Helper function to create fallback profile
+    function createFallbackProfile() {
+      if (!user) {
+        console.error('Cannot create fallback profile: user is null or undefined');
+        return;
+      }
+      
+      console.log('Creating fallback profile...');
+      setUserProfile({
+        id: user.id,
+        first_name: user.firstName || '',
+        last_name: user.lastName || '',
+        username: user.username || user.emailAddresses?.[0]?.emailAddress?.split('@')[0] || '',
+        email: user.emailAddresses?.[0]?.emailAddress || '',
+        role: 'user' as const, // Default to user role
+        image_url: user.imageUrl,
+        created_at: user.createdAt?.toISOString() || new Date().toISOString(),
+        updated_at: user.updatedAt?.toISOString() || new Date().toISOString(),
+        followers_count: 0,
+        following_count: 0,
+        posts_count: 0,
+      });
+    }
+  }, [user?.id, user, getToken]);
 
   // Add useEffect to refetch stats when userProfile.role changes
   useEffect(() => {
@@ -520,12 +430,11 @@ const fetchUserData = useCallback(async () => {
     }
   }, [isLoaded, user, userProfile, fetchUserData]);
 
-  // Initial animations - Fixed to check for refs before animating
+  // Initial animations
   useEffect(() => {
     if (!loading && headerRef.current && statsRef.current && tabsRef.current && contentRef.current) {
       const tl = gsap.timeline();
 
-      // Set initial states - check each ref individually
       const elements = [headerRef.current, statsRef.current, tabsRef.current, contentRef.current].filter(Boolean);
 
       if (elements.length > 0) {
@@ -534,7 +443,6 @@ const fetchUserData = useCallback(async () => {
           y: 30
         });
 
-        // Animate elements in sequence
         tl.to(headerRef.current, {
           opacity: 1,
           y: 0,
@@ -562,22 +470,18 @@ const fetchUserData = useCallback(async () => {
       }
     }
   }, [loading]);
+
   const handleTabClick = async (tab: typeof activeTab, event: React.MouseEvent) => {
     if (tab === activeTab) return;
 
-    // Show tab loading for certain tabs that might need data fetching
     if (tab === 'verified' || tab === 'posts') {
       setTabLoading(true);
-
-      // Simulate async operation (replace with actual data fetching if needed)
       await new Promise(resolve => setTimeout(resolve, 800));
-
       setTabLoading(false);
     }
 
     setActiveTab(tab);
 
-    // Animate tab switch - check if element exists
     if (event.currentTarget) {
       gsap.to(event.currentTarget, {
         scale: 0.95,
@@ -588,7 +492,6 @@ const fetchUserData = useCallback(async () => {
       });
     }
 
-    // Animate content change - check if ref exists
     if (contentRef.current) {
       gsap.fromTo(contentRef.current,
         { opacity: 0, y: 20 },
@@ -625,16 +528,15 @@ const fetchUserData = useCallback(async () => {
 
   return (
     <div ref={containerRef} className="min-h-screen bg-white dark:bg-black pt-[80px] transition-colors duration-300 pb-[100px]">
-      {/* Header Section */}
+      {/* Header Section - Pass the actual userProfile with updated stats */}
       <div ref={headerRef} className="bg-white dark:bg-black opacity-0 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <ProfileHeader
             profile={{
-              ...transformUserProfileForHeaderV2(userProfile, user),
-              id: user.id, // Explicitly ensure id is present
+              ...userProfile, // Use the actual userProfile object
               followers_count: followersCount,
               following_count: followingCount,
-              posts_count: userProfile?.role === 'author' ? postsCount : 0
+              posts_count: userProfile.role === 'author' ? postsCount : 0
             }}
             currentUserId={user.id}
             isFollowing={false}
@@ -678,7 +580,7 @@ const fetchUserData = useCallback(async () => {
         </div>
       </div>
 
-      {/* Content Section - Enhanced for responsiveness */}
+      {/* Content Section */}
       <div
         ref={contentRef}
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 opacity-0 overflow-y-auto max-h-[calc(100vh-200px)] scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
@@ -718,7 +620,10 @@ const fetchUserData = useCallback(async () => {
                     {createdAtLoading ? (
                       <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-4 w-20 inline-block"></span>
                     ) : (
-                      memberSince || "Apr 2025"
+                      memberSince || new Date(userProfile.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long'
+                      })
                     )}
                   </span>
                 </div>
@@ -743,11 +648,13 @@ const fetchUserData = useCallback(async () => {
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">{createdAtLoading ? (
-                    <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-4 w-12 inline-block"></span>
-                  ) : (
-                    `${daysSinceJoining} days active`
-                  )}</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">
+                    {createdAtLoading ? (
+                      <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-4 w-12 inline-block"></span>
+                    ) : (
+                      `${daysSinceJoining} days active`
+                    )}
+                  </span>
                 </div>
               </div>
             </div>
@@ -756,14 +663,12 @@ const fetchUserData = useCallback(async () => {
 
         {activeTab === 'posts' && (
           <div>
-                <WeeklyTopPosts/>
+            <WeeklyTopPosts/>
           </div>
         )}
 
         {activeTab === 'my-posts' && (
           <div>
-            <div className="mb-6">
-            </div>
             <AuthorPostsSection
               userId={userProfile.id}
               isAuthor={userProfile.role === 'author'}
@@ -792,6 +697,7 @@ const fetchUserData = useCallback(async () => {
           </div>
         )}
       </div>
+
       {/* Stats Section */}
       <div ref={statsRef} className="bg-white dark:bg-black rounded-2xl overflow-hidden transition-all duration-300 opacity-0">
         <UserStatsSection
@@ -803,6 +709,7 @@ const fetchUserData = useCallback(async () => {
           verifiedLoading={loading}
         />
       </div>
+
       {showFollowersModal && (
         <FollowersFollowingSection
           isModal={true}

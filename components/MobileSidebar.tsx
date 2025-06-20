@@ -29,35 +29,35 @@ interface UserProfile {
 
 // Navigation items with icons and descriptions
 const navItems = [
-  { 
-    href: "/", 
-    label: "Home", 
-    icon: Home, 
-    description: "Latest updates" 
+  {
+    href: "/",
+    label: "Home",
+    icon: Home,
+    description: "Latest updates"
   },
-  { 
-    href: "/verify-news", 
-    label: "Verify News", 
-    icon: Shield, 
-    description: "Fact checking" 
+  {
+    href: "/verify-news",
+    label: "Verify News",
+    icon: Shield,
+    description: "Fact checking"
   },
-  { 
-    href: "/podcast", 
-    label: "Podcast", 
-    icon: Mic, 
-    description: "Audio content" 
+  {
+    href: "/podcast",
+    label: "Podcast",
+    icon: Mic,
+    description: "Audio content"
   },
-  { 
-    href: "/blog", 
-    label: "Blog", 
-    icon: BookOpen, 
-    description: "Read articles" 
+  {
+    href: "/blog",
+    label: "Blog",
+    icon: BookOpen,
+    description: "Read articles"
   },
-  { 
-    href: "/aboutus", 
-    label: "About Us", 
-    icon: Users, 
-    description: "Our story" 
+  {
+    href: "/aboutus",
+    label: "About Us",
+    icon: Users,
+    description: "Our story"
   },
 ];
 
@@ -173,22 +173,22 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 300, 
+            transition={{
+              type: "spring",
+              stiffness: 300,
               damping: 30,
-              duration: 0.3 
+              duration: 0.3
             }}
             className="fixed top-4 left-4 right-4 z-[70] max-w-sm mx-auto"
           >
             <div className={`
-              ${isDarkMode 
-                ? 'bg-black/95 border-white/10' 
+              ${isDarkMode
+                ? 'bg-black/95 border-white/10'
                 : 'bg-white border-black/10'
               }
               backdrop-blur-xl rounded-3xl border shadow-2xl overflow-hidden
             `}>
-              
+
               {/* Header */}
               <div className="relative p-6 pb-4">
                 <div className="flex items-center justify-between">
@@ -216,8 +216,8 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
                     className={`
                       w-10 h-10 rounded-full flex items-center justify-center
                       transition-all duration-200 hover:scale-105
-                      ${isDarkMode 
-                        ? 'bg-white/10 hover:bg-white/20 text-white' 
+                      ${isDarkMode
+                        ? 'bg-white/10 hover:bg-white/20 text-white'
                         : 'bg-black/5 hover:bg-black/10 text-black'
                       }
                     `}
@@ -243,7 +243,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
                         href={item.href}
                         className={`
                           group relative p-4 rounded-2xl transition-all duration-300
-                          ${isActive 
+                          ${isActive
                             ? `${isDarkMode ? 'bg-[#EF3866]/20 border-[#EF3866]/30' : 'bg-[#EF3866]/10 border-[#EF3866]/20'} border`
                             : `${isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-black/10'} border border-transparent`
                           }
@@ -253,14 +253,14 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
                         <div className="flex flex-col items-center text-center space-y-2">
                           <div className={`
                             p-3 rounded-xl transition-all duration-300
-                            ${isActive 
+                            ${isActive
                               ? 'bg-[#EF3866] text-white shadow-lg shadow-[#EF3866]/25'
                               : `${isDarkMode ? 'bg-white/10 text-white group-hover:bg-[#EF3866] group-hover:text-white' : 'bg-black/10 text-black group-hover:bg-[#EF3866] group-hover:text-white'}`
                             }
                           `}>
                             <Icon size={20} />
                           </div>
-                          
+
                           <div>
                             <p className={`font-semibold text-sm ${isDarkMode ? 'text-white' : 'text-black'}`}>
                               {item.label}
@@ -285,115 +285,117 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
               </div>
 
               {/* User Section */}
-              {/* Enhanced User Section */}
               <div className={`
-                mx-6 mb-6 rounded-2xl overflow-hidden
-                ${isDarkMode ? 'bg-white/8 border-white/20' : 'bg-black/5 border-black/10'}
-                border-2 shadow-lg
-              `}>
+  mx-6 mb-6 rounded-2xl overflow-hidden border-2 shadow-xl
+  ${isDarkMode ? 'bg-white/5 border-white/15' : 'bg-black/5 border-black/10'}
+`}>
                 {user ? (
                   <div className="space-y-0">
-                    {/* Dashboard Link Section */}
+                    {/* Dashboard Link */}
                     <Link href="/hashedpage" className="block group">
                       <div className={`
-                        p-5 transition-all duration-300
-                        ${isDarkMode 
-                          ? 'hover:bg-white/10 border-b border-white/10' 
-                          : 'hover:bg-black/5 border-b border-black/10'
-                        }
-                      `}>
-                        <div className="flex items-center gap-4">
-                          <div className="relative">
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#EF3866] to-[#EF3866]/70 p-0.5 shadow-lg">
-                              <div className={`
-                                w-full h-full rounded-2xl flex items-center justify-center overflow-hidden
-                                ${isDarkMode ? 'bg-black' : 'bg-white'}
-                              `}>
-                                <UserButton>
-                                  <UserButton.MenuItems>
-                                    <UserButton.Action
-                                      label="Dashboard"
-                                      labelIcon={<User size={16} />}
-                                      onClick={() => router.push("/hashedpage")}
-                                    />
-                                  </UserButton.MenuItems>
-                                </UserButton>
-                              </div>
+          p-5 flex items-center gap-4 transition-all duration-300
+          ${isDarkMode
+                          ? 'hover:bg-white/10 border-b border-white/10'
+                          : 'hover:bg-black/5 border-b border-black/10'}
+        `}>
+                        {/* Avatar */}
+                        <div className="relative shrink-0">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#EF3866] to-[#EF3866]/70 p-0.5 shadow-lg">
+                            <div className={`
+                w-full h-full rounded-2xl flex items-center justify-center overflow-hidden
+                ${isDarkMode ? 'bg-black' : 'bg-white'}
+              `}>
+                              <UserButton>
+                                <UserButton.MenuItems>
+                                  <UserButton.Action
+                                    label="Dashboard"
+                                    labelIcon={<User size={16} />}
+                                    onClick={() => router.push("/hashedpage")}
+                                  />
+                                </UserButton.MenuItems>
+                              </UserButton>
                             </div>
-                            
-                            {/* Enhanced online indicator */}
-                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-3 border-white shadow-lg"></div>
                           </div>
 
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <LayoutDashboard 
-                                size={16} 
-                                className={`
-                                  ${isDarkMode ? 'text-white/80' : 'text-black/80'}
-                                  group-hover:text-[#EF3866] transition-colors duration-300
-                                `} 
-                              />
-                              <p className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-white/80' : 'text-black/80'} group-hover:text-[#EF3866] transition-colors duration-300`}>
-                                Dashboard Access
-                              </p>
-                            </div>
-                            <p className={`font-bold text-lg capitalize leading-tight ${isDarkMode ? 'text-white' : 'text-black'} truncate`}>
-                              {loading ? 'Loading...' : (userProfile?.first_name || user?.firstName || 'User')}
-                            </p>
-                            <p className={`text-sm font-medium ${isDarkMode ? 'text-white/70' : 'text-black/70'}`}>
-                              {loading ? 'Loading...' : (userProfile?.role || 'Member')}
-                            </p>
-                          </div>
-
-                          <div className="flex flex-col items-center gap-2">
-                            <ChevronRight 
-                              size={20} 
-                              className={`
-                                ${isDarkMode ? 'text-white/60 group-hover:text-[#EF3866]' : 'text-black/60 group-hover:text-[#EF3866]'}
-                                transition-all duration-300 group-hover:translate-x-1
-                              `} 
-                              strokeWidth={2.5}
-                            />
-                            <Bell 
-                              size={16} 
-                              className={`
-                                cursor-pointer transition-colors duration-300
-                                ${isDarkMode ? 'text-white/50 hover:text-[#EF3866]' : 'text-black/50 hover:text-[#EF3866]'}
-                              `} 
-                            />
-                          </div>
+                          {/* Online Status Dot */}
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-[3px] border-white shadow-md"></div>
                         </div>
 
-                        {/* Subtle hover indicator */}
-                        <div className={`
-                          mt-3 h-0.5 bg-gradient-to-r from-[#EF3866] to-transparent
-                          transition-all duration-300 scale-x-0 group-hover:scale-x-100
-                          origin-left
-                        `}></div>
+                        {/* User Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <LayoutDashboard
+                              size={16}
+                              className={`transition-colors duration-300 
+                  ${isDarkMode ? 'text-white/80' : 'text-black/80'} 
+                  group-hover:text-[#EF3866]`}
+                            />
+                            <p className={`text-xs font-semibold uppercase tracking-wide transition-colors duration-300
+                ${isDarkMode ? 'text-white/80' : 'text-black/80'} 
+                group-hover:text-[#EF3866]`}>
+                              Dashboard Access
+                            </p>
+                          </div>
+
+                          <p className={`text-lg font-bold capitalize truncate leading-tight 
+              ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                            {loading ? 'Loading...' : (userProfile?.first_name || user?.firstName || 'User')}
+                          </p>
+
+                          <p className={`text-sm font-medium capitalize
+              ${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>
+                            {loading ? 'Loading...' : (userProfile?.role || 'Member')}
+                          </p>
+                        </div>
+
+                        {/* Icons */}
+                        <div className="flex flex-col items-center gap-2">
+                          <ChevronRight
+                            size={20}
+                            strokeWidth={2.5}
+                            className={`transition-transform duration-300 
+                ${isDarkMode
+                                ? 'text-white/60 group-hover:text-[#EF3866]'
+                                : 'text-black/60 group-hover:text-[#EF3866]'} 
+                group-hover:translate-x-1`}
+                          />
+                          <Bell
+                            size={16}
+                            className={`cursor-pointer transition-colors duration-300 
+                ${isDarkMode
+                                ? 'text-white/50 hover:text-[#EF3866]'
+                                : 'text-black/50 hover:text-[#EF3866]'}`}
+                          />
+                        </div>
                       </div>
+
+                      {/* Hover Line */}
+                      <div className={`
+          mt-1 h-0.5 bg-gradient-to-r from-[#EF3866] to-transparent
+          transition-all duration-300 scale-x-0 group-hover:scale-x-100 origin-left
+        `} />
                     </Link>
 
-                    {/* Sign Out Section */}
+                    {/* Sign Out */}
                     <div className="p-5">
                       <SignOutBtn />
                     </div>
                   </div>
                 ) : (
-                  /* Enhanced Sign Up CTA */
+                  /* Call to Action for Guests */
                   <Link href="/authentication/sign-up">
-                    <button className="w-full group relative overflow-hidden bg-gradient-to-r from-[#EF3866] to-[#EF3866]/80 hover:from-[#d7325a] hover:to-[#d7325a]/80 text-white font-bold px-8 py-5 rounded-2xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02] transform-gpu">
-                      <div className="flex items-center justify-center gap-3">
-                        <span className="text-sm font-bold tracking-tight">Get Started Today</span>
+                    <button className="w-full relative overflow-hidden px-8 py-5 rounded-2xl font-bold text-white bg-gradient-to-r from-[#EF3866] to-[#EF3866]/80 hover:from-[#d7325a] hover:to-[#d7325a]/80 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300">
+                      <div className="flex items-center justify-center gap-3 relative z-10">
+                        <span className="text-sm tracking-tight">Get Started Today</span>
                         <ArrowRight size={18} strokeWidth={2.5} className="transition-transform group-hover:translate-x-1" />
                       </div>
-                      
-                      {/* Enhanced shimmer effect */}
-                      <div className="absolute inset-0 -top-2 -bottom-2 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 group-hover:animate-pulse"></div>
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 group-hover:animate-pulse z-0" />
                     </button>
                   </Link>
                 )}
               </div>
+
             </div>
           </motion.div>
         )}
