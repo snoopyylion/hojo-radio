@@ -11,10 +11,7 @@ import {
   User,
   Crown,
   BarChart3,
-  Calendar,
-  Eye,
   Edit3,
-  Heart,
   MessageCircle,
 } from "lucide-react";
 import VerifiedList from '@/components/VerifiedList';
@@ -96,7 +93,7 @@ const transformUserProfileForHeaderV2 = (userProfile: UserProfile, user: UserRes
 export default function UserDashboard() {
   const { user, isLoaded } = useUser();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [topPosts, setTopPosts] = useState<TopPost[]>([]);
+  const [, setTopPosts] = useState<TopPost[]>([]);
   const { getToken } = useAuth();
   const [verifiedNewsCount, setVerifiedNewsCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -298,7 +295,7 @@ export default function UserDashboard() {
       let errorDetails;
       try {
         errorDetails = await response.json();
-      } catch (parseError) {
+      } catch {
         errorDetails = { error: 'Failed to parse error response' };
       }
       
@@ -340,29 +337,6 @@ export default function UserDashboard() {
     
     // Re-throw the error so it can be handled by the calling function
     throw error;
-  }
-};
-
-// Enhanced refreshTopPosts with user feedback
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'string') return error;
-  return String(error);
-}
-
-// Usage in your refreshTopPosts function:
-const refreshTopPosts = async () => {
-  setTabLoading(true);
-  try {
-    await fetchTopPosts();
-    console.log('✅ Top posts refreshed successfully');
-  } catch (error) {
-    console.error('❌ Failed to refresh top posts:', error);
-    
-    // Show user-friendly error message
-    alert(`Failed to refresh posts: ${getErrorMessage(error)}`);
-  } finally {
-    setTabLoading(false);
   }
 };
 
@@ -605,15 +579,6 @@ const refreshTopPosts = async () => {
       );
     }
   };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
 
 
   // Show PageLoader during initial loading

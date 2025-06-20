@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { UserResource } from '@clerk/types';
-import { useAuth } from "@clerk/nextjs";
 import { Crown, User, CheckCircle } from "lucide-react";
 import { gsap } from "gsap";
 import LinkButton from "@/components/LinkButton";
