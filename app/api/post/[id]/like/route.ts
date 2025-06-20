@@ -3,11 +3,26 @@ import { auth } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 
+interface LikeResponse {
+  success: boolean;
+  liked: boolean;
+  likeCount: number;
+}
+
+interface ErrorResponse {
+  error: string;
+  details?: string;
+}
+
+interface LikeStatusResponse {
+  likeCount: number;
+  hasLiked: boolean;
+}
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse<LikeResponse | ErrorResponse>> {
   try {
     const resolvedParams = await params;
     
@@ -27,58 +42,66 @@ export async function POST(
 
     console.log('🔄 Processing like for post:', postId, 'by user:', userId);
 
-    // Check if user already liked this post
+    // Use a transaction-like approach with upsert for better performance
     const { data: existingLike, error: checkError } = await supabaseAdmin
       .from('post_likes')
-      .select('*')
+      .select('id')
       .eq('user_id', userId)
       .eq('post_id', postId)
-      .single();
+      .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no row exists
 
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows found
+    if (checkError) {
       console.error('❌ Error checking existing like:', checkError);
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
     const hasLiked = !!existingLike;
+    let newLikeCount = 0;
 
     if (hasLiked) {
-      // Remove like
       console.log('➖ Removing like...');
       
-      const { error: deleteError } = await supabaseAdmin
-        .from('post_likes')
-        .delete()
-        .eq('user_id', userId)
-        .eq('post_id', postId);
+      // Use a single query to delete and get count
+      const [deleteResult, countResult] = await Promise.all([
+        supabaseAdmin
+          .from('post_likes')
+          .delete()
+          .eq('user_id', userId)
+          .eq('post_id', postId),
+        supabaseAdmin
+          .from('post_likes')
+          .select('*', { count: 'exact', head: true })
+          .eq('post_id', postId)
+      ]);
 
-      if (deleteError) {
-        console.error('❌ Error removing like:', deleteError);
+      if (deleteResult.error) {
+        console.error('❌ Error removing like:', deleteResult.error);
         return NextResponse.json({ error: 'Failed to remove like' }, { status: 500 });
       }
 
-      // Get updated like count
-      const { count: newCount } = await supabaseAdmin
-        .from('post_likes')
-        .select('*', { count: 'exact', head: true })
-        .eq('post_id', postId);
+      // Adjust count since we just deleted one
+      newLikeCount = Math.max(0, (countResult.count || 1) - 1);
 
-      console.log('✅ Like removed, new count:', newCount || 0);
+      console.log('✅ Like removed, new count:', newLikeCount);
       
       return NextResponse.json({
         success: true,
         liked: false,
-        likeCount: newCount || 0
+        likeCount: newLikeCount
       });
     } else {
-      // Add like
       console.log('➕ Adding like...');
       
+      // Use upsert to handle potential race conditions
       const { error: insertError } = await supabaseAdmin
         .from('post_likes')
-        .insert({
+        .upsert({
           user_id: userId,
-          post_id: postId
+          post_id: postId,
+          created_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,post_id',
+          ignoreDuplicates: true
         });
 
       if (insertError) {
@@ -87,17 +110,19 @@ export async function POST(
       }
 
       // Get updated like count
-      const { count: newCount } = await supabaseAdmin
+      const { count } = await supabaseAdmin
         .from('post_likes')
         .select('*', { count: 'exact', head: true })
         .eq('post_id', postId);
 
-      console.log('✅ Like added, new count:', newCount || 0);
+      newLikeCount = count || 1;
+
+      console.log('✅ Like added, new count:', newLikeCount);
       
       return NextResponse.json({
         success: true,
         liked: true,
-        likeCount: newCount || 0
+        likeCount: newLikeCount
       });
     }
   } catch (error) {
@@ -112,7 +137,7 @@ export async function POST(
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse<LikeStatusResponse | ErrorResponse>> {
   try {
     const resolvedParams = await params;
     
@@ -127,32 +152,41 @@ export async function GET(
 
     console.log('📊 Fetching like status for post:', postId);
 
-    // Get total like count for the post
-    const { count: likeCount } = await supabaseAdmin
-      .from('post_likes')
-      .select('*', { count: 'exact', head: true })
-      .eq('post_id', postId);
-
-    let hasLiked = false;
-
-    // Check if current user liked this post (if authenticated)
+    // Optimize by running both queries in parallel when user is authenticated
     if (userId) {
-      const { data: userLike, error } = await supabaseAdmin
-        .from('post_likes')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('post_id', postId)
-        .single();
+      const [likeCountResult, userLikeResult] = await Promise.all([
+        supabaseAdmin
+          .from('post_likes')
+          .select('*', { count: 'exact', head: true })
+          .eq('post_id', postId),
+        supabaseAdmin
+          .from('post_likes')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('post_id', postId)
+          .maybeSingle()
+      ]);
 
-      if (!error) {
-        hasLiked = !!userLike;
+      if (userLikeResult.error && userLikeResult.error.code !== 'PGRST116') {
+        console.error('❌ Error checking user like:', userLikeResult.error);
       }
-    }
 
-    return NextResponse.json({
-      likeCount: likeCount || 0,
-      hasLiked
-    });
+      return NextResponse.json({
+        likeCount: likeCountResult.count || 0,
+        hasLiked: !!userLikeResult.data
+      });
+    } else {
+      // If no user, just get the count
+      const { count: likeCount } = await supabaseAdmin
+        .from('post_likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('post_id', postId);
+
+      return NextResponse.json({
+        likeCount: likeCount || 0,
+        hasLiked: false
+      });
+    }
   } catch (error) {
     console.error('❌ Get like status error:', error);
     return NextResponse.json({ 

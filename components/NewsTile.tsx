@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { urlFor } from "@/sanity/lib/image";
 import Link from "next/link";
 import Image from "next/image";
@@ -32,12 +32,71 @@ interface NewsTileProps {
 const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [likeCount, setLikeCount] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState(false);
+  
   const timeAgo = formatDistance(new Date(post.publishedAt), new Date(), { addSuffix: true });
 
-  const handleLike = (e: React.MouseEvent) => {
+  const fetchLikeStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/post/${post._id}/like`);
+      if (!res.ok) return;
+
+      const data = await res.json();
+      setIsLiked(data.hasLiked);
+      setLikeCount(data.likeCount);
+    } catch (err) {
+      console.error("Failed to fetch like status", err);
+    }
+  }, [post._id]);
+
+  useEffect(() => {
+    fetchLikeStatus();
+  }, [fetchLikeStatus]);
+
+  const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // Prevent multiple clicks while request is in progress
+    if (isLoading) return;
+
+    // Optimistic update - update UI immediately
+    const previousIsLiked = isLiked;
+    const previousLikeCount = likeCount;
+    
     setIsLiked(!isLiked);
+    setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+    setIsLoading(true);
+
+    try {
+      const res = await fetch(`/api/post/${post._id}/like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        // Update with actual server response
+        setIsLiked(data.liked);
+        setLikeCount(data.likeCount);
+      } else {
+        // Revert optimistic update on error
+        setIsLiked(previousIsLiked);
+        setLikeCount(previousLikeCount);
+        console.error("Error toggling like", data.error);
+      }
+    } catch (err) {
+      // Revert optimistic update on error
+      setIsLiked(previousIsLiked);
+      setLikeCount(previousLikeCount);
+      console.error("Like request failed", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBookmark = (e: React.MouseEvent) => {
@@ -56,7 +115,7 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
             <div className="flex flex-wrap gap-2 mb-3">
               {post.categories.slice(0, 2).map((cat, index) => (
                 <span
-                  key={index}
+                  key={`${cat.title}-${index}`}
                   className="inline-block bg-[#EF3866]/10 text-[#EF3866] text-xs font-medium px-3 py-1 rounded-full hover:bg-[#EF3866]/20 transition-colors duration-200"
                 >
                   {cat.title}
@@ -100,7 +159,7 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
                   {post.author.name}
                 </span>
               </div>
-              
+
               <div className="flex items-center gap-1 flex-shrink-0">
                 <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="text-xs sm:text-sm">{timeAgo}</span>
@@ -110,37 +169,33 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
             {/* Engagement Actions */}
             <div className="flex items-center gap-2 sm:gap-4">
               <button
-  onClick={handleLike}
-  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all duration-200 ${
-    isLiked
-      ? 'bg-[#ffe6ec] dark:bg-[#4a1a22] text-[#EF3866]'
-      : 'bg-white dark:bg-black text-[#EF3866] hover:bg-[#ffe6ec] dark:hover:bg-[#1a1a1a]'
-  }`}
->
-  <Heart 
-    className={`w-3 h-3 sm:w-4 sm:h-4 transition-all duration-200 ${
-      isLiked ? 'fill-current' : ''
-    }`} 
-  />
-  <span className="font-medium">Like</span>
-</button>
+                onClick={handleLike}
+                disabled={isLoading}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all duration-200 ${isLiked
+                    ? 'bg-[#ffe6ec] dark:bg-[#4a1a22] text-[#EF3866]'
+                    : 'bg-white dark:bg-black text-[#EF3866] hover:bg-[#ffe6ec] dark:hover:bg-[#1a1a1a]'
+                  } ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+              >
+                <Heart
+                  className={`w-3 h-3 sm:w-4 sm:h-4 transition-all duration-200 ${isLiked ? 'fill-current' : ''
+                    } ${isLoading ? 'animate-pulse' : ''}`}
+                />
+                <span className="font-medium">{likeCount} Like{likeCount !== 1 ? 's' : ''}</span>
+              </button>
 
-<button
-  onClick={handleBookmark}
-  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all duration-200 ${
-    isBookmarked
-      ? 'bg-[#ffe6ec] dark:bg-[#4a1a22] text-[#EF3866]'
-      : 'bg-white dark:bg-black text-[#EF3866] hover:bg-[#ffe6ec] dark:hover:bg-[#1a1a1a]'
-  }`}
->
-  <Bookmark 
-    className={`w-3 h-3 sm:w-4 sm:h-4 transition-all duration-200 ${
-      isBookmarked ? 'fill-current' : ''
-    }`} 
-  />
-  <span className="font-medium">Save</span>
-</button>
-
+              <button
+                onClick={handleBookmark}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all duration-200 ${isBookmarked
+                    ? 'bg-[#ffe6ec] dark:bg-[#4a1a22] text-[#EF3866]'
+                    : 'bg-white dark:bg-black text-[#EF3866] hover:bg-[#ffe6ec] dark:hover:bg-[#1a1a1a]'
+                  }`}
+              >
+                <Bookmark
+                  className={`w-3 h-3 sm:w-4 sm:h-4 transition-all duration-200 ${isBookmarked ? 'fill-current' : ''
+                    }`}
+                />
+                <span className="font-medium">Save</span>
+              </button>
             </div>
           </div>
 
@@ -167,7 +222,7 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
                   </div>
                 </div>
               )}
-              
+
               {/* Read time overlay */}
               <div className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-black/70 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 5 min read
