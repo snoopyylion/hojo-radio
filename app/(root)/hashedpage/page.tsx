@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { UserResource } from '@clerk/types';
 import { useAuth, useUser } from "@clerk/nextjs";
 import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
 import { gsap } from "gsap";
