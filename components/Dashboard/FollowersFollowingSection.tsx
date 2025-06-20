@@ -25,6 +25,7 @@ interface FollowersFollowingSectionProps {
   isModal?: boolean;
   onClose?: () => void;
   initialTab?: 'followers' | 'following';
+  targetUserId?: string; // Add this prop to specify which user's followers/following to show
 }
 
 export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps> = ({ 
@@ -33,7 +34,8 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
   onFollowingClick,
   isModal = false,
   onClose,
-  initialTab = 'followers'
+  initialTab = 'followers',
+  targetUserId // New prop
 }) => {
   const { user } = useAppContext();
   const router = useRouter();
@@ -44,14 +46,17 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
   const [loading, setLoading] = useState(false);
   const [followOperations, setFollowOperations] = useState<Set<string>>(new Set());
 
+  // Use targetUserId if provided, otherwise use current user's ID
+  const displayUserId = targetUserId || user?.id;
+
   const fetchFollowersAndFollowing = useCallback(async () => {
-    if (!user?.id) return;
+    if (!displayUserId) return;
 
     setLoading(true);
     try {
       const [followersResponse, followingResponse] = await Promise.all([
-        fetch(`/api/follow?type=followers&userId=${user.id}`),
-        fetch(`/api/follow?type=following&userId=${user.id}`)
+        fetch(`/api/follow?type=followers&userId=${displayUserId}`),
+        fetch(`/api/follow?type=following&userId=${displayUserId}`)
       ]);
 
       if (!followersResponse.ok || !followingResponse.ok) {
@@ -61,6 +66,8 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
       const followersData = await followersResponse.json();
       const followingData = await followingResponse.json();
 
+      // Only check follow status if we're the current user viewing our own profile
+      // or if we're viewing someone else's profile (to see if we follow them back)
       const followersWithStatus = await checkFollowBackStatus(followersData.users);
       const followingWithStatus = await checkFollowingStatus(followingData.users);
 
@@ -71,13 +78,13 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [displayUserId]);
 
   useEffect(() => {
-    if (user?.id) {
+    if (displayUserId) {
       fetchFollowersAndFollowing();
     }
-  }, [user?.id, fetchFollowersAndFollowing]);
+  }, [displayUserId, fetchFollowersAndFollowing]);
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -107,9 +114,9 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
 
       const followStatusData = await response.json();
       
-      return users.map(user => ({
-        ...user,
-        is_following_back: followStatusData.statuses[user.id] || false
+      return users.map(followUser => ({
+        ...followUser,
+        is_following_back: followStatusData.statuses[followUser.id] || false
       }));
     } catch (error) {
       console.error('Error checking follow back status:', error);
@@ -199,6 +206,8 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
 
   const renderUserCard = (followUser: FollowUser) => {
     const isOperationInProgress = followOperations.has(followUser.id);
+    const isCurrentUser = user?.id === followUser.id;
+    const isViewingOwnProfile = user?.id === displayUserId;
     
     return (
       <div key={followUser.id} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-black/50 rounded-lg transition-colors">
@@ -242,43 +251,54 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
         </div>
 
         <div className="flex items-center gap-2">
-          {activeTab === 'followers' && followUser.is_following_back && (
+          {/* Show mutual badge only if viewing own profile */}
+          {isViewingOwnProfile && activeTab === 'followers' && followUser.is_following_back && (
             <span className="px-2 py-1 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded">
               Mutual
             </span>
           )}
           
-          {((activeTab === 'followers' && !followUser.is_following_back) || activeTab === 'following') && (
-            <button
-              onClick={() => handleFollowToggle(followUser.id, followUser.is_following_back || false)}
-              disabled={isOperationInProgress}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-all ${
-                followUser.is_following_back
-                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  : 'bg-[#EF3866] text-white hover:bg-[#d7325a]'
-              } ${isOperationInProgress ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {isOperationInProgress ? (
-                <div className="animate-spin rounded-full h-3 w-3 border border-current border-t-transparent"></div>
-              ) : followUser.is_following_back ? (
-                <>
-                  <UserMinus size={12} />
-                  <span>Unfollow</span>
-                </>
-              ) : (
-                <>
-                  <UserPlus size={12} />
-                  <span>Follow</span>
-                </>
+          {/* Show follow/unfollow buttons only if:
+              1. User is logged in
+              2. Not viewing own card
+              3. Either viewing own profile or viewing someone else's profile */}
+          {user?.id && !isCurrentUser && (
+            <>
+              {((isViewingOwnProfile && activeTab === 'followers' && !followUser.is_following_back) || 
+                (isViewingOwnProfile && activeTab === 'following') ||
+                (!isViewingOwnProfile)) && (
+                <button
+                  onClick={() => handleFollowToggle(followUser.id, followUser.is_following_back || false)}
+                  disabled={isOperationInProgress}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                    followUser.is_following_back
+                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                      : 'bg-[#EF3866] text-white hover:bg-[#d7325a]'
+                  } ${isOperationInProgress ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {isOperationInProgress ? (
+                    <div className="animate-spin rounded-full h-3 w-3 border border-current border-t-transparent"></div>
+                  ) : followUser.is_following_back ? (
+                    <>
+                      <UserMinus size={12} />
+                      <span>Unfollow</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={12} />
+                      <span>Follow</span>
+                    </>
+                  )}
+                </button>
               )}
-            </button>
+            </>
           )}
         </div>
       </div>
     );
   };
 
-  if (!user) {
+  if (!displayUserId) {
     return null;
   }
 
@@ -318,6 +338,7 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
   }
 
   const currentData = activeTab === 'followers' ? followers : following;
+  const isViewingOwnProfile = user?.id === displayUserId;
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
@@ -325,7 +346,7 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Your Network
+            {isViewingOwnProfile ? 'Your Network' : 'Network'}
           </h2>
           <button
             onClick={onClose}
@@ -378,8 +399,8 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
               <Users size={48} className="mx-auto text-gray-400 mb-4" />
               <p className="text-gray-600 dark:text-gray-400 text-sm">
                 {activeTab === 'followers' 
-                  ? "You don't have any followers yet." 
-                  : "You're not following anyone yet."
+                  ? (isViewingOwnProfile ? "You don't have any followers yet." : "This user doesn't have any followers yet.")
+                  : (isViewingOwnProfile ? "You're not following anyone yet." : "This user isn't following anyone yet.")
                 }
               </p>
             </div>

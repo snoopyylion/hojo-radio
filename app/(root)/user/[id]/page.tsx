@@ -11,7 +11,7 @@ import { AboutSection } from '@/components/UserProfile/AboutSection';
 import { UserActivity } from '@/components/UserProfile/UserActivity';
 import { VerifiedNewsList } from '@/components/UserProfile/VerifiedNewsList';
 import  { AuthorPostsSection }  from '@/components/UserProfile/AuthorPostsSection';
-import { FollowersFollowingSection } from '@/components/Dashboard/FollowersFollowingSection';
+import { FollowersFollowingSection } from '@/components/UserProfile/FollowModal';
 
 // Add VerifiedNews interface
 interface VerifiedNews {
@@ -584,8 +584,9 @@ const handleFollowingClick = () => {
       </section>
 
       {/* Modals */}
-      {followModalOpen && (
+      {followModalOpen && profile && (
   <FollowersFollowingSection
+    userId={profile.id} // Pass the profile user's ID, not the current user's ID
     isModal={true}
     onClose={() => setFollowModalOpen(false)}
     initialTab={followModalTab}
