@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import { useWeeklyTopPosts } from '../hooks/useWeeklyTopPosts';
-import { Heart, TrendingUp, Calendar, User, RefreshCw, Tag, Clock } from 'lucide-react';
+import { Heart, TrendingUp, Calendar, RefreshCw, Tag, Clock } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatDistance } from 'date-fns';

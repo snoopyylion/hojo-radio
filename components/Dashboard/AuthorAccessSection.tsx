@@ -31,7 +31,6 @@ interface AuthorAccessSectionProps {
 }
 
 export default function AuthorAccessSection({ userProfile, user }: AuthorAccessSectionProps) {
-  const { getToken } = useAuth();
   const [requestSent, setRequestSent] = useState(false);
 
   const handleRequestAuthorAccess = async () => {

@@ -3,11 +3,9 @@
 import React, { useEffect, useState } from "react";
 import { client } from "@/sanity/lib/client";
 import { ALL_POSTS_QUERY } from "@/sanity/lib/queries";
-import { groq } from "next-sanity";
 import { TrendingUp, ArrowRight, Newspaper } from "lucide-react";
 import NewsTile from "@/components/NewsTile";
 import Link from "next/link";
-import { gsap } from "gsap";
 
 interface Post {
   _id: string;
