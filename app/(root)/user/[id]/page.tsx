@@ -9,9 +9,9 @@ import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
 import { ProfileTabs } from '@/components/UserProfile/ProfileTabs';
 import { AboutSection } from '@/components/UserProfile/AboutSection';
 import { UserActivity } from '@/components/UserProfile/UserActivity';
-import { FollowModal } from '@/components/UserProfile/FollowModal';
 import { VerifiedNewsList } from '@/components/UserProfile/VerifiedNewsList';
 import  { AuthorPostsSection }  from '@/components/UserProfile/AuthorPostsSection';
+import { FollowersFollowingSection } from '@/components/Dashboard/FollowersFollowingSection';
 
 // Add VerifiedNews interface
 interface VerifiedNews {
@@ -104,10 +104,8 @@ const UserProfilePage = () => {
   const [verifiedNewsLoading, setVerifiedNewsLoading] = useState(false);
 
   // Modal state
-  const [followersModalOpen, setFollowersModalOpen] = useState(false);
-  const [followingModalOpen, setFollowingModalOpen] = useState(false);
-  const [followers, setFollowers] = useState<FollowUser[]>([]);
-  const [following, setFollowing] = useState<FollowUser[]>([]);
+  const [followModalOpen, setFollowModalOpen] = useState(false);
+const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>('followers');
 
   // Check if the profile user is an author
   const isAuthor = profile?.role === 'author';
@@ -391,80 +389,17 @@ const fetchUserPosts = async () => {
     }
   };
 
-  const fetchFollowers = async () => {
-    if (!profile?.id) return;
+const handleFollowersClick = () => {
+  setFollowModalTab('followers');
+  setFollowModalOpen(true);
+};
 
-    try {
-      const response = await fetch(`/api/follow?type=followers&userId=${profile.id}`);
-      if (!response.ok) throw new Error('Failed to fetch followers');
+const handleFollowingClick = () => {
+  setFollowModalTab('following');
+  setFollowModalOpen(true);
+};
 
-      const data = await response.json();
-      setFollowers(data.users || []);
-    } catch (error) {
-      console.error('Error fetching followers:', error);
-      setFollowers([]);
-    }
-  };
-
-  const fetchFollowing = async () => {
-    if (!profile?.id) return;
-
-    try {
-      const response = await fetch(`/api/follow?type=following&userId=${profile.id}`);
-      if (!response.ok) throw new Error('Failed to fetch following');
-
-      const data = await response.json();
-      setFollowing(data.users || []);
-    } catch (error) {
-      console.error('Error fetching following:', error);
-      setFollowing([]);
-    }
-  };
-
-  const handleFollowersClick = () => {
-    fetchFollowers();
-    setFollowersModalOpen(true);
-  };
-
-  const handleFollowingClick = () => {
-    fetchFollowing();
-    setFollowingModalOpen(true);
-  };
-
-  const handleModalFollow = async (userId: string, isCurrentlyFollowing: boolean) => {
-    if (!user?.id) return;
-
-    try {
-      const response = await fetch('/api/follow', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: isCurrentlyFollowing ? 'unfollow' : 'follow',
-          following_id: userId,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update follow status');
-      }
-
-      if (data.success) {
-        if (followersModalOpen) {
-          fetchFollowers();
-        } else if (followingModalOpen) {
-          fetchFollowing();
-        }
-      }
-    } catch (error) {
-      console.error('Error updating follow status:', error);
-      alert('Failed to update follow status. Please try again.');
-    }
-  };
-
+  
   const renderTabContent = () => {
     switch (activeTab) {
       case 'posts':
@@ -649,23 +584,13 @@ const fetchUserPosts = async () => {
       </section>
 
       {/* Modals */}
-      <FollowModal
-        isOpen={followersModalOpen}
-        onClose={() => setFollowersModalOpen(false)}
-        title="Followers"
-        users={followers}
-        currentUserId={user?.id}
-        onFollow={handleModalFollow}
-      />
-
-      <FollowModal
-        isOpen={followingModalOpen}
-        onClose={() => setFollowingModalOpen(false)}
-        title="Following"
-        users={following}
-        currentUserId={user?.id}
-        onFollow={handleModalFollow}
-      />
+      {followModalOpen && (
+  <FollowersFollowingSection
+    isModal={true}
+    onClose={() => setFollowModalOpen(false)}
+    initialTab={followModalTab}
+  />
+)}
     </div>
   );
 };
