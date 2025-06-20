@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { useAppContext } from '@/context/AppContext';
-import { UserProfile, FollowUser, UserPost } from '@/types/user';
+import { UserProfile, UserPost } from '@/types/user';
 // Import your components
 import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
 import { ProfileTabs } from '@/components/UserProfile/ProfileTabs';

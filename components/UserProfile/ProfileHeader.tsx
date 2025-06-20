@@ -180,7 +180,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 mb-6">
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
-                      <h1 className="text-3xl sm:text-4xl font-light text-gray-900 dark:text-white tracking-tight">
+                      <h1 className="text-3xl sm:text-4xl capitalize font-light text-gray-900 dark:text-white tracking-tight">
                         {profile.first_name} {profile.last_name}
                       </h1>
                       {profile.role === 'author' && (
