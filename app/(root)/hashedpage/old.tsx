@@ -5,9 +5,21 @@ import { UserResource } from '@clerk/types';
 import { useAuth, useUser } from "@clerk/nextjs";
 import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
 import { gsap } from "gsap";
-import {TrendingUp,CheckCircle,User,Crown,BarChart3,Calendar, Eye,Edit3,Heart,MessageCircle} from "lucide-react";
+import {
+  TrendingUp,
+  CheckCircle,
+  User,
+  Crown,
+  BarChart3,
+  Calendar,
+  Eye,
+  Edit3,
+  Heart,
+  MessageCircle,
+} from "lucide-react";
 import VerifiedList from '@/components/VerifiedList';
 import { FollowersFollowingSection } from '@/components/Dashboard/FollowersFollowingSection';
+import LinkButton from "@/components/LinkButton";
 import PageLoader from '@/components/PageLoader';
 import { useUserLikes } from '../../../hooks/user-likes/useUserLikes';
 import { useUserComments } from '../../../hooks/user-comments/useUserComments';
@@ -15,8 +27,6 @@ import { useUserCreatedAt, useUserMemberSince } from '../../../hooks/user-create
 import UserStatsSection from "@/components/Dashboard/UderStatsSection";
 import { AuthorPostsSection } from '@/components/UserProfile/AuthorPostsSection';
 import WeeklyTopPosts from "@/components/WeeklyTopPosts";
-import AuthorAccessSection from "@/components/Dashboard/AuthorAccessSection";
-import CommentsSection from "@/components/Dashboard/CommentsSection";
 
 // Fixed UserProfile interface - added missing updated_at
 interface UserProfile {
@@ -95,11 +105,15 @@ export default function UserDashboard() {
     message: 'Initializing your dashboard...',
     progress: 0
   });
+  const [requestSent, setRequestSent] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'comments' | 'verified' | 'my-posts' | 'author'>('overview');
   const [, setTabLoading] = useState(false);
   const { totalLikes: userLikedPosts } = useUserLikes();
   const {
     totalComments,
+    commentsThisMonth,
+    commentsToday,
+    recentComments,
     loading: commentsLoading
   } = useUserComments();
   const [followersCount, setFollowersCount] = useState(0);
@@ -225,6 +239,38 @@ export default function UserDashboard() {
   };
 
   // Function to fetch verified news count
+  const fetchVerifiedNewsCount = async () => {
+    try {
+      setLoadingState({
+        stage: 'syncing',
+        message: 'Fetching verified news data...',
+        progress: 60
+      });
+
+      const token = await getToken();
+      const res = await fetch('/api/news-verification/verification-list?page=1&limit=1000', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.verifications)) {
+          setVerifiedNewsCount(json.verifications.length);
+        } else {
+          setVerifiedNewsCount(0);
+        }
+      } else {
+        console.error('Failed to fetch verified news count');
+        setVerifiedNewsCount(0);
+      }
+    } catch (error) {
+      console.error('Error fetching verified news count:', error);
+      setVerifiedNewsCount(0);
+    }
+  };
+
   const fetchTopPosts = async () => {
   try {
     setLoadingState({
@@ -237,30 +283,23 @@ export default function UserDashboard() {
     console.log('🔄 Fetching top posts...');
     
     const response = await fetch('/api/post/top-weekly?limit=5', {
-      method: 'GET', // Explicitly set GET method
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     });
 
+    // Log the response status and headers for debugging
     console.log('📡 Response status:', response.status);
+    console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
+      // Get error details from response
       let errorDetails;
-      const contentType = response.headers.get('content-type');
-      
       try {
-        if (contentType && contentType.includes('application/json')) {
-          errorDetails = await response.json();
-        } else {
-          // If not JSON, get as text
-          const errorText = await response.text();
-          errorDetails = { error: errorText || 'Unknown error' };
-        }
+        errorDetails = await response.json();
       } catch (parseError) {
-        console.warn('Failed to parse error response:', parseError);
-        errorDetails = { error: `HTTP ${response.status} ${response.statusText}` };
+        errorDetails = { error: 'Failed to parse error response' };
       }
       
       console.error('❌ API Error Response:', {
@@ -271,14 +310,13 @@ export default function UserDashboard() {
       
       // Handle specific error cases
       if (response.status === 401) {
+        console.error('❌ Authentication failed - token may be expired');
         throw new Error('Authentication failed. Please try logging in again.');
       } else if (response.status === 403) {
+        console.error('❌ Access forbidden');
         throw new Error('Access denied. You may not have permission to view this content.');
-      } else if (response.status === 404) {
-        throw new Error('Top posts endpoint not found. Please check if the API route exists.');
-      } else if (response.status === 405) {
-        throw new Error('Method not allowed. The API endpoint may not support GET requests.');
       } else if (response.status === 500) {
+        console.error('❌ Server error:', errorDetails);
         throw new Error(errorDetails.error || 'Server error occurred');
       } else {
         throw new Error(`API request failed with status ${response.status}: ${errorDetails.error || response.statusText}`);
@@ -296,44 +334,12 @@ export default function UserDashboard() {
     
   } catch (error) {
     console.error('❌ Error in fetchTopPosts:', error);
+    
+    // Set empty posts array to prevent UI issues
     setTopPosts([]);
+    
+    // Re-throw the error so it can be handled by the calling function
     throw error;
-  }
-};
-
-// Fixed fetchVerifiedNewsCount with better error handling
-const fetchVerifiedNewsCount = async () => {
-  try {
-    setLoadingState({
-      stage: 'syncing',
-      message: 'Fetching verified news data...',
-      progress: 60
-    });
-
-    const token = await getToken();
-    const res = await fetch('/api/news-verification/verification-list?page=1&limit=1000', {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (res.ok) {
-      const json = await res.json();
-      if (Array.isArray(json.verifications)) {
-        setVerifiedNewsCount(json.verifications.length);
-      } else {
-        setVerifiedNewsCount(0);
-      }
-    } else {
-      const errorText = await res.text();
-      console.error(`Failed to fetch verified news count. Status: ${res.status}, Response:`, errorText);
-      setVerifiedNewsCount(0);
-    }
-  } catch (error) {
-    console.error('Error fetching verified news count:', error);
-    setVerifiedNewsCount(0);
   }
 };
 
@@ -360,7 +366,8 @@ const refreshTopPosts = async () => {
   }
 };
 
-const fetchUserData = useCallback(async () => {
+
+  const fetchUserData = useCallback(async () => {
   if (!user?.id) {
     console.log("❌ No user ID available");
     return;
@@ -375,84 +382,60 @@ const fetchUserData = useCallback(async () => {
       progress: 25
     });
 
+    // Fetch user profile from Supabase
     const token = await getToken();
     
-    // First, sync user data with Supabase using the correct endpoint
-    setLoadingState({
-      stage: 'loading',
-      message: 'Syncing user data...',
-      progress: 30
+    // First, sync user data with Supabase
+    const syncResponse = await fetch('/api/users/sync', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: user.id,
+        email: user.emailAddresses?.[0]?.emailAddress,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        imageUrl: user.imageUrl,
+      }),
     });
 
-    try {
-      const syncResponse = await fetch('/api/sync-user', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!syncResponse.ok) {
-        const errorText = await syncResponse.text();
-        console.warn(`Sync failed with status ${syncResponse.status}:`, errorText);
-      } else {
-        console.log('✅ User data synced successfully');
-      }
-    } catch (syncError) {
-      console.warn('User sync failed, continuing without sync:', syncError);
+    if (!syncResponse.ok) {
+      console.error('Failed to sync user data');
     }
 
-    // Fetch user profile using the correct endpoint
+    // Fetch user profile
     setLoadingState({
       stage: 'loading',
       message: 'Fetching your profile...',
       progress: 40
     });
 
-    try {
-      const profileResponse = await fetch('/api/user/me', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+    const profileResponse = await fetch(`/api/users/${user.id}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (profileResponse.ok) {
+      const profileData = await profileResponse.json();
+      setUserProfile(profileData);
+      console.log('✅ User profile loaded:', profileData);
+    } else {
+      console.error('Failed to fetch user profile');
+      // Create a basic profile if fetch fails
+      setUserProfile({
+        id: user.id,
+        first_name: user.firstName || '',
+        last_name: user.lastName || '',
+        username: user.username || user.emailAddresses?.[0]?.emailAddress?.split('@')[0] || '',
+        email: user.emailAddresses?.[0]?.emailAddress || '',
+        role: 'user' as const,
+        image_url: user.imageUrl,
+        created_at: user.createdAt?.toISOString() || new Date().toISOString(),
+        updated_at: user.updatedAt?.toISOString() || new Date().toISOString(),
       });
-
-      if (profileResponse.ok) {
-        const profileData = await profileResponse.json();
-        
-        // Transform the response to match your UserProfile interface
-        const newProfile: UserProfile = {
-          id: user.id,
-          first_name: profileData.first_name || user.firstName || '',
-          last_name: profileData.last_name || user.lastName || '',
-          username: profileData.username || user.username || user.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'user',
-          email: profileData.email || user.emailAddresses?.[0]?.emailAddress || '',
-          role: profileData.role || 'user' as const,
-          image_url: profileData.image_url || user.imageUrl,
-          profile_completed: profileData.profile_completed || false,
-          bio: profileData.bio || '',
-          location: profileData.location || '',
-          created_at: profileData.created_at || user.createdAt?.toISOString() || new Date().toISOString(),
-          updated_at: profileData.updated_at || user.updatedAt?.toISOString() || new Date().toISOString(),
-          followers_count: 0,
-          following_count: 0,
-          posts_count: 0
-        };
-
-        setUserProfile(newProfile);
-        console.log('✅ User profile loaded from API:', newProfile);
-      } else {
-        const errorText = await profileResponse.text();
-        console.error(`Profile fetch failed with status ${profileResponse.status}:`, errorText);
-        
-        // Create a fallback profile
-        createFallbackProfile();
-      }
-    } catch (profileError) {
-      console.error('Profile fetch error:', profileError);
-      createFallbackProfile();
     }
 
     // Stage 2: Fetch verified news count
@@ -462,20 +445,10 @@ const fetchUserData = useCallback(async () => {
       progress: 60
     });
     
-    try {
-      await fetchVerifiedNewsCount();
-    } catch (verifiedError) {
-      console.warn('Failed to fetch verified news count:', verifiedError);
-      setVerifiedNewsCount(0);
-    }
+    await fetchVerifiedNewsCount();
 
-    // Stage 3: Fetch top posts (if you still need this here)
-    try {
-      await fetchTopPosts();
-    } catch (postsError) {
-      console.warn('Failed to fetch top posts:', postsError);
-      setTopPosts([]);
-    }
+    // Stage 3: Fetch top posts
+    await fetchTopPosts();
 
     // Stage 4: Finalizing
     setLoadingState({
@@ -497,35 +470,10 @@ const fetchUserData = useCallback(async () => {
 
   } catch (error) {
     console.error('❌ Error fetching user data:', error);
-    // Create fallback profile even on error
-    createFallbackProfile();
     setLoading(false);
   }
-
-  // Helper function to create fallback profile
-  function createFallbackProfile() {
-    if (!user) {
-      console.error('Cannot create fallback profile: user is null or undefined');
-      return;
-    }
-    
-    console.log('Creating fallback profile...');
-    setUserProfile({
-      id: user.id,
-      first_name: user.firstName || '',
-      last_name: user.lastName || '',
-      username: user.username || user.emailAddresses?.[0]?.emailAddress?.split('@')[0] || '',
-      email: user.emailAddresses?.[0]?.emailAddress || '',
-      role: 'user' as const,
-      image_url: user.imageUrl,
-      created_at: user.createdAt?.toISOString() || new Date().toISOString(),
-      updated_at: user.updatedAt?.toISOString() || new Date().toISOString(),
-      followers_count: 0,
-      following_count: 0,
-      posts_count: 0,
-    });
-  }
 }, [user?.id, user, getToken]);
+
 
 
   // Add useEffect to refetch stats when userProfile.role changes
@@ -584,6 +532,45 @@ const fetchUserData = useCallback(async () => {
       }
     }
   }, [loading]);
+
+  const handleRequestAuthorAccess = async () => {
+    // Fixed: Added null check for user
+    if (!user?.id) return;
+
+    try {
+      const payload = {
+        userId: user.id,
+        email: user.emailAddresses?.[0]?.emailAddress // Fixed: Added optional chaining
+      };
+
+      const res = await fetch("/api/authors/request-author", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setRequestSent(true);
+        // Animate success feedback - check if element exists
+        const button = document.querySelector('[data-author-request]');
+        if (button) {
+          gsap.to(button, {
+            scale: 0.95,
+            duration: 0.1,
+            yoyo: true,
+            repeat: 1,
+            ease: "power2.inOut"
+          });
+        }
+      } else {
+        alert("Failed to send request. Please try again.");
+      }
+    } catch (error) {
+      console.error("Request failed:", error);
+      alert("Something went wrong. Please try again.");
+    }
+  };
+
   const handleTabClick = async (tab: typeof activeTab, event: React.MouseEvent) => {
     if (tab === activeTab) return;
 
@@ -618,6 +605,16 @@ const fetchUserData = useCallback(async () => {
       );
     }
   };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+
 
   // Show PageLoader during initial loading
   if (!isLoaded || loading) {
@@ -795,7 +792,105 @@ const fetchUserData = useCallback(async () => {
         )}
 
         {activeTab === 'comments' && (
-          <div><CommentsSection /></div>
+          <div>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">My Comments</h2>
+              <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">All your comments across the platform</p>
+            </div>
+
+            {/* Comment Stats Overview */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
+                    {commentsLoading ? (
+                      <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-8 w-16 inline-block"></span>
+                    ) : (
+                      totalComments
+                    )}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">Total Comments</p>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
+                    {commentsLoading ? (
+                      <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-8 w-16 inline-block"></span>
+                    ) : (
+                      commentsThisMonth
+                    )}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">This Month</p>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white font-sora transition-colors">
+                    {commentsLoading ? (
+                      <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-8 w-16 inline-block"></span>
+                    ) : (
+                      commentsToday
+                    )}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">Today</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Comments */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white font-sora transition-colors">Recent Comments</h3>
+              {commentsLoading ? (
+                <div className="space-y-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                      <div className="animate-pulse">
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : recentComments.length > 0 ? (
+                <div className="space-y-4">
+                  {recentComments.map((comment) => (
+                    <div key={comment.id} className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300 hover:shadow-md">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="text-gray-900 dark:text-white font-sora transition-colors mb-2">
+                            {comment.comment}
+                          </p>
+                          <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 transition-colors">
+                            <span className="font-sora">On: {comment.post_title}</span>
+                            <span className="font-sora">
+                              {new Date(comment.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <MessageCircle className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">
+                    You haven&apos;t made any comments yet. Start engaging with posts to see your comments here!
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {activeTab === 'verified' && (
@@ -810,7 +905,75 @@ const fetchUserData = useCallback(async () => {
 
         {activeTab === 'author' && (
           <div>
-            <AuthorAccessSection userProfile={userProfile} user={user}/>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">Author Access</h2>
+              <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Apply to become a content author on HOJO</p>
+            </div>
+            <div className="bg-white dark:bg-black rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+              {userProfile.role === 'author' ? (
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
+                    <Crown className="w-8 h-8 text-green-600 dark:text-green-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 font-sora transition-colors">You&apos;re an Author!</h3>
+                  <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">You can now create and publish posts on HOJO.</p>
+                  <div className="mt-4 items-center justify-center flex space-x-4">
+                    <LinkButton title="Create Blog" href="/post/create-post" />
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
+                    <User className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 font-sora transition-colors">Become an Author</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-6 font-sora transition-colors">
+                    Join our community of content creators and share your expertise with the world.
+                  </p>
+
+                  {requestSent ? (
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 transition-colors">
+                      <div className="flex items-center justify-center space-x-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        <span className="text-green-800 dark:text-green-400 font-medium font-sora transition-colors">
+                          Request submitted successfully! We&apos;ll review your application shortly.
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      data-author-request
+                      onClick={handleRequestAuthorAccess}
+                      className="px-6 py-3 bg-[#EF3866] text-white rounded-lg font-semibold font-sora hover:bg-[#D53059] transition-colors shadow-sm"
+                    >
+                      Request Author Access
+                    </button>
+                  )}
+
+                  <div className="mt-6 text-left">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3 font-sora transition-colors">Author Benefits:</h4>
+                    <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400 transition-colors">
+                      <li className="flex items-center space-x-2">
+                        <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        <span className="font-sora">Publish articles and blog posts</span>
+                      </li>
+                      <li className="flex items-center space-x-2">
+                        <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        <span className="font-sora">Create podcasts and audio content</span>
+                      </li>
+                      <li className="flex items-center space-x-2">
+                        <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        <span className="font-sora">Access to analytics and insights</span>
+                      </li>
+                      <li className="flex items-center space-x-2">
+                        <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        <span className="font-sora">Community engagement tools</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

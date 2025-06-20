@@ -169,13 +169,14 @@ const KeyFeature = () => {
   return (
     <div 
       ref={containerRef}
-      className="w-full px-4 py-16 sm:py-20 bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sora"
+      className="relative w-full px-4 md:px-8 lg:px-16 py-16 sm:py-20 bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sora z-20"
+      style={{ isolation: 'isolate' }}
     >
-      <div className="max-w-7xl mx-auto text-center">
+      <div className="max-w-full mx-auto text-center">
         {/* Section Header */}
         <h5 
           ref={badgeRef}
-          className="inline-block bg-[#FCE8E9] text-[#B41C45] px-4 py-1.5 rounded-lg text-sm font-medium mb-4 font-sora opacity-0"
+          className="inline-block bg-[#FCE8E9] dark:bg-[#2D1B1E] text-[#B41C45] dark:text-[#EF3866] px-4 py-1.5 rounded-lg text-sm font-medium mb-4 font-sora opacity-0"
         >
           Key Features
         </h5>
@@ -197,7 +198,7 @@ const KeyFeature = () => {
           {/* Feature 1 */}
           <div 
             ref={setCardRef(0)}
-            className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-xl p-8 sm:p-10 flex flex-col items-center text-center shadow-sm hover:shadow-xl hover:border-pink-100 dark:hover:border-pink-900 transition-all duration-300 relative overflow-hidden opacity-0 cursor-pointer"
+            className="bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl p-8 sm:p-10 flex flex-col items-center text-center shadow-sm hover:shadow-xl hover:border-pink-100 dark:hover:border-pink-900 transition-all duration-300 relative overflow-hidden opacity-0 cursor-pointer"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-pink-50 to-blue-50 dark:from-pink-950 dark:to-blue-950 opacity-0 hover:opacity-10 transition-opacity duration-300"></div>
             <div className="h-16 w-16 rounded-full bg-pink-50 dark:bg-pink-900/30 flex items-center justify-center mb-6 feature-icon">
@@ -213,10 +214,10 @@ const KeyFeature = () => {
           {/* Feature 2 */}
           <div 
             ref={setCardRef(1)}
-            className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-xl p-8 sm:p-10 flex flex-col items-center text-center shadow-sm hover:shadow-xl hover:border-blue-100 dark:hover:border-blue-900 transition-all duration-300 relative overflow-hidden opacity-0 cursor-pointer"
+            className="bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl p-8 sm:p-10 flex flex-col items-center text-center shadow-sm hover:shadow-xl hover:border-blue-100 dark:hover:border-blue-900 transition-all duration-300 relative overflow-hidden opacity-0 cursor-pointer"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 opacity-0 hover:opacity-10 transition-opacity duration-300"></div>
-            <div className="h-16 w-16 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center mb-6 feature-icon">
+            <div className="h-16 w-16 rounded-full bg-blue-50 dark:bg-black flex items-center justify-center mb-6 feature-icon">
               <Image src="/img/bias.png" alt="Bias Detection" width={40} height={40} />
             </div>
             <h3 className="text-xl font-semibold mb-3 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-300 font-sora">Bias Detection</h3>
@@ -229,7 +230,7 @@ const KeyFeature = () => {
           {/* Feature 3 */}
           <div 
             ref={setCardRef(2)}
-            className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-xl p-8 sm:p-10 flex flex-col items-center text-center shadow-sm hover:shadow-xl hover:border-purple-100 dark:hover:border-purple-900 transition-all duration-300 relative overflow-hidden opacity-0 cursor-pointer"
+            className="bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl p-8 sm:p-10 flex flex-col items-center text-center shadow-sm hover:shadow-xl hover:border-purple-100 dark:hover:border-purple-900 transition-all duration-300 relative overflow-hidden opacity-0 cursor-pointer"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950 dark:to-indigo-950 opacity-0 hover:opacity-10 transition-opacity duration-300"></div>
             <div className="h-16 w-16 rounded-full bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center mb-6 feature-icon">

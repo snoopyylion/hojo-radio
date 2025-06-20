@@ -201,7 +201,7 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
     const isOperationInProgress = followOperations.has(followUser.id);
     
     return (
-      <div key={followUser.id} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors">
+      <div key={followUser.id} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-black/50 rounded-lg transition-colors">
         <div 
           className="flex items-center gap-3 cursor-pointer flex-1"
           onClick={() => handleUserClick(followUser.id)}
@@ -320,8 +320,8 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
   const currentData = activeTab === 'followers' ? followers : following;
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+      <div className="bg-white dark:bg-black rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -336,12 +336,12 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
         </div>
 
         {/* Tab switcher */}
-        <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg m-4 mb-2 p-1">
+        <div className="flex bg-gray-100 dark:bg-black rounded-lg m-4 mb-2 p-1">
           <button
             onClick={() => setActiveTab('followers')}
             className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
               activeTab === 'followers'
-                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
@@ -360,7 +360,7 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden px-4 pb-4">
+        <div className="flex-1 px-4 pb-4 overflow-y-auto max-h-[60vh]">
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3, 4, 5].map(i => (
@@ -384,7 +384,7 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
               </p>
             </div>
           ) : (
-            <div className="space-y-1 overflow-y-auto max-h-full">
+            <div className="space-y-1 max-h-full">
               {currentData.map(renderUserCard)}
             </div>
           )}
