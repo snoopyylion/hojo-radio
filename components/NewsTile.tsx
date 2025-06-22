@@ -1,10 +1,11 @@
 "use client";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import { urlFor } from "@/sanity/lib/image";
 import Link from "next/link";
 import Image from "next/image";
 import { formatDistance } from 'date-fns';
-import { Heart, Bookmark, Clock } from 'lucide-react';
+import { Heart, Bookmark, Clock, MessageCircle, ChevronUp, ChevronDown } from 'lucide-react';
+import CommentSection from "./CommentSection";
 
 interface SanityImage {
   asset: {
@@ -34,10 +35,20 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [likeCount, setLikeCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [commentCount, setCommentCount] = useState<number>(0);
+  const [isInitialized, setIsInitialized] = useState(false);
   
-  const timeAgo = formatDistance(new Date(post.publishedAt), new Date(), { addSuffix: true });
+  // Memoize time calculation to avoid recalculation on every render
+  const timeAgo = useMemo(() => 
+    formatDistance(new Date(post.publishedAt), new Date(), { addSuffix: true }),
+    [post.publishedAt]
+  );
 
+  // Debounced fetch functions to prevent multiple simultaneous requests
   const fetchLikeStatus = useCallback(async () => {
+    if (isInitialized) return; // Only fetch once on mount
+    
     try {
       const res = await fetch(`/api/post/${post._id}/like`);
       if (!res.ok) return;
@@ -48,11 +59,49 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
     } catch (err) {
       console.error("Failed to fetch like status", err);
     }
-  }, [post._id]);
+  }, [post._id, isInitialized]);
 
+  const fetchCommentCount = useCallback(async () => {
+    if (isInitialized) return; // Only fetch once on mount
+    
+    try {
+      const res = await fetch(`/api/post/comment/${post._id}`);
+      if (!res.ok) return;
+
+      const data = await res.json();
+      setCommentCount(data.comments?.length || 0);
+      setIsInitialized(true);
+    } catch (err) {
+      console.error("Failed to fetch comment count", err);
+    }
+  }, [post._id, isInitialized]);
+
+  // Use Intersection Observer to lazy load engagement data
   useEffect(() => {
-    fetchLikeStatus();
-  }, [fetchLikeStatus]);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isInitialized) {
+          // Batch the requests when component comes into view
+          Promise.all([
+            fetchLikeStatus(),
+            fetchCommentCount()
+          ]);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const element = document.getElementById(`news-tile-${post._id}`);
+    if (element) {
+      observer.observe(element);
+    }
+
+    return () => {
+      if (element) {
+        observer.unobserve(element);
+      }
+    };
+  }, [fetchLikeStatus, fetchCommentCount, post._id, isInitialized]);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -105,8 +154,22 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
     setIsBookmarked(!isBookmarked);
   };
 
+  const handleShowComments = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowComments(!showComments);
+  };
+
+  // Callback to update comment count from CommentSection
+  const updateCommentCount = useCallback((count: number) => {
+    setCommentCount(count);
+  }, []);
+
   return (
-    <article className="group border-b border-gray-100 dark:border-gray-800 p-4 md:p-6 last:border-b-0 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-all duration-300 rounded-lg hover:shadow-sm">
+    <article 
+      id={`news-tile-${post._id}`}
+      className="group border-b border-gray-100 dark:border-gray-800 p-4 md:p-6 last:border-b-0 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-all duration-300 rounded-lg hover:shadow-sm"
+    >
       <Link href={`/post/${post._id}`} className="block">
         <div className="flex flex-col sm:flex-row gap-4 md:gap-6">
           {/* Content Section */}
@@ -165,36 +228,57 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
                 <span className="text-xs sm:text-sm">{timeAgo}</span>
               </div>
             </div>
-
+            
             {/* Engagement Actions */}
-            <div className="flex items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-1">
               <button
                 onClick={handleLike}
                 disabled={isLoading}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all duration-200 ${isLiked
-                    ? 'bg-[#ffe6ec] dark:bg-[#4a1a22] text-[#EF3866]'
-                    : 'bg-white dark:bg-black text-[#EF3866] hover:bg-[#ffe6ec] dark:hover:bg-[#1a1a1a]'
-                  } ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  isLiked
+                    ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 shadow-sm'
+                    : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-red-600 dark:hover:text-red-400'
+                } ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 <Heart
-                  className={`w-3 h-3 sm:w-4 sm:h-4 transition-all duration-200 ${isLiked ? 'fill-current' : ''
-                    } ${isLoading ? 'animate-pulse' : ''}`}
+                  className={`w-4 h-4 transition-all duration-200 ${
+                    isLiked ? 'fill-current scale-110' : ''
+                  } ${isLoading ? 'animate-pulse' : ''}`}
                 />
-                <span className="font-medium">{likeCount} Like{likeCount !== 1 ? 's' : ''}</span>
+                <span>{likeCount}</span>
               </button>
 
               <button
                 onClick={handleBookmark}
-                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm transition-all duration-200 ${isBookmarked
-                    ? 'bg-[#ffe6ec] dark:bg-[#4a1a22] text-[#EF3866]'
-                    : 'bg-white dark:bg-black text-[#EF3866] hover:bg-[#ffe6ec] dark:hover:bg-[#1a1a1a]'
-                  }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  isBookmarked
+                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400'
+                }`}
               >
                 <Bookmark
-                  className={`w-3 h-3 sm:w-4 sm:h-4 transition-all duration-200 ${isBookmarked ? 'fill-current' : ''
-                    }`}
+                  className={`w-4 h-4 transition-all duration-200 ${
+                    isBookmarked ? 'fill-current scale-110' : ''
+                  }`}
                 />
-                <span className="font-medium">Save</span>
+                <span>Save</span>
+              </button>
+
+              <button
+                onClick={handleShowComments}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  showComments
+                    ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 shadow-sm'
+                    : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-green-600 dark:hover:text-green-400'
+                }`}
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>{commentCount}</span>
+                {showComments ? (
+                  <ChevronUp className="w-3 h-3" />
+                ) : (
+                  <ChevronDown className="w-3 h-3" />
+                )}
               </button>
             </div>
           </div>
@@ -210,6 +294,8 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
                     fill
                     className="object-cover transition-transform duration-500 group-hover:scale-105"
                     sizes="(max-width: 640px) 100vw, (max-width: 768px) 192px, (max-width: 1024px) 224px, (max-width: 1280px) 256px, 288px"
+                    priority={false}
+                    loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </>
@@ -231,6 +317,17 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
           </div>
         </div>
       </Link>
+      {/* Comment Section - Hidden by default */}
+      {showComments && (
+        <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
+          <div className="p-6">
+            <CommentSection 
+              postId={post._id} 
+              onCommentCountChange={updateCommentCount}
+            />
+          </div>
+        </div>
+      )}
     </article>
   );
 };
