@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useState, useMemo, useRef, useLayoutEffect } from "react";
+import React, { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { urlFor } from "@/sanity/lib/image";
 import Link from "next/link";
 import Image from "next/image";
@@ -31,12 +31,30 @@ interface NewsTileProps {
   };
 }
 
+// Define proper types for API responses
+interface ApiResponse {
+  data?: unknown;
+  error?: string;
+  liked?: boolean;
+  bookmarked?: boolean;
+  hasLiked?: boolean;
+  hasBookmarked?: boolean;
+  likeCount?: number;
+  bookmarkCount?: number;
+  comments?: unknown[];
+}
+
+interface CacheEntry {
+  data: ApiResponse;
+  timestamp: number;
+}
+
 // Cache for API responses to avoid duplicate requests
-const apiCache = new Map<string, { data: any; timestamp: number }>();
+const apiCache = new Map<string, CacheEntry>();
 const CACHE_DURATION = 30000; // 30 seconds
 
 // Utility function for cached API calls
-const cachedFetch = async (url: string, options?: RequestInit) => {
+const cachedFetch = async (url: string, options?: RequestInit): Promise<ApiResponse> => {
   const cacheKey = `${url}${JSON.stringify(options)}`;
   const cached = apiCache.get(cacheKey);
   
@@ -45,7 +63,7 @@ const cachedFetch = async (url: string, options?: RequestInit) => {
   }
   
   const response = await fetch(url, options);
-  const data = await response.json();
+  const data = await response.json() as ApiResponse;
   
   apiCache.set(cacheKey, { data, timestamp: Date.now() });
   return data;
@@ -198,8 +216,8 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
       // Update with server response
       setState(prev => ({
         ...prev,
-        isLiked: data.liked,
-        likeCount: data.likeCount,
+        isLiked: data.liked || false,
+        likeCount: data.likeCount || 0,
         isLoading: false,
       }));
     } catch (err) {
@@ -245,8 +263,8 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
       // Update with server response
       setState(prev => ({
         ...prev,
-        isBookmarked: data.bookmarked,
-        bookmarkCount: data.bookmarkCount,
+        isBookmarked: data.bookmarked || false,
+        bookmarkCount: data.bookmarkCount || 0,
         isBookmarkLoading: false,
       }));
     } catch (err) {
