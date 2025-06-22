@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { urlFor } from '@/sanity/lib/image';
 import Link from 'next/link';
 import Image from 'next/image';
+
 // Utility function to format relative time
 const formatTimeAgo = (date: string | Date) => {
     const now = new Date();
@@ -15,6 +16,21 @@ const formatTimeAgo = (date: string | Date) => {
     if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)} months ago`;
     return `${Math.floor(diffInSeconds / 31536000)} years ago`;
 };
+
+// Utility function to safely get image URL
+const getImageUrl = (image: SanityImage | undefined, width: number, height: number): string | null => {
+    if (!image || !image.asset || !image.asset._ref) {
+        return null;
+    }
+    
+    try {
+        return urlFor(image).width(width).height(height).url();
+    } catch (error) {
+        console.warn('Failed to generate image URL:', error);
+        return null;
+    }
+};
+
 import {
     Bookmark,
     Clock,
@@ -185,7 +201,7 @@ const BookmarksPage: React.FC = () => {
     const categories = getUniqueCategories();
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="min-h-screen bg-white dark:bg-gray-900">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Header */}
                 <div className="mb-8">
@@ -263,106 +279,61 @@ const BookmarksPage: React.FC = () => {
                         {/* Bookmarks Grid/List */}
                         {viewMode === 'grid' ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                                {filteredBookmarks.map((bookmark) => (
-                                    <div
-                                        key={bookmark.id}
-                                        className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group"
-                                    >
-                                        <Link href={`/post/${bookmark.post._id}`}>
-                                            <div className="relative aspect-[16/10] bg-gray-100 dark:bg-gray-700">
-                                                {bookmark.post.mainImage?.asset?._ref ? (
-                                                    <Image
-                                                        src={urlFor(bookmark.post.mainImage).width(400).height(250).url()}
-                                                        alt={bookmark.post.title}
-                                                        fill
-                                                        className="object-cover group-hover:scale-105 transition-transform duration-300"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full bg-gradient-to-br from-[#EF3866]/10 to-purple-100 dark:to-purple-900 flex items-center justify-center">
-                                                        <BookOpen className="w-12 h-12 text-gray-400" />
-                                                    </div>
-                                                )}
-
-                                            </div>
-                                        </Link>
-
-                                        <div className="p-6">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <div className="flex flex-wrap gap-2">
-                                                    {bookmark.post.categories.slice(0, 2).map((cat, index) => (
-                                                        <span
-                                                            key={index}
-                                                            className="text-xs bg-[#EF3866]/10 text-[#EF3866] px-2 py-1 rounded-full"
-                                                        >
-                                                            {cat.title}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                                <button
-                                                    onClick={() => handleRemoveBookmark(bookmark.post._id, bookmark.id)}
-                                                    disabled={isRemoving === bookmark.id}
-                                                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                                                >
-                                                    {isRemoving === bookmark.id ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                    ) : (
-                                                        <Trash2 className="w-4 h-4" />
-                                                    )}
-                                                </button>
-                                            </div>
-
+                                {filteredBookmarks.map((bookmark) => {
+                                    const imageUrl = getImageUrl(bookmark.post.mainImage, 400, 250);
+                                    
+                                    return (
+                                        <div
+                                            key={bookmark.id}
+                                            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group"
+                                        >
                                             <Link href={`/post/${bookmark.post._id}`}>
-                                                <h3 className="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2 hover:text-[#EF3866] transition-colors">
-                                                    {bookmark.post.title}
-                                                </h3>
-                                                <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-3">
-                                                    {bookmark.post.description}
-                                                </p>
+                                                <div className="relative aspect-[16/10] bg-gray-100 dark:bg-gray-700">
+                                                    {imageUrl ? (
+                                                        <Image
+                                                            src={imageUrl}
+                                                            alt={bookmark.post.title}
+                                                            fill
+                                                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full bg-gradient-to-br from-[#EF3866]/10 to-purple-100 dark:to-purple-900 flex items-center justify-center">
+                                                            <BookOpen className="w-12 h-12 text-gray-400" />
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </Link>
 
-                                            <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 bg-[#EF3866] text-white rounded-full flex items-center justify-center text-xs font-bold">
-                                                        {bookmark.post.author.name.charAt(0)}
+                                            <div className="p-6">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {bookmark.post.categories.slice(0, 2).map((cat, index) => (
+                                                            <span
+                                                                key={index}
+                                                                className="text-xs bg-[#EF3866]/10 text-[#EF3866] px-2 py-1 rounded-full"
+                                                            >
+                                                                {cat.title}
+                                                            </span>
+                                                        ))}
                                                     </div>
-                                                    <span>{bookmark.post.author.name}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <Clock className="w-3 h-3" />
-                                                    <span>
-                                                        {formatTimeAgo(bookmark.created_at)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="space-y-4 mb-8">
-                                {filteredBookmarks.map((bookmark) => (
-                                    <div
-                                        key={bookmark.id}
-                                        className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-6"
-                                    >
-                                        <div className="flex gap-4">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-3">
-                                                    {bookmark.post.categories.slice(0, 3).map((cat, index) => (
-                                                        <span
-                                                            key={index}
-                                                            className="text-xs bg-[#EF3866]/10 text-[#EF3866] px-2 py-1 rounded-full"
-                                                        >
-                                                            {cat.title}
-                                                        </span>
-                                                    ))}
+                                                    <button
+                                                        onClick={() => handleRemoveBookmark(bookmark.post._id, bookmark.id)}
+                                                        disabled={isRemoving === bookmark.id}
+                                                        className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                                    >
+                                                        {isRemoving === bookmark.id ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <Trash2 className="w-4 h-4" />
+                                                        )}
+                                                    </button>
                                                 </div>
 
                                                 <Link href={`/post/${bookmark.post._id}`}>
-                                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 hover:text-[#EF3866] transition-colors">
+                                                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2 hover:text-[#EF3866] transition-colors">
                                                         {bookmark.post.title}
                                                     </h3>
-                                                    <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+                                                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-3">
                                                         {bookmark.post.description}
                                                     </p>
                                                 </Link>
@@ -374,49 +345,101 @@ const BookmarksPage: React.FC = () => {
                                                         </div>
                                                         <span>{bookmark.post.author.name}</span>
                                                     </div>
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="flex items-center gap-1">
-                                                            <Clock className="w-3 h-3" />
-                                                            <span>
-                                                                Saved {formatTimeAgo(bookmark.created_at)}
-                                                            </span>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => handleRemoveBookmark(bookmark.post._id, bookmark.id)}
-                                                            disabled={isRemoving === bookmark.id}
-                                                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                                                        >
-                                                            {isRemoving === bookmark.id ? (
-                                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                            ) : (
-                                                                <Trash2 className="w-4 h-4" />
-                                                            )}
-                                                        </button>
+                                                    <div className="flex items-center gap-1">
+                                                        <Clock className="w-3 h-3" />
+                                                        <span>
+                                                            {formatTimeAgo(bookmark.created_at)}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             </div>
-
-                                            <div className="w-32 h-24 flex-shrink-0">
-                                                <Link href={`/post/${bookmark.post._id}`}>
-                                                    <div className="relative w-full h-full bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
-                                                        {bookmark.post.mainImage ? (
-                                                            <Image
-                                                                src={urlFor(bookmark.post.mainImage).width(128).height(96).url()}
-                                                                alt={bookmark.post.title}
-                                                                fill
-                                                                className="object-cover hover:scale-105 transition-transform duration-300"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-full h-full bg-gradient-to-br from-[#EF3866]/10 to-purple-100 dark:to-purple-900 flex items-center justify-center">
-                                                                <BookOpen className="w-6 h-6 text-gray-400" />
-                                                            </div>
-                                                        )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="space-y-4 mb-8">
+                                {filteredBookmarks.map((bookmark) => {
+                                    const imageUrl = getImageUrl(bookmark.post.mainImage, 128, 96);
+                                    
+                                    return (
+                                        <div
+                                            key={bookmark.id}
+                                            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-6"
+                                        >
+                                            <div className="flex gap-4">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        {bookmark.post.categories.slice(0, 3).map((cat, index) => (
+                                                            <span
+                                                                key={index}
+                                                                className="text-xs bg-[#EF3866]/10 text-[#EF3866] px-2 py-1 rounded-full"
+                                                            >
+                                                                {cat.title}
+                                                            </span>
+                                                        ))}
                                                     </div>
-                                                </Link>
+
+                                                    <Link href={`/post/${bookmark.post._id}`}>
+                                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 hover:text-[#EF3866] transition-colors">
+                                                            {bookmark.post.title}
+                                                        </h3>
+                                                        <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+                                                            {bookmark.post.description}
+                                                        </p>
+                                                    </Link>
+
+                                                    <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-6 h-6 bg-[#EF3866] text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                                                {bookmark.post.author.name.charAt(0)}
+                                                            </div>
+                                                            <span>{bookmark.post.author.name}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="flex items-center gap-1">
+                                                                <Clock className="w-3 h-3" />
+                                                                <span>
+                                                                    Saved {formatTimeAgo(bookmark.created_at)}
+                                                                </span>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => handleRemoveBookmark(bookmark.post._id, bookmark.id)}
+                                                                disabled={isRemoving === bookmark.id}
+                                                                className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                                            >
+                                                                {isRemoving === bookmark.id ? (
+                                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                                ) : (
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                )}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="w-32 h-24 flex-shrink-0">
+                                                    <Link href={`/post/${bookmark.post._id}`}>
+                                                        <div className="relative w-full h-full bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
+                                                            {imageUrl ? (
+                                                                <Image
+                                                                    src={imageUrl}
+                                                                    alt={bookmark.post.title}
+                                                                    fill
+                                                                    className="object-cover hover:scale-105 transition-transform duration-300"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-full h-full bg-gradient-to-br from-[#EF3866]/10 to-purple-100 dark:to-purple-900 flex items-center justify-center">
+                                                                    <BookOpen className="w-6 h-6 text-gray-400" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </Link>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
 

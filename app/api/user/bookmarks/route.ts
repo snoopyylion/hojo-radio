@@ -28,7 +28,6 @@ interface SanityPost {
   categories: { title: string }[];
 }
 
-
 interface BookmarkedPost {
   id: string;
   post_id: string;
@@ -119,7 +118,7 @@ export async function GET(
     const postIds = bookmarks.map(bookmark => bookmark.post_id);
     console.log('🔍 Fetching post details for IDs:', postIds);
 
-    // Fetch post details from Sanity
+    // FIXED: Corrected Sanity query with proper asset reference resolution
     const sanityQuery = `
       *[_type == "post" && _id in $postIds] {
         _id,
@@ -128,8 +127,10 @@ export async function GET(
         slug,
         mainImage {
           asset -> {
+            _id,
             _ref,
-            _type
+            _type,
+            url
           }
         },
         publishedAt,
@@ -137,8 +138,10 @@ export async function GET(
           name,
           image {
             asset -> {
+              _id,
               _ref,
-              _type
+              _type,
+              url
             }
           }
         },
@@ -151,17 +154,21 @@ export async function GET(
     const sanityPosts = await client.fetch(sanityQuery, { postIds }) as SanityPost[];
     console.log('✅ Retrieved', sanityPosts?.length || 0, 'posts from Sanity');
 
+    // Debug log to check the structure of returned posts
+    if (sanityPosts.length > 0) {
+      console.log('🔍 Sample post structure:', JSON.stringify(sanityPosts[0], null, 2));
+    }
+
     // Create a map for quick lookup
     const postMap = new Map<string, SanityPost>(sanityPosts.map(post => [post._id, post]));
 
-
-    // Combine bookmark data with post details - FIXED
+    // Combine bookmark data with post details
     const bookmarksWithPosts: BookmarkedPost[] = bookmarks
       .map(bookmark => ({
         ...bookmark,
-        post: postMap.get(bookmark.post_id) || undefined // Changed from null to undefined
+        post: postMap.get(bookmark.post_id) || undefined
       }))
-      .filter(bookmark => bookmark.post !== undefined); // Changed from null to undefined
+      .filter(bookmark => bookmark.post !== undefined);
 
     const totalPages = Math.ceil((count || 0) / limit);
 
