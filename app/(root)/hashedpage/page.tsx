@@ -1,11 +1,11 @@
-// Fixed UserDashboard Component
+// Updated UserDashboard Component with Bookmarks Tab
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
 import { gsap } from "gsap";
-import {TrendingUp,CheckCircle,Crown,BarChart3,Edit3,MessageCircle} from "lucide-react";
+import {TrendingUp,CheckCircle,Crown,BarChart3,Edit3,MessageCircle,Bookmark} from "lucide-react";
 import VerifiedList from '@/components/VerifiedList';
 import { FollowersFollowingSection } from '@/components/Dashboard/FollowersFollowingSection';
 import PageLoader from '@/components/PageLoader';
@@ -17,6 +17,7 @@ import { AuthorPostsSection } from '@/components/UserProfile/AuthorPostsSection'
 import WeeklyTopPosts from "@/components/WeeklyTopPosts";
 import AuthorAccessSection from "@/components/Dashboard/AuthorAccessSection";
 import CommentsSection from "@/components/Dashboard/CommentsSection";
+import BookmarksSection from "@/components/Dashboard/Bookmarks"; // Import the new component
 
 // Fixed UserProfile interface
 interface UserProfile {
@@ -68,7 +69,8 @@ export default function UserDashboard() {
     message: 'Initializing your dashboard...',
     progress: 0
   });
-  const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'comments' | 'verified' | 'my-posts' | 'author'>('overview');
+  // Updated activeTab type to include 'bookmarks'
+  const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'comments' | 'verified' | 'my-posts' | 'author' | 'bookmarks'>('overview');
   const [, setTabLoading] = useState(false);
   const { totalLikes: userLikedPosts } = useUserLikes();
   const {
@@ -473,7 +475,7 @@ export default function UserDashboard() {
   const handleTabClick = async (tab: typeof activeTab, event: React.MouseEvent) => {
     if (tab === activeTab) return;
 
-    if (tab === 'verified' || tab === 'posts') {
+    if (tab === 'verified' || tab === 'posts' || tab === 'bookmarks') {
       setTabLoading(true);
       await new Promise(resolve => setTimeout(resolve, 800));
       setTabLoading(false);
@@ -554,6 +556,7 @@ export default function UserDashboard() {
             {[
               { id: 'overview', label: 'Overview', icon: BarChart3 },
               { id: 'posts', label: 'Top Posts', icon: TrendingUp },
+              { id: 'bookmarks', label: 'Bookmarks', icon: Bookmark }, // Added bookmarks tab
               { id: 'verified', label: 'Verified News', icon: CheckCircle },
               ...(userProfile?.role === 'author' ? [{ id: 'my-posts', label: 'My Posts', icon: Edit3 }] : []),
               { id: 'comments', label: 'My Comments', icon: MessageCircle },
@@ -663,6 +666,12 @@ export default function UserDashboard() {
         {activeTab === 'posts' && (
           <div>
             <WeeklyTopPosts/>
+          </div>
+        )}
+
+        {activeTab === 'bookmarks' && (
+          <div>
+            <BookmarksSection />
           </div>
         )}
 

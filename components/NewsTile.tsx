@@ -34,7 +34,9 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [likeCount, setLikeCount] = useState<number>(0);
+  const [bookmarkCount, setBookmarkCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isBookmarkLoading, setIsBookmarkLoading] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [commentCount, setCommentCount] = useState<number>(0);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -45,9 +47,9 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
     [post.publishedAt]
   );
 
-  // Debounced fetch functions to prevent multiple simultaneous requests
+  // Fetch like status
   const fetchLikeStatus = useCallback(async () => {
-    if (isInitialized) return; // Only fetch once on mount
+    if (isInitialized) return;
     
     try {
       const res = await fetch(`/api/post/${post._id}/like`);
@@ -61,8 +63,25 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
     }
   }, [post._id, isInitialized]);
 
+  // Fetch bookmark status
+  const fetchBookmarkStatus = useCallback(async () => {
+    if (isInitialized) return;
+    
+    try {
+      const res = await fetch(`/api/post/${post._id}/bookmark`);
+      if (!res.ok) return;
+
+      const data = await res.json();
+      setIsBookmarked(data.hasBookmarked);
+      setBookmarkCount(data.bookmarkCount);
+    } catch (err) {
+      console.error("Failed to fetch bookmark status", err);
+    }
+  }, [post._id, isInitialized]);
+
+  // Fetch comment count
   const fetchCommentCount = useCallback(async () => {
-    if (isInitialized) return; // Only fetch once on mount
+    if (isInitialized) return;
     
     try {
       const res = await fetch(`/api/post/comment/${post._id}`);
@@ -84,6 +103,7 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
           // Batch the requests when component comes into view
           Promise.all([
             fetchLikeStatus(),
+            fetchBookmarkStatus(),
             fetchCommentCount()
           ]);
         }
@@ -101,7 +121,7 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
         observer.unobserve(element);
       }
     };
-  }, [fetchLikeStatus, fetchCommentCount, post._id, isInitialized]);
+  }, [fetchLikeStatus, fetchBookmarkStatus, fetchCommentCount, post._id, isInitialized]);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -148,10 +168,49 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
     }
   };
 
-  const handleBookmark = (e: React.MouseEvent) => {
+  const handleBookmark = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // Prevent multiple clicks while request is in progress
+    if (isBookmarkLoading) return;
+
+    // Optimistic update - update UI immediately
+    const previousIsBookmarked = isBookmarked;
+    const previousBookmarkCount = bookmarkCount;
+    
     setIsBookmarked(!isBookmarked);
+    setBookmarkCount(prev => isBookmarked ? prev - 1 : prev + 1);
+    setIsBookmarkLoading(true);
+
+    try {
+      const res = await fetch(`/api/post/${post._id}/bookmark`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        // Update with actual server response
+        setIsBookmarked(data.bookmarked);
+        setBookmarkCount(data.bookmarkCount);
+      } else {
+        // Revert optimistic update on error
+        setIsBookmarked(previousIsBookmarked);
+        setBookmarkCount(previousBookmarkCount);
+        console.error("Error toggling bookmark", data.error);
+      }
+    } catch (err) {
+      // Revert optimistic update on error
+      setIsBookmarked(previousIsBookmarked);
+      setBookmarkCount(previousBookmarkCount);
+      console.error("Bookmark request failed", err);
+    } finally {
+      setIsBookmarkLoading(false);
+    }
   };
 
   const handleShowComments = (e: React.MouseEvent) => {
@@ -250,18 +309,19 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
 
               <button
                 onClick={handleBookmark}
+                disabled={isBookmarkLoading}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                   isBookmarked
                     ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shadow-sm'
                     : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400'
-                }`}
+                } ${isBookmarkLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 <Bookmark
                   className={`w-4 h-4 transition-all duration-200 ${
                     isBookmarked ? 'fill-current scale-110' : ''
-                  }`}
+                  } ${isBookmarkLoading ? 'animate-pulse' : ''}`}
                 />
-                <span>Save</span>
+                <span>{isBookmarked ? 'Saved' : 'Save'}</span>
               </button>
 
               <button
