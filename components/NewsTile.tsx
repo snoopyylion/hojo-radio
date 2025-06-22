@@ -1,9 +1,10 @@
 "use client";
-import React, { useCallback, useEffect, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useState, useMemo, useRef, useLayoutEffect } from "react";
 import { urlFor } from "@/sanity/lib/image";
 import Link from "next/link";
 import Image from "next/image";
 import { formatDistance } from 'date-fns';
+import { gsap } from "gsap";
 import { Heart, Bookmark, Clock, MessageCircle, ChevronUp, ChevronDown } from 'lucide-react';
 import CommentSection from "./CommentSection";
 
@@ -30,16 +31,88 @@ interface NewsTileProps {
   };
 }
 
+// Cache for API responses to avoid duplicate requests
+const apiCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_DURATION = 30000; // 30 seconds
+
+// Utility function for cached API calls
+const cachedFetch = async (url: string, options?: RequestInit) => {
+  const cacheKey = `${url}${JSON.stringify(options)}`;
+  const cached = apiCache.get(cacheKey);
+  
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+  
+  const response = await fetch(url, options);
+  const data = await response.json();
+  
+  apiCache.set(cacheKey, { data, timestamp: Date.now() });
+  return data;
+};
+
+// Custom hook for engagement data
+const useEngagementData = (postId: string) => {
+  const [state, setState] = useState({
+    isLiked: false,
+    isBookmarked: false,
+    likeCount: 0,
+    bookmarkCount: 0,
+    commentCount: 0,
+    isInitialized: false,
+    isLoading: false,
+    isBookmarkLoading: false,
+  });
+
+  const fetchEngagementData = useCallback(async () => {
+    if (state.isInitialized) return;
+    
+    try {
+      // Batch all API calls in parallel for better performance
+      const [likeRes, bookmarkRes, commentRes] = await Promise.all([
+        cachedFetch(`/api/post/${postId}/like`),
+        cachedFetch(`/api/post/${postId}/bookmark`),
+        cachedFetch(`/api/post/comment/${postId}`)
+      ]);
+
+      setState(prev => ({
+        ...prev,
+        isLiked: likeRes.hasLiked || false,
+        likeCount: likeRes.likeCount || 0,
+        isBookmarked: bookmarkRes.hasBookmarked || false,
+        bookmarkCount: bookmarkRes.bookmarkCount || 0,
+        commentCount: commentRes.comments?.length || 0,
+        isInitialized: true,
+      }));
+    } catch (err) {
+      console.error("Failed to fetch engagement data", err);
+      setState(prev => ({ ...prev, isInitialized: true }));
+    }
+  }, [postId, state.isInitialized]);
+
+  return { ...state, setState, fetchEngagementData };
+};
+
 const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
-  const [isLiked, setIsLiked] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [likeCount, setLikeCount] = useState<number>(0);
-  const [bookmarkCount, setBookmarkCount] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isBookmarkLoading, setIsBookmarkLoading] = useState(false);
+  const {
+    isLiked,
+    isBookmarked,
+    likeCount,
+    bookmarkCount,
+    commentCount,
+    isInitialized,
+    isLoading,
+    isBookmarkLoading,
+    setState,
+    fetchEngagementData
+  } = useEngagementData(post._id);
+
   const [showComments, setShowComments] = useState(false);
-  const [commentCount, setCommentCount] = useState<number>(0);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const likeRef = useRef<HTMLButtonElement>(null);
+  const bookmarkRef = useRef<HTMLButtonElement>(null);
+  const commentRef = useRef<HTMLButtonElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const elementRef = useRef<HTMLElement>(null);
   
   // Memoize time calculation to avoid recalculation on every render
   const timeAgo = useMemo(() => 
@@ -47,185 +120,162 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
     [post.publishedAt]
   );
 
-  // Fetch like status
-  const fetchLikeStatus = useCallback(async () => {
-    if (isInitialized) return;
-    
-    try {
-      const res = await fetch(`/api/post/${post._id}/like`);
-      if (!res.ok) return;
+  // Memoize image URL to avoid recalculation
+  const imageUrl = useMemo(() => 
+    post.mainImage ? urlFor(post.mainImage).width(400).height(300).url() : null,
+    [post.mainImage]
+  );
 
-      const data = await res.json();
-      setIsLiked(data.hasLiked);
-      setLikeCount(data.likeCount);
-    } catch (err) {
-      console.error("Failed to fetch like status", err);
-    }
-  }, [post._id, isInitialized]);
+  const authorImageUrl = useMemo(() => 
+    post.author.image ? urlFor(post.author.image).width(32).height(32).url() : null,
+    [post.author.image]
+  );
 
-  // Fetch bookmark status
-  const fetchBookmarkStatus = useCallback(async () => {
-    if (isInitialized) return;
-    
-    try {
-      const res = await fetch(`/api/post/${post._id}/bookmark`);
-      if (!res.ok) return;
-
-      const data = await res.json();
-      setIsBookmarked(data.hasBookmarked);
-      setBookmarkCount(data.bookmarkCount);
-    } catch (err) {
-      console.error("Failed to fetch bookmark status", err);
-    }
-  }, [post._id, isInitialized]);
-
-  // Fetch comment count
-  const fetchCommentCount = useCallback(async () => {
-    if (isInitialized) return;
-    
-    try {
-      const res = await fetch(`/api/post/comment/${post._id}`);
-      if (!res.ok) return;
-
-      const data = await res.json();
-      setCommentCount(data.comments?.length || 0);
-      setIsInitialized(true);
-    } catch (err) {
-      console.error("Failed to fetch comment count", err);
-    }
-  }, [post._id, isInitialized]);
-
-  // Use Intersection Observer to lazy load engagement data
+  // Optimized intersection observer with cleanup
   useEffect(() => {
-    const observer = new IntersectionObserver(
+    if (!elementRef.current || isInitialized) return;
+
+    observerRef.current = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !isInitialized) {
-          // Batch the requests when component comes into view
-          Promise.all([
-            fetchLikeStatus(),
-            fetchBookmarkStatus(),
-            fetchCommentCount()
-          ]);
+          fetchEngagementData();
         }
       },
-      { threshold: 0.1 }
+      { 
+        threshold: 0.1,
+        rootMargin: '50px' // Load data slightly before component is visible
+      }
     );
 
-    const element = document.getElementById(`news-tile-${post._id}`);
-    if (element) {
-      observer.observe(element);
-    }
+    observerRef.current.observe(elementRef.current);
 
     return () => {
-      if (element) {
-        observer.unobserve(element);
+      if (observerRef.current && elementRef.current) {
+        observerRef.current.unobserve(elementRef.current);
       }
     };
-  }, [fetchLikeStatus, fetchBookmarkStatus, fetchCommentCount, post._id, isInitialized]);
+  }, [fetchEngagementData, isInitialized]);
 
-  const handleLike = async (e: React.MouseEvent) => {
+  // Optimized animation function with debouncing
+  const animateButton = useCallback((buttonRef: React.RefObject<HTMLButtonElement | null>) => {
+  if (buttonRef.current) {
+    gsap.fromTo(
+      buttonRef.current,
+      { scale: 1 },
+      { scale: 1.15, duration: 0.1, yoyo: true, repeat: 1, ease: "power1.inOut" }
+    );
+  }
+}, []);
+
+  const handleLike = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    // Prevent multiple clicks while request is in progress
     if (isLoading) return;
 
-    // Optimistic update - update UI immediately
-    const previousIsLiked = isLiked;
-    const previousLikeCount = likeCount;
+    // Optimistic update with previous state backup
+    const previousState = { isLiked, likeCount };
     
-    setIsLiked(!isLiked);
-    setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
-    setIsLoading(true);
+    setState(prev => ({
+      ...prev,
+      isLiked: !prev.isLiked,
+      likeCount: prev.isLiked ? prev.likeCount - 1 : prev.likeCount + 1,
+      isLoading: true,
+    }));
+
+    animateButton(likeRef);
 
     try {
-      const res = await fetch(`/api/post/${post._id}/like`, {
+      const data = await cachedFetch(`/api/post/${post._id}/like`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
 
-      const data = await res.json();
-
-      if (res.ok) {
-        // Update with actual server response
-        setIsLiked(data.liked);
-        setLikeCount(data.likeCount);
-      } else {
-        // Revert optimistic update on error
-        setIsLiked(previousIsLiked);
-        setLikeCount(previousLikeCount);
-        console.error("Error toggling like", data.error);
+      if (data.error) {
+        throw new Error(data.error);
       }
-    } catch (err) {
-      // Revert optimistic update on error
-      setIsLiked(previousIsLiked);
-      setLikeCount(previousLikeCount);
-      console.error("Like request failed", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const handleBookmark = async (e: React.MouseEvent) => {
+      // Update with server response
+      setState(prev => ({
+        ...prev,
+        isLiked: data.liked,
+        likeCount: data.likeCount,
+        isLoading: false,
+      }));
+    } catch (err) {
+      // Revert optimistic update
+      setState(prev => ({
+        ...prev,
+        isLiked: previousState.isLiked,
+        likeCount: previousState.likeCount,
+        isLoading: false,
+      }));
+      console.error("Like request failed", err);
+    }
+  }, [post._id, isLiked, likeCount, isLoading, setState, animateButton]);
+
+  const handleBookmark = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    // Prevent multiple clicks while request is in progress
     if (isBookmarkLoading) return;
 
-    // Optimistic update - update UI immediately
-    const previousIsBookmarked = isBookmarked;
-    const previousBookmarkCount = bookmarkCount;
+    // Optimistic update with previous state backup
+    const previousState = { isBookmarked, bookmarkCount };
     
-    setIsBookmarked(!isBookmarked);
-    setBookmarkCount(prev => isBookmarked ? prev - 1 : prev + 1);
-    setIsBookmarkLoading(true);
+    setState(prev => ({
+      ...prev,
+      isBookmarked: !prev.isBookmarked,
+      bookmarkCount: prev.isBookmarked ? prev.bookmarkCount - 1 : prev.bookmarkCount + 1,
+      isBookmarkLoading: true,
+    }));
+
+    animateButton(bookmarkRef);
 
     try {
-      const res = await fetch(`/api/post/${post._id}/bookmark`, {
+      const data = await cachedFetch(`/api/post/${post._id}/bookmark`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
 
-      const data = await res.json();
-
-      if (res.ok) {
-        // Update with actual server response
-        setIsBookmarked(data.bookmarked);
-        setBookmarkCount(data.bookmarkCount);
-      } else {
-        // Revert optimistic update on error
-        setIsBookmarked(previousIsBookmarked);
-        setBookmarkCount(previousBookmarkCount);
-        console.error("Error toggling bookmark", data.error);
+      if (data.error) {
+        throw new Error(data.error);
       }
-    } catch (err) {
-      // Revert optimistic update on error
-      setIsBookmarked(previousIsBookmarked);
-      setBookmarkCount(previousBookmarkCount);
-      console.error("Bookmark request failed", err);
-    } finally {
-      setIsBookmarkLoading(false);
-    }
-  };
 
-  const handleShowComments = (e: React.MouseEvent) => {
+      // Update with server response
+      setState(prev => ({
+        ...prev,
+        isBookmarked: data.bookmarked,
+        bookmarkCount: data.bookmarkCount,
+        isBookmarkLoading: false,
+      }));
+    } catch (err) {
+      // Revert optimistic update
+      setState(prev => ({
+        ...prev,
+        isBookmarked: previousState.isBookmarked,
+        bookmarkCount: previousState.bookmarkCount,
+        isBookmarkLoading: false,
+      }));
+      console.error("Bookmark request failed", err);
+    }
+  }, [post._id, isBookmarked, bookmarkCount, isBookmarkLoading, setState, animateButton]);
+
+  const handleShowComments = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setShowComments(!showComments);
-  };
+  }, [showComments]);
 
   // Callback to update comment count from CommentSection
   const updateCommentCount = useCallback((count: number) => {
-    setCommentCount(count);
-  }, []);
+    setState(prev => ({ ...prev, commentCount: count }));
+  }, [setState]);
+
 
   return (
     <article 
+      ref={elementRef}
       id={`news-tile-${post._id}`}
       className="group border-b border-gray-100 dark:border-gray-800 p-4 md:p-6 last:border-b-0 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-all duration-300 rounded-lg hover:shadow-sm"
     >
@@ -263,13 +313,14 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
             {/* Author and Date */}
             <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-4">
               <div className="flex items-center gap-2">
-                {post.author.image ? (
+                {authorImageUrl ? (
                   <div className="w-6 h-6 sm:w-8 sm:h-8 relative rounded-full overflow-hidden ring-1 ring-gray-200 dark:ring-gray-700">
                     <Image
-                      src={urlFor(post.author.image).width(32).height(32).url()}
+                      src={authorImageUrl}
                       alt={post.author.name}
                       fill
                       className="object-cover"
+                      sizes="32px"
                     />
                   </div>
                 ) : (
@@ -289,48 +340,47 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
             </div>
             
             {/* Engagement Actions */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center flex-wrap gap-4 mt-4">
+              {/* Like */}
               <button
+                ref={likeRef}
                 onClick={handleLike}
                 disabled={isLoading}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                  isLiked
-                    ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 shadow-sm'
-                    : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-red-600 dark:hover:text-red-400'
-                } ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                className={`group flex items-center gap-2 text-sm font-medium transition-all duration-200 
+                  ${isLiked ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400'} 
+                  ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
                 <Heart
-                  className={`w-4 h-4 transition-all duration-200 ${
+                  className={`w-4 h-4 transition-transform duration-200 ${
                     isLiked ? 'fill-current scale-110' : ''
-                  } ${isLoading ? 'animate-pulse' : ''}`}
+                  } ${isLoading ? 'animate-pulse' : 'group-hover:scale-110'}`}
                 />
                 <span>{likeCount}</span>
               </button>
 
+              {/* Bookmark */}
               <button
+                ref={bookmarkRef}
                 onClick={handleBookmark}
                 disabled={isBookmarkLoading}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                  isBookmarked
-                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shadow-sm'
-                    : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400'
-                } ${isBookmarkLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                className={`group flex items-center gap-2 text-sm font-medium transition-all duration-200 
+                  text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white 
+                  ${isBookmarkLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
                 <Bookmark
-                  className={`w-4 h-4 transition-all duration-200 ${
+                  className={`w-4 h-4 transition-transform duration-200 ${
                     isBookmarked ? 'fill-current scale-110' : ''
-                  } ${isBookmarkLoading ? 'animate-pulse' : ''}`}
+                  } ${isBookmarkLoading ? 'animate-pulse' : 'group-hover:scale-110'}`}
                 />
                 <span>{isBookmarked ? 'Saved' : 'Save'}</span>
               </button>
 
+              {/* Comments */}
               <button
+                ref={commentRef}
                 onClick={handleShowComments}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                  showComments
-                    ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 shadow-sm'
-                    : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-green-600 dark:hover:text-green-400'
-                }`}
+                className={`group flex items-center gap-2 text-sm font-medium transition-all duration-200 
+                  text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white`}
               >
                 <MessageCircle className="w-4 h-4" />
                 <span>{commentCount}</span>
@@ -346,10 +396,10 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
           {/* Image Section - Improved Responsiveness */}
           <div className="w-full sm:w-48 md:w-56 lg:w-64 xl:w-72 flex-shrink-0 order-1 sm:order-2">
             <div className="relative w-full aspect-[16/10] sm:aspect-[4/3] bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
-              {post.mainImage ? (
+              {imageUrl ? (
                 <>
                   <Image
-                    src={urlFor(post.mainImage).width(400).height(300).url()}
+                    src={imageUrl}
                     alt={post.title}
                     fill
                     className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -377,6 +427,7 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
           </div>
         </div>
       </Link>
+      
       {/* Comment Section - Hidden by default */}
       {showComments && (
         <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
@@ -392,4 +443,5 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
   );
 };
 
-export default NewsTile;
+// Memoize the component to prevent unnecessary re-renders
+export default React.memo(NewsTile);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo, startTransition } from "react";
 import { client } from "@/sanity/lib/client";
 import { ALL_POSTS_QUERY } from "@/sanity/lib/queries";
 import { groq } from "next-sanity";
@@ -66,7 +66,7 @@ interface CategorySectionProps {
   isFullWidth?: boolean;
 }
 
-const CategorySection: React.FC<CategorySectionProps> = ({
+const CategorySection: React.FC<CategorySectionProps> = React.memo(({
   title,
   posts,
   visibleCount,
@@ -104,11 +104,52 @@ const CategorySection: React.FC<CategorySectionProps> = ({
       )}
     </section>
   );
-};
+});
+
+CategorySection.displayName = 'CategorySection';
+
+// Virtualized list component for better performance with large datasets
+const VirtualizedPostList: React.FC<{ posts: Post[]; containerHeight: number }> = React.memo(({ posts, containerHeight }) => {
+  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 10 });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const ITEM_HEIGHT = 200; // Approximate height of each NewsTile
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const scrollTop = container.scrollTop;
+      const start = Math.floor(scrollTop / ITEM_HEIGHT);
+      const end = Math.min(start + Math.ceil(containerHeight / ITEM_HEIGHT) + 2, posts.length);
+      setVisibleRange({ start, end });
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [containerHeight, posts.length]);
+
+  const visiblePosts = posts.slice(visibleRange.start, visibleRange.end);
+
+  return (
+    <div ref={containerRef} className="overflow-auto" style={{ height: containerHeight }}>
+      <div style={{ height: posts.length * ITEM_HEIGHT }}>
+        <div style={{ transform: `translateY(${visibleRange.start * ITEM_HEIGHT}px)` }}>
+          {visiblePosts.map((post) => (
+            <NewsTile key={post._id} post={post} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+VirtualizedPostList.displayName = 'VirtualizedPostList';
 
 const NewsPage = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
@@ -122,57 +163,139 @@ const NewsPage = () => {
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollTopRef = useRef<HTMLButtonElement>(null);
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      startTransition(() => {
+        setDebouncedSearch(search);
+      });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // Initialize visible counts when categories change
   useEffect(() => {
-    const initialCounts: Record<string, number> = { 'Latest News': 4 };
+    const initialCounts: Record<string, number> = { 'Latest News': 6 }; // Increased initial load
     categories.forEach(category => {
       initialCounts[category] = 4;
     });
     setVisibleCounts(initialCounts);
   }, [categories]);
 
-  // Filter posts based on search
-  const filteredPosts = posts.filter(post => {
-    const matchesSearch = post.title.toLowerCase().includes(search.toLowerCase()) ||
-      post.description?.toLowerCase().includes(search.toLowerCase());
-    return matchesSearch;
-  });
+  // Memoized filtered posts to avoid recalculation
+  const filteredPosts = useMemo(() => {
+    if (!debouncedSearch.trim()) return posts;
+    
+    const searchLower = debouncedSearch.toLowerCase();
+    return posts.filter(post => {
+      return (
+        post.title.toLowerCase().includes(searchLower) ||
+        post.description?.toLowerCase().includes(searchLower) ||
+        post.author.name.toLowerCase().includes(searchLower) ||
+        post.categories.some(cat => cat.title.toLowerCase().includes(searchLower))
+      );
+    });
+  }, [posts, debouncedSearch]);
 
-  // Group posts by category
-  const postsByCategory = categories.reduce((acc, category) => {
-    acc[category] = posts.filter(post =>
-      post.categories.some(cat => cat.title === category)
+  // Memoized posts by category to avoid recalculation
+  const postsByCategory = useMemo(() => {
+    return categories.reduce((acc, category) => {
+      acc[category] = posts.filter(post =>
+        post.categories.some(cat => cat.title === category)
+      );
+      return acc;
+    }, {} as Record<string, Post[]>);
+  }, [categories, posts]);
+
+  // Memoized latest posts
+  const latestPosts = useMemo(() => {
+    return [...posts].sort((a, b) =>
+      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
-    return acc;
-  }, {} as Record<string, Post[]>);
+  }, [posts]);
 
-  // Get latest posts (all posts sorted by date)
-  const latestPosts = [...posts].sort((a, b) =>
-    new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-  );
+  // Memoized categories from posts
+  const extractedCategories = useMemo(() => {
+    const allCategories = posts.flatMap(post =>
+      post.categories.map(cat => cat.title)
+    );
+    return [...new Set(allCategories)];
+  }, [posts]);
 
-  // Initial animations
+  // Update categories when posts change
   useEffect(() => {
+    setCategories(extractedCategories);
+  }, [extractedCategories]);
+
+  // Optimized scroll handler with throttling
+  const handleScroll = useCallback(() => {
+    const shouldShow = window.scrollY > 400;
+    if (shouldShow !== showScrollTop) {
+      setShowScrollTop(shouldShow);
+
+      if (scrollTopRef.current) {
+        if (shouldShow) {
+          gsap.to(scrollTopRef.current, {
+            scale: 1,
+            rotation: 0,
+            duration: 0.3,
+            ease: "back.out(1.7)"
+          });
+        } else {
+          gsap.to(scrollTopRef.current, {
+            scale: 0,
+            rotation: -180,
+            duration: 0.3,
+            ease: "back.in(1.7)"
+          });
+        }
+      }
+    }
+  }, [showScrollTop]);
+
+  // Throttled scroll event listener
+  useEffect(() => {
+    let ticking = false;
+    
+    const throttledHandleScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          handleScroll();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', throttledHandleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', throttledHandleScroll);
+  }, [handleScroll]);
+
+  // Initial animations with reduced complexity
+  useEffect(() => {
+    if (isLoading) return;
+
     const tl = gsap.timeline();
 
     if (heroRef.current) {
-      gsap.set(heroRef.current, { opacity: 0, y: 30 });
+      gsap.set(heroRef.current, { opacity: 0, y: 20 });
       tl.to(heroRef.current, {
-        opacity: 1,
-        y: 0,
-        duration: 0.8,
-        ease: "power3.out"
-      });
-    }
-
-    if (searchRef.current) {
-      gsap.set(searchRef.current, { opacity: 0, y: 20 });
-      tl.to(searchRef.current, {
         opacity: 1,
         y: 0,
         duration: 0.6,
         ease: "power2.out"
-      }, "-=0.4");
+      });
+    }
+
+    if (searchRef.current) {
+      gsap.set(searchRef.current, { opacity: 0, y: 15 });
+      tl.to(searchRef.current, {
+        opacity: 1,
+        y: 0,
+        duration: 0.4,
+        ease: "power2.out"
+      }, "-=0.3");
     }
 
     if (scrollTopRef.current) {
@@ -182,76 +305,61 @@ const NewsPage = () => {
     return () => {
       tl.kill();
     };
-  }, []);
+  }, [isLoading]);
 
   // Content animation when posts load
   useEffect(() => {
     if (!isLoading && contentRef.current) {
       const sections = contentRef.current.querySelectorAll('.news-section');
 
-      gsap.set(sections, { opacity: 0, y: 30 });
+      gsap.set(sections, { opacity: 0, y: 20 });
 
       gsap.to(sections, {
         opacity: 1,
         y: 0,
-        duration: 0.6,
-        stagger: 0.1,
+        duration: 0.4,
+        stagger: 0.08,
         ease: "power2.out"
       });
     }
-  }, [isLoading, posts]);
+  }, [isLoading]);
 
-  // Scroll top button animation
+  // Optimized data fetching with error handling and caching
   useEffect(() => {
-    const handleScroll = () => {
-      const shouldShow = window.scrollY > 400;
-      setShowScrollTop(shouldShow);
-
-      if (scrollTopRef.current) {
-        if (shouldShow && !showScrollTop) {
-          gsap.to(scrollTopRef.current, {
-            scale: 1,
-            rotation: 0,
-            duration: 0.3,
-            ease: "back.out(1.7)"
-          });
-        } else if (!shouldShow && showScrollTop) {
-          gsap.to(scrollTopRef.current, {
-            scale: 0,
-            rotation: -180,
-            duration: 0.3,
-            ease: "back.in(1.7)"
-          });
-        }
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [showScrollTop]);
-
-  // Fetch posts
-  useEffect(() => {
+    let isMounted = true;
+    
     async function fetchPosts() {
-      setIsLoading(true);
       try {
-        const data = await client.fetch<Post[]>(ALL_POSTS_QUERY);
-        setPosts(data);
+        // Use a more efficient query that only fetches necessary fields initially
+        const optimizedQuery = groq`*[_type == "post"] | order(publishedAt desc) {
+          _id,
+          title,
+          description,
+          slug,
+          mainImage,
+          publishedAt,
+          _createdAt,
+          author->{ name, image },
+          categories[]->{ title }
+        }`;
 
-        const allCategories = data.flatMap(post =>
-          post.categories.map(cat => cat.title)
-        );
-        setCategories([...new Set(allCategories)]);
+        const data = await client.fetch<Post[]>(optimizedQuery);
+        
+        if (isMounted) {
+          setPosts(data);
+          setIsLoading(false);
+        }
       } catch (error) {
         console.error("Error fetching posts:", error);
-      } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
 
     fetchPosts();
 
-    // Real-time listener
+    // Optimized real-time listener
     const subscription = client
       .listen(
         groq`*[_type == "post"] {
@@ -267,42 +375,52 @@ const NewsPage = () => {
         }`
       )
       .subscribe((update) => {
+        if (!isMounted) return;
+
         const { result, documentId, mutations } = update;
 
-        if (mutations.some(m => 'create' in m)) {
-          if (result && isPost(result)) {
-            setPosts(prevPosts => [result, ...prevPosts]);
+        startTransition(() => {
+          if (mutations.some(m => 'create' in m)) {
+            if (result && isPost(result)) {
+              setPosts(prevPosts => [result, ...prevPosts]);
+            }
+          } else if (mutations.some(m => 'delete' in m)) {
+            setPosts(prevPosts => prevPosts.filter(post => post._id !== documentId));
+          } else {
+            if (result && isPost(result)) {
+              setPosts(prevPosts =>
+                prevPosts.map(post => post._id === result._id ? result : post)
+              );
+            }
           }
-        } else if (mutations.some(m => 'delete' in m)) {
-          setPosts(prevPosts => prevPosts.filter(post => post._id !== documentId));
-        } else {
-          if (result && isPost(result)) {
-            setPosts(prevPosts =>
-              prevPosts.map(post => post._id === result._id ? result : post)
-            );
-          }
-        }
+        });
       });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
 
-  const scrollToTop = () => {
+  const scrollToTop = useCallback(() => {
     gsap.to(window, {
       scrollTo: { y: 0 },
-      duration: 1,
+      duration: 0.8,
       ease: "power2.out"
     });
-  };
+  }, []);
 
-  const handleShowMore = (categoryTitle: string) => {
+  const handleShowMore = useCallback((categoryTitle: string) => {
     setVisibleCounts(prev => ({
       ...prev,
-      [categoryTitle]: (prev[categoryTitle] || 4) + 4
+      [categoryTitle]: (prev[categoryTitle] || 4) + 6 // Load more items at once
     }));
-  };
+  }, []);
+
+  // Memoized search handler
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+  }, []);
 
   if (isLoading) {
     return (
@@ -344,7 +462,7 @@ const NewsPage = () => {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={handleSearchChange}
               placeholder="Search articles..."
               className="w-full pl-12 pr-4 py-4 border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-black text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#EF3866]/20 focus:border-[#EF3866] transition-all duration-200"
             />
@@ -356,7 +474,7 @@ const NewsPage = () => {
       <main className="px-4 md:px-8 lg:px-16 max-w-7xl mx-auto pb-16">
         <div ref={contentRef}>
           {/* Show search results if searching */}
-          {search ? (
+          {debouncedSearch ? (
             <section className="news-section">
               <h2 className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
                 <Search className="w-6 h-6 text-[#EF3866]" />
@@ -389,7 +507,7 @@ const NewsPage = () => {
                 <CategorySection
                   title="Latest News"
                   posts={latestPosts}
-                  visibleCount={visibleCounts['Latest News'] || 4}
+                  visibleCount={visibleCounts['Latest News'] || 6}
                   onShowMore={() => handleShowMore('Latest News')}
                   isFullWidth={true}
                 />
