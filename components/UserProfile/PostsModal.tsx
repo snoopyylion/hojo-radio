@@ -51,13 +51,11 @@ export const PostsModal: React.FC<PostsModalProps> = ({
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Add debug state
-  const [, setDebugInfo] = useState<string>('');
   
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-
+  
   useEffect(() => {
     // Animate modal entrance
     if (modalRef.current && overlayRef.current && contentRef.current) {
