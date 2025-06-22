@@ -160,14 +160,20 @@ export default function CommentSection({ postId, onCommentCountChange }: Props) 
     }
   };
 
-  useEffect(() => {
-    if (postId) {
-      fetchComments();
-    }
-    if (onCommentCountChange && comments) {
-      onCommentCountChange(comments.length);
-    }
-  }, [postId, fetchComments, onCommentCountChange]);
+  // Only fetch comments when postId changes
+useEffect(() => {
+  if (postId) {
+    fetchComments();
+  }
+}, [postId, fetchComments]);
+
+// Notify parent when comments length changes
+useEffect(() => {
+  if (onCommentCountChange && comments) {
+    onCommentCountChange(comments.length);
+  }
+}, [comments, onCommentCountChange]);
+
 
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -282,7 +288,7 @@ export default function CommentSection({ postId, onCommentCountChange }: Props) 
         </div>
       ) : (
         <div className="space-y-6">
-          {comments.map((comment, index) => (
+          {comments.map((comment) => (
             <div key={comment.id} className="group">
               <div className="flex items-start space-x-3">
                 {/* Avatar */}

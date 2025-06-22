@@ -4,20 +4,19 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_cache } from 'next/cache';
 
-// Define types for your database tables
-interface User {
-  id: string;
-  first_name: string;
-  last_name: string;
-}
-
-interface Comment {
+interface SupabaseCommentWithUser {
   id: string;
   user_id: string;
   post_id: string;
   comment: string;
   created_at: string;
+  users?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+  };
 }
+
 
 interface Reaction {
   id: string;
@@ -106,13 +105,13 @@ export async function GET(
     const commentsWithUsers = await getCachedComments(postId);
     
     // Extract comment IDs for reactions query
-    const commentIds = commentsWithUsers.map((comment: any) => comment.id);
+    const commentIds = commentsWithUsers.map((comment: SupabaseCommentWithUser) => comment.id);
     
     // Get cached reactions
     const reactions = await getCachedReactions(commentIds);
     
     // Process comments with reactions
-    const commentsWithUserData: CommentResponse[] = commentsWithUsers.map((comment: any) => {
+    const commentsWithUserData: CommentResponse[] = commentsWithUsers.map((comment: SupabaseCommentWithUser) => {
       // Count likes and dislikes for this comment
       const commentReactions = reactions.filter((r: Reaction) => r.comment_id === comment.id);
       const likes = commentReactions.filter((r: Reaction) => r.reaction_type === 'like').length;

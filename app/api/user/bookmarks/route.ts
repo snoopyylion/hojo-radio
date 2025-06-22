@@ -191,9 +191,7 @@ export async function GET(
 }
 
 // Optional: DELETE endpoint to remove all bookmarks for a user
-export async function DELETE(
-  request: NextRequest
-): Promise<NextResponse<{ success: boolean; deletedCount: number } | ErrorResponse>> {
+export async function DELETE(): Promise<NextResponse<{ success: boolean; deletedCount: number } | ErrorResponse>> {
   try {
     const { userId } = await auth();
     
