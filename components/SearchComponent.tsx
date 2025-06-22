@@ -261,7 +261,7 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
     } finally {
       setIsSearching(false);
     }
-  }, []);
+  }, [getResultUrl]);
 
   // Handle result click
   const handleResultClick = async (result: SearchResult, event?: React.MouseEvent | React.TouchEvent) => {

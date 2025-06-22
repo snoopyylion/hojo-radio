@@ -49,48 +49,13 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
   // Use targetUserId if provided, otherwise use current user's ID
   const displayUserId = targetUserId || user?.id;
 
-  const fetchFollowersAndFollowing = useCallback(async () => {
-    if (!displayUserId) return;
-
-    setLoading(true);
-    try {
-      const [followersResponse, followingResponse] = await Promise.all([
-        fetch(`/api/follow?type=followers&userId=${displayUserId}`),
-        fetch(`/api/follow?type=following&userId=${displayUserId}`)
-      ]);
-
-      if (!followersResponse.ok || !followingResponse.ok) {
-        throw new Error('Failed to fetch follow data');
-      }
-
-      const followersData = await followersResponse.json();
-      const followingData = await followingResponse.json();
-
-      // Only check follow status if we're the current user viewing our own profile
-      // or if we're viewing someone else's profile (to see if we follow them back)
-      const followersWithStatus = await checkFollowBackStatus(followersData.users);
-      const followingWithStatus = await checkFollowingStatus(followingData.users);
-
-      setFollowers(followersWithStatus);
-      setFollowing(followingWithStatus);
-    } catch (error) {
-      console.error('Error fetching followers/following:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [displayUserId]);
-
-  useEffect(() => {
-    if (displayUserId) {
-      fetchFollowersAndFollowing();
-    }
-  }, [displayUserId, fetchFollowersAndFollowing]);
+  
 
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
 
-  const checkFollowBackStatus = async (users: FollowUser[]): Promise<FollowUser[]> => {
+  const checkFollowBackStatus = useCallback(async (users: FollowUser[]) => {
     if (!user?.id || users.length === 0) return users;
 
     try {
@@ -122,9 +87,9 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
       console.error('Error checking follow back status:', error);
       return users;
     }
-  };
+  }, [user?.id]);
 
-  const checkFollowingStatus = async (users: FollowUser[]): Promise<FollowUser[]> => {
+  const checkFollowingStatus = useCallback(async (users: FollowUser[]) => {
     if (!user?.id || users.length === 0) return users;
 
     try {
@@ -149,7 +114,38 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
       console.error('Error checking following status:', error);
       return users.map(user => ({ ...user, is_following_back: true }));
     }
-  };
+  }, [user?.id]);
+  
+  const fetchFollowersAndFollowing = useCallback(async () => {
+    if (!displayUserId) return;
+
+    setLoading(true);
+    try {
+      const [followersResponse, followingResponse] = await Promise.all([
+        fetch(`/api/follow?type=followers&userId=${displayUserId}`),
+        fetch(`/api/follow?type=following&userId=${displayUserId}`)
+      ]);
+
+      if (!followersResponse.ok || !followingResponse.ok) {
+        throw new Error('Failed to fetch follow data');
+      }
+
+      const followersData = await followersResponse.json();
+      const followingData = await followingResponse.json();
+
+      // Only check follow status if we're the current user viewing our own profile
+      // or if we're viewing someone else's profile (to see if we follow them back)
+      const followersWithStatus = await checkFollowBackStatus(followersData.users);
+      const followingWithStatus = await checkFollowingStatus(followingData.users);
+
+      setFollowers(followersWithStatus);
+      setFollowing(followingWithStatus);
+    } catch (error) {
+      console.error('Error fetching followers/following:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [displayUserId, checkFollowBackStatus, checkFollowingStatus]);
 
   const handleFollowToggle = async (targetUserId: string, isCurrentlyFollowing: boolean) => {
     if (!user?.id || followOperations.has(targetUserId)) return;
@@ -297,6 +293,12 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
       </div>
     );
   };
+
+  useEffect(() => {
+    if (displayUserId) {
+      fetchFollowersAndFollowing();
+    }
+  }, [displayUserId, fetchFollowersAndFollowing]);
 
   if (!displayUserId) {
     return null;

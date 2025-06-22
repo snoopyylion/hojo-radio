@@ -1,7 +1,7 @@
 // components/UserProfile/AuthorPostsSection.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { 
@@ -78,15 +78,7 @@ export const AuthorPostsSection: React.FC<AuthorPostsSectionProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isAuthor) {
-      fetchAuthorPosts();
-    } else {
-      setLoading(false);
-    }
-  }, [userId, isAuthor]);
-
-  const fetchAuthorPosts = async () => {
+  const fetchAuthorPosts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -147,7 +139,15 @@ export const AuthorPostsSection: React.FC<AuthorPostsSectionProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, userName]);
+
+  useEffect(() => {
+  if (isAuthor) {
+    fetchAuthorPosts();
+  } else {
+    setLoading(false);
+  }
+}, [isAuthor, fetchAuthorPosts]);
 
   // Helper function to extract text from Portable Text
   const extractTextFromPortableText = (body?: PortableTextBlock[]): string => {

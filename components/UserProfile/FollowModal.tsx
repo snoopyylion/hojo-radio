@@ -49,47 +49,6 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
   const [loading, setLoading] = useState(false);
   const [followOperations, setFollowOperations] = useState<Set<string>>(new Set());
 
-  const fetchFollowersAndFollowing = useCallback(async () => {
-    if (!userId) return;
-
-    setLoading(true);
-    try {
-      const [followersResponse, followingResponse] = await Promise.all([
-        fetch(`/api/follow?type=followers&userId=${userId}`),
-        fetch(`/api/follow?type=following&userId=${userId}`)
-      ]);
-
-      if (!followersResponse.ok || !followingResponse.ok) {
-        throw new Error('Failed to fetch follow data');
-      }
-
-      const followersData = await followersResponse.json();
-      const followingData = await followingResponse.json();
-
-      // Only check follow status if current user is signed in
-      let followersWithStatus = followersData.users;
-      let followingWithStatus = followingData.users;
-      
-      if (currentUser?.id) {
-        followersWithStatus = await checkCurrentUserFollowStatus(followersData.users);
-        followingWithStatus = await checkCurrentUserFollowStatus(followingData.users);
-      }
-
-      setFollowers(followersWithStatus);
-      setFollowing(followingWithStatus);
-    } catch (error) {
-      console.error('Error fetching followers/following:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, currentUser?.id]);
-
-  useEffect(() => {
-    if (userId) {
-      fetchFollowersAndFollowing();
-    }
-  }, [userId, fetchFollowersAndFollowing]);
-
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
@@ -128,6 +87,40 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
       return users;
     }
   };
+
+  const fetchFollowersAndFollowing = useCallback(async () => {
+  if (!userId) return;
+
+  setLoading(true);
+  try {
+    const [followersResponse, followingResponse] = await Promise.all([
+      fetch(`/api/follow?type=followers&userId=${userId}`),
+      fetch(`/api/follow?type=following&userId=${userId}`)
+    ]);
+
+    if (!followersResponse.ok || !followingResponse.ok) {
+      throw new Error('Failed to fetch follow data');
+    }
+
+    const followersData = await followersResponse.json();
+    const followingData = await followingResponse.json();
+
+    let followersWithStatus = followersData.users;
+    let followingWithStatus = followingData.users;
+
+    if (currentUser?.id) {
+      followersWithStatus = await checkCurrentUserFollowStatus(followersData.users);
+      followingWithStatus = await checkCurrentUserFollowStatus(followingData.users);
+    }
+
+    setFollowers(followersWithStatus);
+    setFollowing(followingWithStatus);
+  } catch (error) {
+    console.error('Error fetching followers/following:', error);
+  } finally {
+    setLoading(false);
+  }
+}, [userId, currentUser?.id, checkCurrentUserFollowStatus]);
 
   const handleFollowToggle = async (targetUserId: string, isCurrentlyFollowing: boolean) => {
     if (!currentUser?.id || followOperations.has(targetUserId)) return;
@@ -184,6 +177,12 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
     router.push(`/user/${clickedUserId}`);
   };
 
+  useEffect(() => {
+    if (userId) {
+      fetchFollowersAndFollowing();
+    }
+  }, [userId, fetchFollowersAndFollowing]);
+  
   const renderUserCard = (followUser: FollowUser) => {
     const isOperationInProgress = followOperations.has(followUser.id);
     const isCurrentUser = currentUser?.id === followUser.id;

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { useAppContext } from '@/context/AppContext';
@@ -110,28 +110,7 @@ const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>(
   // Check if the profile user is an author
   const isAuthor = profile?.role === 'author';
 
-  useEffect(() => {
-    if (id) {
-      fetchUserProfile();
-      if (user?.id) {
-        checkFollowStatus();
-      }
-    }
-  }, [id, user?.id]);
-
-  useEffect(() => {
-    if (profile?.id) {
-      if (activeTab === 'posts' && profile.role === 'author') {
-        fetchUserPosts();
-      } else if (activeTab === 'verified') {
-        fetchUserVerifiedNews();
-      } else if (activeTab === 'custom') {
-        fetchUserActivity();
-      }
-    }
-  }, [activeTab, profile?.id, profile?.role]);
-
-   const fetchUserProfile = async () => {
+   const fetchUserProfile = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -192,14 +171,15 @@ const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>(
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, router]);
 
 
   const handlePostsCountUpdate = (count: number) => {
     // Update the profile with the new posts count
     setProfile(prev => prev ? { ...prev, posts_count: count } : null);
   };
-  const checkFollowStatus = async () => {
+
+  const checkFollowStatus = useCallback(async () => {
     if (!user?.id || !id || user.id === id) return;
 
     try {
@@ -219,10 +199,10 @@ const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>(
       console.error('Error checking follow status:', error);
       setIsFollowing(false);
     }
-  };
+  }, [id, user?.id]);
 
   // Updated fetchUserPosts function for UserProfilePage component
-const fetchUserPosts = async () => {
+const fetchUserPosts = useCallback(async () => {
   if (!profile?.sanity_author_id || profile.role !== 'author') {
     console.log('No Sanity author ID found or user is not an author', {
       sanity_author_id: profile?.sanity_author_id,
@@ -303,10 +283,10 @@ const fetchUserPosts = async () => {
   } finally {
     setPostsLoading(false);
   }
-};
+}, [profile]);
 
   // New function to fetch verified news for the profile user
-  const fetchUserVerifiedNews = async () => {
+  const fetchUserVerifiedNews = useCallback(async () => {
     if (!profile?.id) return;
 
     try {
@@ -331,9 +311,9 @@ const fetchUserPosts = async () => {
     } finally {
       setVerifiedNewsLoading(false);
     }
-  };
+  }, [profile]);
 
-  const fetchUserActivity = async () => {
+  const fetchUserActivity = useCallback(async () => {
     if (!profile?.id) return;
 
     try {
@@ -344,7 +324,7 @@ const fetchUserPosts = async () => {
       console.error('Error fetching user activity:', error);
       setActivities([]);
     }
-  };
+  }, [profile]);
 
   const handleFollow = async () => {
     if (!user?.id || !profile?.id || followLoading || user.id === profile.id) {
@@ -398,6 +378,27 @@ const handleFollowingClick = () => {
   setFollowModalTab('following');
   setFollowModalOpen(true);
 };
+
+ useEffect(() => {
+  if (id) {
+    fetchUserProfile();
+    if (user?.id) {
+      checkFollowStatus();
+    }
+  }
+}, [id, user?.id, fetchUserProfile, checkFollowStatus]);
+
+  useEffect(() => {
+  if (profile?.id) {
+    if (activeTab === 'posts' && profile.role === 'author') {
+      fetchUserPosts();
+    } else if (activeTab === 'verified') {
+      fetchUserVerifiedNews();
+    } else if (activeTab === 'custom') {
+      fetchUserActivity();
+    }
+  }
+}, [activeTab, profile?.id, profile?.role, fetchUserPosts, fetchUserVerifiedNews, fetchUserActivity]);
 
   
   const renderTabContent = () => {

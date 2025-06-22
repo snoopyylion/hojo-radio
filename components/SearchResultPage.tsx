@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Search, User, BookOpen, Tag, Clock, Heart, MessageCircle, ArrowRight, Filter, Grid, List, X, UserPlus } from 'lucide-react';
 import Image from 'next/image';
@@ -140,15 +140,15 @@ const SearchResultsPage = () => {
 };
 
   // Check if a user can be followed (users and authors can be followed)
-  const canFollowUser = (result: SearchResult): boolean => {
-    if (result.type !== 'user' && result.type !== 'author') {
-      return false;
-    }
+  const canFollowUser = useCallback((result: SearchResult): boolean => {
+  if (result.type !== 'user' && result.type !== 'author') {
+    return false;
+  }
 
-    // Prevent following yourself
-    const databaseId = getDatabaseId(result);
-    return currentUserId !== databaseId;
-  };
+  // Prevent following yourself
+  const databaseId = getDatabaseId(result);
+  return currentUserId !== databaseId;
+}, [currentUserId]); // Dependencies: currentUserId
 
   // FIXED: Handle follow/unfollow with proper error handling and state management
   const handleFollowToggle = async (result: SearchResult) => {
@@ -356,143 +356,144 @@ const SearchResultsPage = () => {
   }, []);
 
   // Updated performSearch to use API route
-  const performSearch = async (searchQuery: string) => {
-    if (!searchQuery.trim()) {
-      const emptyResults = {
-        results: [],
-        totalCount: 0,
-        query: '',
-        categories: { users: [], articles: [], authors: [], categories: [] }
-      };
-      setSearchResults(emptyResults);
-      setOriginalResults(emptyResults);
-      return;
+  const performSearch = useCallback(async (searchQuery: string) => {
+  if (!searchQuery.trim()) {
+    const emptyResults = {
+      results: [],
+      totalCount: 0,
+      query: '',
+      categories: { users: [], articles: [], authors: [], categories: [] }
+    };
+    setSearchResults(emptyResults);
+    setOriginalResults(emptyResults);
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    console.log('🔍 Performing search:', { query: searchQuery });
+
+    const apiUrl = new URL('/api/search', window.location.origin);
+    apiUrl.searchParams.set('q', searchQuery);
+    apiUrl.searchParams.set('limit', '50');
+
+    console.log('📡 Calling API:', apiUrl.toString());
+
+    const response = await fetch(apiUrl.toString(), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    setIsLoading(true);
+    const data: SearchResponse = await response.json();
 
-    try {
-      console.log('🔍 Performing search:', { query: searchQuery });
-
-      const apiUrl = new URL('/api/search', window.location.origin);
-      apiUrl.searchParams.set('q', searchQuery);
-      apiUrl.searchParams.set('limit', '50');
-
-      console.log('📡 Calling API:', apiUrl.toString());
-
-      const response = await fetch(apiUrl.toString(), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    console.log('✅ API response:', {
+      totalCount: data.totalCount,
+      categories: {
+        users: data.categories.users.length,
+        articles: data.categories.articles.length,
+        authors: data.categories.authors.length,
+        categories: data.categories.categories.length
       }
+    });
 
-      const data: SearchResponse = await response.json();
-
-      console.log('✅ API response:', {
-        totalCount: data.totalCount,
-        categories: {
-          users: data.categories.users.length,
-          articles: data.categories.articles.length,
-          authors: data.categories.authors.length,
-          categories: data.categories.categories.length
+    // Update search results with current following status
+    const updateResultsWithFollowStatus = (results: SearchResult[]) =>
+      results.map(result => {
+        if (canFollowUser(result)) {
+          const databaseId = getDatabaseId(result);
+          return {
+            ...result,
+            isFollowing: followingUsers.has(databaseId)
+          };
         }
+        return result;
       });
 
-      // FIXED: Update search results with current following status
-      const updateResultsWithFollowStatus = (results: SearchResult[]) =>
-        results.map(result => {
-          if (canFollowUser(result)) {
-            const databaseId = getDatabaseId(result);
-            return {
-              ...result,
-              isFollowing: followingUsers.has(databaseId)
-            };
-          }
-          return result;
-        });
+    const responseWithQuery = {
+      ...data,
+      query: searchQuery,
+      results: updateResultsWithFollowStatus(data.results),
+      categories: {
+        ...data.categories,
+        users: updateResultsWithFollowStatus(data.categories.users),
+        authors: updateResultsWithFollowStatus(data.categories.authors),
+        articles: data.categories.articles,
+        categories: data.categories.categories
+      }
+    };
 
-      const responseWithQuery = {
-        ...data,
-        query: searchQuery,
-        results: updateResultsWithFollowStatus(data.results),
-        categories: {
-          ...data.categories,
-          users: updateResultsWithFollowStatus(data.categories.users),
-          authors: updateResultsWithFollowStatus(data.categories.authors),
-          articles: data.categories.articles,
-          categories: data.categories.categories
-        }
-      };
+    setOriginalResults(responseWithQuery);
+    setSearchResults(responseWithQuery);
 
-      setOriginalResults(responseWithQuery);
-      setSearchResults(responseWithQuery);
+  } catch (error) {
+    console.error('❌ Search error:', error);
 
-    } catch (error) {
-      console.error('❌ Search error:', error);
+    const errorResults = {
+      results: [],
+      totalCount: 0,
+      query: searchQuery,
+      categories: { users: [], articles: [], authors: [], categories: [] }
+    };
+    setSearchResults(errorResults);
+    setOriginalResults(errorResults);
+  } finally {
+    setIsLoading(false);
+  }
+}, [followingUsers, currentUserId]);
 
-      const errorResults = {
-        results: [],
-        totalCount: 0,
-        query: searchQuery,
-        categories: { users: [], articles: [], authors: [], categories: [] }
-      };
-      setSearchResults(errorResults);
-      setOriginalResults(errorResults);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Load initial results
   useEffect(() => {
-    if (query) {
-      setNewQuery(query);
-      performSearch(query);
-    }
-  }, [query]);
+  if (query) {
+    setNewQuery(query);
+    performSearch(query);
+  }
+}, [query, performSearch]);
 
   // FIXED: Re-run search when following status changes to update results
   useEffect(() => {
-    if (query && followingUsers.size > 0) {
-      // Update existing results with current follow status without making a new API call
-      const updateResultsWithFollowStatus = (results: SearchResult[]) =>
-        results.map(result => {
-          if (canFollowUser(result)) {
-            const databaseId = getDatabaseId(result);
-            return {
-              ...result,
-              isFollowing: followingUsers.has(databaseId)
-            };
-          }
-          return result;
-        });
-
-      setSearchResults(prev => ({
-        ...prev,
-        results: updateResultsWithFollowStatus(prev.results),
-        categories: {
-          ...prev.categories,
-          users: updateResultsWithFollowStatus(prev.categories.users),
-          authors: updateResultsWithFollowStatus(prev.categories.authors)
+  if (query && followingUsers.size > 0) {
+    // Update existing results with current follow status without making a new API call
+    const updateResultsWithFollowStatus = (results: SearchResult[]) =>
+      results.map(result => {
+        if (canFollowUser(result)) {
+          const databaseId = getDatabaseId(result);
+          return {
+            ...result,
+            isFollowing: followingUsers.has(databaseId)
+          };
         }
-      }));
+        return result;
+      });
 
-      setOriginalResults(prev => ({
-        ...prev,
-        results: updateResultsWithFollowStatus(prev.results),
-        categories: {
-          ...prev.categories,
-          users: updateResultsWithFollowStatus(prev.categories.users),
-          authors: updateResultsWithFollowStatus(prev.categories.authors)
-        }
-      }));
-    }
-  }, [followingUsers]);
+    setSearchResults(prev => ({
+      ...prev,
+      results: updateResultsWithFollowStatus(prev.results),
+      categories: {
+        ...prev.categories,
+        users: updateResultsWithFollowStatus(prev.categories.users),
+        authors: updateResultsWithFollowStatus(prev.categories.authors)
+      }
+    }));
+
+    setOriginalResults(prev => ({
+      ...prev,
+      results: updateResultsWithFollowStatus(prev.results),
+      categories: {
+        ...prev.categories,
+        users: updateResultsWithFollowStatus(prev.categories.users),
+        authors: updateResultsWithFollowStatus(prev.categories.authors)
+      }
+    }));
+  }
+}, [followingUsers, query, canFollowUser]);
 
   // Handle filter change
   const handleFilterChange = (filter: typeof activeFilter) => {

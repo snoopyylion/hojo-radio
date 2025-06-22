@@ -198,7 +198,7 @@ export default function UserDashboard() {
   };
 
   // Function to fetch top posts
-  const fetchTopPosts = async () => {
+const fetchTopPosts = useCallback(async () => {
     try {
       setLoadingState({
         stage: 'syncing',
@@ -229,10 +229,10 @@ export default function UserDashboard() {
       setTopPosts([]);
       throw error;
     }
-  };
+  }, [getToken]);
 
   // Function to fetch verified news count
-  const fetchVerifiedNewsCount = async () => {
+  const fetchVerifiedNewsCount = useCallback(async () => {
     try {
       setLoadingState({
         stage: 'syncing',
@@ -263,7 +263,7 @@ export default function UserDashboard() {
       console.error('Error fetching verified news count:', error);
       setVerifiedNewsCount(0);
     }
-  };
+  }, [getToken]);
 
   // Main function to fetch user data
   const fetchUserData = useCallback(async () => {
@@ -415,15 +415,14 @@ export default function UserDashboard() {
         posts_count: 0,
       });
     }
-  }, [user?.id, user, getToken]);
+  }, [user?.id, user, getToken, fetchTopPosts, fetchVerifiedNewsCount]);
 
   // Add useEffect to refetch stats when userProfile.role changes
   useEffect(() => {
-    if (userProfile && !loading && isLoaded) {
-      console.log("🔄 Profile loaded, fetching stats...");
-      fetchProfileStats();
-    }
-  }, [userProfile?.id, userProfile?.role, loading, isLoaded, fetchProfileStats]);
+  if (userProfile && !loading && isLoaded) {
+    fetchProfileStats();
+  }
+}, [userProfile, loading, isLoaded, fetchProfileStats]);
 
   useEffect(() => {
     if (isLoaded && user && !userProfile) {

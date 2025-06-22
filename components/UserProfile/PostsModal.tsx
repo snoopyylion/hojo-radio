@@ -1,7 +1,7 @@
 // components/UserProfile/PostsModal.tsx
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Loader, AlertCircle } from 'lucide-react';
 import { gsap } from 'gsap';
 import NewsTile from '@/components/NewsTile'; // Adjust import path as needed
@@ -59,10 +59,6 @@ export const PostsModal: React.FC<PostsModalProps> = ({
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchPosts();
-  }, [authorId]);
-
-  useEffect(() => {
     // Animate modal entrance
     if (modalRef.current && overlayRef.current && contentRef.current) {
       const tl = gsap.timeline();
@@ -85,56 +81,45 @@ export const PostsModal: React.FC<PostsModalProps> = ({
     }
   }, []);
 
-  const fetchPosts = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Add debug info
-      setDebugInfo(`Fetching posts for authorId: ${authorId}`);
-      
-      const response = await fetch('/api/post/by-author', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+  const fetchPosts = useCallback(async () => {
+  try {
+    setLoading(true);
+    setError(null);
+
+    const response = await fetch('/api/post/by-author', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authorId }),
+    });
+
+    if (!response.ok) throw new Error(`Failed to fetch posts: ${response.statusText}`);
+
+    const data = await response.json();
+
+    const transformedPosts = data.map((post: Post) => ({
+      ...post,
+      categories: post.categories || [],
+      mainImage: post.mainImage?.asset ? {
+        asset: {
+          _ref: post.mainImage.asset._ref || '',
+          _type: post.mainImage.asset._type || 'reference',
+          url: post.mainImage.asset.url,
         },
-        body: JSON.stringify({ authorId }),
-      });
+      } : undefined,
+    }));
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch posts: ${response.statusText}`);
-      }
+    setPosts(transformedPosts);
+  } catch (err) {
+    console.error('Error fetching posts:', err);
+    setError(err instanceof Error ? err.message : 'Failed to fetch posts');
+  } finally {
+    setLoading(false);
+  }
+}, [authorId]); // ✅ Add 'authorId' as a dependency
 
-      const data = await response.json();
-      
-      // Add more debug info
-      console.log('Raw API response:', data);
-      setDebugInfo(`API returned ${data.length} posts for authorId: ${authorId}`);
-      
-      // Transform the data to match NewsTile expectations
-      const transformedPosts = data.map((post: Post) => ({
-        ...post,
-        categories: post.categories || [],
-        // Ensure mainImage has the expected structure
-        mainImage: post.mainImage?.asset ? {
-          asset: {
-            _ref: post.mainImage.asset._ref || '',
-            _type: post.mainImage.asset._type || 'reference',
-            url: post.mainImage.asset.url
-          }
-        } : undefined
-      }));
-      
-      setPosts(transformedPosts);
-      console.log('Final posts state:', transformedPosts);
-    } catch (err) {
-      console.error('Error fetching posts:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch posts');
-      setDebugInfo(`Error: ${err instanceof Error ? err.message : 'Failed to fetch posts'}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+useEffect(() => {
+  fetchPosts();
+}, [fetchPosts]);
 
   const handleClose = () => {
     if (overlayRef.current && contentRef.current) {
