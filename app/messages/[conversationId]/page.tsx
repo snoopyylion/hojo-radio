@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useAuth } from '@clerk/nextjs';
 import { useRealTimeMessaging } from '@/hooks/useRealTimeMessaging';
 import ConversationList from '@/components/messaging/ConversationList';
 import { MessagesList } from '@/components/messaging/MessageList';
