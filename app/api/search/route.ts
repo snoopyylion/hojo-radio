@@ -187,7 +187,6 @@ const isValidUser = (data: unknown): data is SupabaseUser => {
   );
 };
 
-
 // Function to get Supabase table structure and search users
 const searchSupabaseUsers = async (query: string, limit: number = 20): Promise<SearchResult[]> => {
   try {
@@ -226,7 +225,7 @@ const searchSupabaseUsers = async (query: string, limit: number = 20): Promise<S
       availableColumns.includes('created_at') ? 'created_at' : null,
     ].filter(Boolean).join(', ');
 
-    // Build dynamic search conditions
+    // Build dynamic search conditions - ENHANCED to include role-based search
     const searchConditions = [];
     if (availableColumns.includes('first_name')) searchConditions.push(`first_name.ilike.%${query}%`);
     if (availableColumns.includes('last_name')) searchConditions.push(`last_name.ilike.%${query}%`);
@@ -234,13 +233,18 @@ const searchSupabaseUsers = async (query: string, limit: number = 20): Promise<S
     if (availableColumns.includes('full_name')) searchConditions.push(`full_name.ilike.%${query}%`);
     if (availableColumns.includes('email')) searchConditions.push(`email.ilike.%${query}%`);
     if (availableColumns.includes('username')) searchConditions.push(`username.ilike.%${query}%`);
+    
+    // ✨ NEW: Add role-based search conditions
+    if (availableColumns.includes('role')) {
+      searchConditions.push(`role.ilike.%${query}%`);
+    }
 
     if (searchConditions.length === 0) {
       console.log('⚠️ No searchable columns found in users table');
       return [];
     }
 
-    // Perform the search
+    // Perform the search - Include ALL users regardless of role
     const supabaseResponse = await supabase
       .from('users')
       .select(selectColumns)
@@ -259,25 +263,10 @@ const searchSupabaseUsers = async (query: string, limit: number = 20): Promise<S
       return [];
     }
 
-    // DEBUG: Log raw users from database
-    console.log('📋 Raw Supabase users found:', rawUsers.map(u => {
-      if (isValidUser(u)) {
-        return {
-          id: u.id,
-          name: `${safeString(u.first_name)} ${safeString(u.last_name)}`.trim(),
-          email: u.email,
-          clerk_id: u.clerk_id,
-          user_id: u.user_id
-        };
-      }
-      return { invalid: true };
-    }));
-
     const userResults: SearchResult[] = [];
     
     for (const rawUser of rawUsers) {
       try {
-        // Use type guard to ensure we have a valid user
         if (!isValidUser(rawUser)) {
           console.warn('⚠️ Invalid user record skipped:', rawUser);
           continue;
@@ -317,12 +306,9 @@ const searchSupabaseUsers = async (query: string, limit: number = 20): Promise<S
           user.profile_image
         );
 
-        // Use the original database ID directly for URLs
         const originalId = safeString(user.id);
-        const clerkId = safeString(user.clerk_id || '');
-        const userId = safeString(user.user_id || '');
         
-        // Calculate relevance
+        // ✨ ENHANCED: Calculate relevance including role matching
         const relevance = Math.max(
           calculateRelevance(displayName, query),
           calculateRelevance(firstName, query),
@@ -330,34 +316,54 @@ const searchSupabaseUsers = async (query: string, limit: number = 20): Promise<S
           calculateRelevance(name, query),
           calculateRelevance(fullName, query),
           calculateRelevance(email, query),
-          calculateRelevance(username, query)
+          calculateRelevance(username, query),
+          calculateRelevance(role, query) // Include role in relevance calculation
         );
 
-        // Create search result with unique ID for search but original ID for URL
+        // Determine user type based on role for categorization
+        const userType = role.toLowerCase() === 'author' ? 'author' : 'user';
+        
+        // ✨ ENHANCED: Create more descriptive subtitle based on role
+        let subtitle = '';
+        const roleEmojis: Record<string, string> = {
+          author: '✍️',
+          admin: '👑',
+          moderator: '🛡️',
+          editor: '📝',
+          contributor: '🤝',
+          subscriber: '📚',
+          user: '👤'
+        };
+        
+        const roleName = role.toLowerCase();
+        const emoji = roleEmojis[roleName] || roleEmojis.user;
+        const capitalizedRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+        subtitle = `${emoji} ${capitalizedRole}`;
+
+        // Create search result
         const searchResult: SearchResult = {
-          id: `supabase_user_${originalId}`, // Prefixed for search result uniqueness
-          type: role.toLowerCase() === 'author' ? 'author' : 'user',
+          id: `supabase_user_${originalId}`,
+          type: userType,
           title: displayName,
-          subtitle: role.toLowerCase() === 'author' ? '✍️ Author' : '👤 User',
-          url: `/user/${originalId}`, 
+          subtitle: subtitle,
+          url: `/user/${originalId}`,
           image: imageUrl,
           excerpt: email ? `Email: ${email}` : undefined,
           relevanceScore: relevance,
           source: 'supabase',
-          originalId: originalId, // Store for debugging
-          databaseId: originalId // Store for reference
+          originalId: originalId,
+          databaseId: originalId
         };
 
         userResults.push(searchResult);
 
-        // DEBUG: Log what we're adding to results
         console.log('✅ Added user to results:', {
           searchId: searchResult.id,
           originalId: originalId,
           title: displayName,
+          role: role,
           url: searchResult.url,
-          clerkId: clerkId || 'none',
-          userId: userId || 'none'
+          relevance: relevance
         });
 
       } catch (userError) {
@@ -366,7 +372,7 @@ const searchSupabaseUsers = async (query: string, limit: number = 20): Promise<S
       }
     }
 
-    console.log(`✅ Processed ${userResults.length} Supabase users`);
+    console.log(`✅ Processed ${userResults.length} Supabase users (all roles included)`);
     return userResults;
   } catch (error) {
     console.error('❌ Error searching Supabase users:', error);
@@ -549,7 +555,7 @@ export async function GET(request: NextRequest) {
 
     const results: SearchResult[] = [];
 
-    // Search Supabase users
+    // Search Supabase users (includes ALL users regardless of role)
     if (type === 'all' || type === 'users' || type === 'authors') {
       const supabaseUserResults = await searchSupabaseUsers(query, limit);
       results.push(...supabaseUserResults);
@@ -564,8 +570,14 @@ export async function GET(request: NextRequest) {
     // Deduplicate results
     const deduplicatedResults = deduplicateResults(results);
 
-    // Sort by relevance score
-    const typePriority: Record<SearchResult['type'], number> = { user: 1, author: 2, article: 3, category: 4 };
+    // ✨ ENHANCED: Sort by relevance score with role-based boosting
+    const typePriority: Record<SearchResult['type'], number> = { 
+      user: 1, 
+      author: 2, 
+      article: 3, 
+      category: 4 
+    };
+    
     deduplicatedResults.sort((a, b) => {
       const scoreDiff = (b.relevanceScore || 0) - (a.relevanceScore || 0);
       if (scoreDiff !== 0) return scoreDiff;
@@ -605,14 +617,19 @@ export async function GET(request: NextRequest) {
       categories
     };
 
-    // DEBUG: Log final results
+    // DEBUG: Log final results with role information
     console.log('✅ Search completed:', {
       totalResults: deduplicatedResults.length,
       users: categories.users.length,
       articles: categories.articles.length,
       authors: categories.authors.length,
       categories: categories.categories.length,
-      userUrls: categories.users.map(u => ({ title: u.title, url: u.url, id: u.id, originalId: u.originalId }))
+      userDetails: categories.users.map(u => ({ 
+        title: u.title, 
+        subtitle: u.subtitle, 
+        url: u.url, 
+        relevance: u.relevanceScore 
+      }))
     });
 
     return NextResponse.json(response);

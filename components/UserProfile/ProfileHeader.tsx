@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { gsap } from 'gsap';
 import {
@@ -39,11 +40,14 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   onOpenFollowing,
   onPostsCountUpdate
 }) => {
+  const router = useRouter();
   const headerRef = useRef<HTMLDivElement>(null);
   const avatarRef = useRef<HTMLDivElement>(null);
   const infoRef = useRef<HTMLDivElement>(null);
   const statsRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
+  
+  const [messageLoading, setMessageLoading] = useState(false);
   
   // Keep a ref to the callback to avoid dependency issues
   const onPostsCountUpdateRef = useRef(onPostsCountUpdate);
@@ -134,7 +138,62 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     onFollow();
   };
 
- 
+  const handleMessageClick = async () => {
+  if (!currentUserId || currentUserId === profile.id || messageLoading) return;
+  
+  // Check if users follow each other before allowing messaging
+  if (!isFollowing) {
+    alert('You must follow each other to start a conversation');
+    return;
+  }
+
+  setMessageLoading(true);
+
+  try {
+    // First, check if conversation already exists
+    const checkResponse = await fetch(`/api/conversations?with_user_id=${profile.id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const checkData = await checkResponse.json();
+
+    if (checkResponse.ok && checkData.conversation) {
+      // Existing conversation found, navigate to it
+      router.push(`/messages/${checkData.conversation.conversation_id}`);
+      return;
+    }
+
+    // No existing conversation, create a new one
+    const response = await fetch('/api/conversations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        participant_ids: [profile.id],
+        type: 'direct'
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to create conversation');
+    }
+
+    // Navigate to the conversation (existing or new)
+    router.push(`/messages/${data.conversation_id}`);
+    
+  } catch (error) {
+    console.error('Error handling conversation:', error);
+    alert('Failed to start conversation. Please try again.');
+  } finally {
+    setMessageLoading(false);
+  }
+};
 
   return (
     <>
@@ -219,9 +278,22 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                         <span>{isFollowing ? 'Unfollow' : 'Follow'}</span>
                       </button>
 
-                      <button className="group inline-flex items-center gap-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-black text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 font-medium px-6 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
-                        <Mail size={18} />
-                        <span className="hidden sm:inline">Message</span>
+                      <button 
+                        onClick={handleMessageClick}
+                        disabled={messageLoading || !isFollowing}
+                        className={`group inline-flex items-center gap-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-black text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 font-medium px-6 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
+                          (!isFollowing || messageLoading) ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        title={!isFollowing ? 'You must follow each other to message' : 'Send message'}
+                      >
+                        {messageLoading ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent"></div>
+                        ) : (
+                          <Mail size={18} />
+                        )}
+                        <span className="hidden sm:inline">
+                          {messageLoading ? 'Loading...' : 'Message'}
+                        </span>
                       </button>
                     </div>
                   )}
