@@ -2,21 +2,20 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Phone, 
-  Video, 
-  Info, 
-  MoreHorizontal, 
+import {
+  Phone,
+  Video,
+  Info,
+  MoreHorizontal,
   ArrowLeft,
-  Star,
   Search,
   UserPlus,
   VolumeX,
   Archive
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Conversation, User } from '@/types/messaging';
-import UserPresence from './UserPresence';
+import { Conversation } from '@/types/messaging';
+import Image from 'next/image';
 
 interface ChatWindowProps {
   conversation: Conversation | null;
@@ -61,7 +60,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
     if (conversation.type === 'group') {
       const participantCount = conversation.participants?.length || 0;
-      const onlineCount = conversation.participants?.filter(p => 
+      const onlineCount = conversation.participants?.filter(p =>
         onlineUsers.has(p.user_id)
       ).length || 0;
       return `${participantCount} members, ${onlineCount} online`;
@@ -70,7 +69,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     const otherParticipant = conversation.participants?.find(
       (p) => p.user_id !== currentUserId
     );
-    
+
     if (otherParticipant) {
       const isOnline = onlineUsers.has(otherParticipant.user_id);
       return isOnline ? 'Active now' : 'Last seen recently';
@@ -84,7 +83,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
     if (conversation.type === 'group') {
       // For groups, show group avatar or first few participants
-      const participants = conversation.participants?.slice(0, 3) || [];
       return (
         <div className="relative w-10 h-10">
           <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
@@ -104,11 +102,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       const isOnline = onlineUsers.has(otherParticipant.user_id);
       return (
         <div className="relative">
-          <img
+          <Image
             src={otherParticipant.user.imageUrl || '/default-avatar.png'}
             alt={otherParticipant.user.firstName || 'User'}
-            className="w-10 h-10 rounded-full object-cover ring-2 ring-white dark:ring-gray-800"
+            width={40}
+            height={40}
+            className="rounded-full object-cover ring-2 ring-white dark:ring-gray-800"
           />
+
           {isOnline && (
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
           )}
@@ -187,7 +188,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               >
                 <Phone size={20} />
               </button>
-              
+
               <button
                 onClick={() => handleAction('video')}
                 className="p-2.5 rounded-full text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200"
@@ -225,7 +226,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   <Search size={16} />
                   <span>Search in conversation</span>
                 </button>
-                
+
                 <button
                   onClick={() => handleAction('addPeople')}
                   className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3"
@@ -233,7 +234,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   <UserPlus size={16} />
                   <span>Add people</span>
                 </button>
-                
+
                 <button
                   onClick={() => handleAction('mute')}
                   className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3"
@@ -241,7 +242,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   <VolumeX size={16} />
                   <span>Mute notifications</span>
                 </button>
-                
+
                 <button
                   onClick={() => handleAction('archive')}
                   className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3"

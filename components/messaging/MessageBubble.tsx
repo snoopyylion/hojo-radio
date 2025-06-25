@@ -1,11 +1,12 @@
 // components/messaging/MessageBubble.tsx
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { MoreHorizontal, Reply, Edit, Trash2, Heart, ThumbsUp, Smile } from 'lucide-react';
-import { Message, MessageReaction } from '@/types/messaging';
+import { Reply, Edit, Trash2, Heart, ThumbsUp, Smile } from 'lucide-react';
+import { Message } from '@/types/messaging';
 import { useAuth } from '@clerk/nextjs';
 import { MessageReactions } from './MessageReactions';
 import { EmojiPicker } from './EmojiPicker';
+import Image from 'next/image';
 
 interface MessageBubbleProps {
     message: Message;
@@ -56,10 +57,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 {/* Avatar */}
                 {showAvatar && !isOwn && (
                     <div className="flex-shrink-0 mr-3">
-                        <img
+                        <Image
                             src={message.sender?.imageUrl || '/default-avatar.png'}
                             alt={getDisplayName()}
-                            className="w-8 h-8 rounded-full"
+                            width={32}
+                            height={32}
+                            className="rounded-full"
                         />
                     </div>
                 )}
@@ -75,8 +78,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     {/* Reply context */}
                     {message.reply_to && (
                         <div className={`mb-2 px-3 py-2 rounded-lg text-xs ${isOwn
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-gray-100 text-gray-600'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-600'
                             }`}>
                             <div className="font-medium">
                                 {message.reply_to.sender?.firstName || 'Unknown'}
@@ -91,8 +94,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     <div className="relative">
                         <div
                             className={`px-4 py-2 rounded-2xl ${isOwn
-                                    ? 'bg-blue-500 text-white rounded-br-md'
-                                    : 'bg-gray-100 text-gray-900 rounded-bl-md'
+                                ? 'bg-blue-500 text-white rounded-br-md'
+                                : 'bg-gray-100 text-gray-900 rounded-bl-md'
                                 }`}
                         >
                             {/* Message content based on type */}
@@ -104,10 +107,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
                             {message.message_type === 'image' && (
                                 <div className="max-w-sm">
-                                    <img
+                                    <Image
                                         src={message.content}
                                         alt="Shared image"
-                                        className="rounded-lg w-full"
+                                        width={400}
+                                        height={300}
+                                        className="rounded-lg w-full object-cover"
                                     />
                                     {message.metadata?.caption && (
                                         <p className="mt-2 text-sm">{message.metadata.caption}</p>

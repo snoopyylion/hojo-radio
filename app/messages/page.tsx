@@ -14,7 +14,7 @@ export default function MessagesPage() {
     const router = useRouter();
     const { user, isLoaded } = useUser();
     const { conversations, loadConversations, loading, error } = useRealTimeMessaging();
-    const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+    const [, setSelectedConversation] = useState<Conversation | null>(null);
 
     useEffect(() => {
         if (isLoaded && !user) {

@@ -1,18 +1,32 @@
 // components/messaging/MessageInput.tsx
 import React, { useState, useRef, useCallback } from 'react';
-import { Send, Paperclip, Image, Smile, X, Reply } from 'lucide-react';
+import { Send, Paperclip, Smile, X, Reply } from 'lucide-react';
 import { Message } from '@/types/messaging';
 import { EmojiPicker } from './EmojiPicker';
 import FileUpload from './FileUpload';
+import Image from 'next/image';
+
+interface MessageMetadata {
+  filename?: string;
+  filesize?: string;
+  filetype?: string;
+  caption?: string;
+}
 
 interface MessageInputProps {
-  onSendMessage: (content: string, type?: 'text' | 'image' | 'file', replyToId?: string, metadata?: Record<string, any>) => void;
+  onSendMessage: (
+    content: string,
+    type?: 'text' | 'image' | 'file',
+    replyToId?: string,
+    metadata?: MessageMetadata
+  ) => void;
   onTyping: (isTyping: boolean) => void;
   disabled?: boolean;
   replyingTo?: Message;
   onCancelReply?: () => void;
   placeholder?: string;
 }
+
 
 const MessageInput: React.FC<MessageInputProps> = ({
   onSendMessage,
@@ -27,7 +41,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -97,7 +111,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
     setMessage('');
     setAttachedFiles([]);
     if (onCancelReply) onCancelReply();
-    
+
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
@@ -122,7 +136,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
       const end = textarea.selectionEnd;
       const newMessage = message.slice(0, start) + emoji + message.slice(end);
       setMessage(newMessage);
-      
+
       setTimeout(() => {
         textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
         textarea.focus();
@@ -196,10 +210,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
               className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-200 dark:border-gray-700"
             >
               {file.type.startsWith('image/') ? (
-                <img
+                <Image
                   src={URL.createObjectURL(file)}
                   alt={file.name}
-                  className="w-8 h-8 rounded object-cover"
+                  width={32}
+                  height={32}
+                  className="rounded object-cover"
                 />
               ) : (
                 <div className="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded flex items-center justify-center">
@@ -278,11 +294,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
         <button
           onClick={handleSendMessage}
           disabled={!canSend}
-          className={`p-2 rounded-full transition-colors shadow-sm ${
-            canSend
+          className={`p-2 rounded-full transition-colors shadow-sm ${canSend
               ? 'bg-[#EF3866] text-white hover:bg-[#d8325b] shadow-md hover:shadow-lg'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-          }`}
+            }`}
         >
           <Send className="w-5 h-5" />
         </button>

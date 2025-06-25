@@ -4,7 +4,7 @@ import { Message, User } from '@/types/messaging';
 import MessageBubble from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { format, isToday, isYesterday, isSameDay } from 'date-fns';
+import { format, isToday, isYesterday } from 'date-fns';
 
 interface MessagesListProps {
     messages: Message[];

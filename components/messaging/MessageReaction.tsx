@@ -1,6 +1,6 @@
 // components/MessageReactions.tsx
 import React from 'react';
-import { MessageReaction, User } from '../../types/messaging';
+import { MessageReaction } from '../../types/messaging';
 
 interface MessageReactionsProps {
   reactions: MessageReaction[];

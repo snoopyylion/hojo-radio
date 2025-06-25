@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, UserPlus, Check } from 'lucide-react';
 import { User } from '@/types/messaging';
+import Image from 'next/image';
 
 interface AddParticipantsModalProps {
   isOpen: boolean;
@@ -10,16 +11,16 @@ interface AddParticipantsModalProps {
   currentParticipants: string[];
 }
 
-export function AddParticipantsModal({ 
-  isOpen, 
-  onClose, 
-  onAddParticipants, 
-  currentParticipants 
+export function AddParticipantsModal({
+  isOpen,
+  onClose,
+  onAddParticipants,
+  currentParticipants
 }: AddParticipantsModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading,] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -34,14 +35,14 @@ export function AddParticipantsModal({
     }
   }, [isOpen, currentParticipants]);
 
-  const filteredUsers = users.filter(user => 
+  const filteredUsers = users.filter(user =>
     user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
     `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleUserToggle = (userId: string) => {
-    setSelectedUsers(prev => 
-      prev.includes(userId) 
+    setSelectedUsers(prev =>
+      prev.includes(userId)
         ? prev.filter(id => id !== userId)
         : [...prev, userId]
     );
@@ -49,7 +50,7 @@ export function AddParticipantsModal({
 
   const handleSubmit = async () => {
     if (selectedUsers.length === 0) return;
-    
+
     setIsSubmitting(true);
     try {
       await onAddParticipants(selectedUsers);
@@ -111,18 +112,19 @@ export function AddParticipantsModal({
                   <div
                     key={user.id}
                     onClick={() => handleUserToggle(user.id)}
-                    className={`flex items-center p-3 rounded-lg cursor-pointer transition-colors ${
-                      isSelected 
-                        ? 'bg-blue-50 border-2 border-blue-200' 
+                    className={`flex items-center p-3 rounded-lg cursor-pointer transition-colors ${isSelected
+                        ? 'bg-blue-50 border-2 border-blue-200'
                         : 'hover:bg-gray-50 border-2 border-transparent'
-                    }`}
+                      }`}
                   >
                     <div className="relative">
                       {user.imageUrl ? (
-                        <img
+                        <Image
                           src={user.imageUrl}
                           alt={user.username}
-                          className="w-10 h-10 rounded-full object-cover"
+                          width={40}
+                          height={40}
+                          className="rounded-full object-cover"
                         />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
@@ -139,7 +141,7 @@ export function AddParticipantsModal({
                     </div>
                     <div className="ml-3 flex-1">
                       <div className="font-medium text-gray-900">
-                        {user.firstName && user.lastName 
+                        {user.firstName && user.lastName
                           ? `${user.firstName} ${user.lastName}`
                           : user.username
                         }

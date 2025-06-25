@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { UserSearch } from '@/components/messaging/UserSearch';
 import { User } from '@/types/messaging';
+import Image from 'next/image';
+
 
 export default function NewConversationPage() {
     const router = useRouter();
@@ -110,14 +112,14 @@ export default function NewConversationPage() {
             if (!response.ok) {
                 const errorText = await response.text();
                 let errorMessage = 'Failed to create conversation';
-                
+
                 try {
                     const errorJson = JSON.parse(errorText);
                     errorMessage = errorJson.error || errorMessage;
                 } catch {
                     errorMessage = errorText || errorMessage;
                 }
-                
+
                 throw new Error(errorMessage);
             }
 
@@ -127,27 +129,23 @@ export default function NewConversationPage() {
             // Redirect to the new conversation
             // Adjust the property name based on what your API returns
             const conversationId = result.id || result.conversation_id || result.conversationId;
-            
+
             if (!conversationId) {
                 throw new Error('No conversation ID returned from API');
             }
 
             router.push(`/messages/${conversationId}`);
 
-        } catch (err: any) {
-            console.error('❌ Create conversation error:', err);
-
+        } catch (err: unknown) {
             let errorMessage = 'Failed to create conversation';
 
-            if (err.message) {
+            if (err instanceof Error) {
                 errorMessage = err.message;
             } else if (typeof err === 'string') {
                 errorMessage = err;
             }
 
-            setError(errorMessage);
-        } finally {
-            setIsCreating(false);
+            setError(errorMessage); // ✅ Set the error message
         }
     };
 
@@ -287,11 +285,14 @@ export default function NewConversationPage() {
                             >
                                 <div className="flex items-center space-x-3">
                                     {user.imageUrl ? (
-                                        <img
+                                        <Image
                                             src={user.imageUrl}
                                             alt={user.username}
-                                            className="w-10 h-10 rounded-full object-cover"
+                                            width={40}
+                                            height={40}
+                                            className="rounded-full object-cover"
                                         />
+
                                     ) : (
                                         <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
                                             <span className="text-white font-medium">
@@ -301,7 +302,7 @@ export default function NewConversationPage() {
                                     )}
                                     <div className="flex-1 min-w-0">
                                         <p className="font-medium text-gray-900 dark:text-white">
-                                            {user.firstName && user.lastName 
+                                            {user.firstName && user.lastName
                                                 ? `${user.firstName} ${user.lastName}`
                                                 : user.username
                                             }
@@ -362,7 +363,7 @@ export default function NewConversationPage() {
             {/* Info text */}
             <div className="mt-6 text-sm text-gray-500 dark:text-gray-400">
                 {conversationType === 'direct' ? (
-                    <p>Select a user to start a direct conversation. If a conversation already exists, you'll be redirected to it.</p>
+                    <p>Select a user to start a direct conversation. If a conversation already exists, you&apos;ll be redirected to it.</p>
                 ) : (
                     <p>Create a group chat by selecting multiple participants and giving your group a name.</p>
                 )}

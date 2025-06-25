@@ -1,6 +1,7 @@
 // components/search/UserSearch.tsx
 import React, { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { Search, X } from 'lucide-react';
+import Image from 'next/image';
 import { User } from '@/types/messaging';
 
 interface UserSearchProps {
@@ -20,6 +21,31 @@ interface UserSearchProps {
 export interface UserSearchHandle {
   closeResults: () => void;
   focus: () => void;
+}
+
+// Define interface for search result to replace 'any'
+interface SearchResult {
+  id: string;
+  type: string;
+  databaseId?: string;
+  originalId?: string;
+  title?: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  subtitle?: string;
+  image?: string;
+  imageUrl?: string;
+}
+
+// Define API response interface
+interface SearchAPIResponse {
+  categories?: {
+    users?: SearchResult[];
+    authors?: SearchResult[];
+  };
+  results?: SearchResult[];
 }
 
 export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
@@ -50,6 +76,18 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
     [selectedUsers]
   );
 
+  // Memoize excluded IDs to prevent recreating array on every render
+  const excludedIds = useMemo(() => {
+    const ids = [...excludeUserIds];
+    if (currentUserId) {
+      ids.push(currentUserId);
+    }
+    if (multiple) {
+      ids.push(...selectedUserIds);
+    }
+    return ids;
+  }, [excludeUserIds, currentUserId, multiple, selectedUserIds]);
+
   // Handle click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -62,8 +100,8 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Helper function to get database ID (same as SearchComponent)
-  const getDatabaseId = (result: any): string => {
+  // Helper function to get database ID - now properly typed
+  const getDatabaseId = (result: SearchResult): string => {
     console.log('🔍 Getting database ID for result:', {
       id: result.id,
       type: result.type,
@@ -101,10 +139,14 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
     return cleanId;
   };
 
-  // Search users function - updated to fetch all users like SearchComponent
+  // Store raw search results separately from filtered results
+  const [rawUsers, setRawUsers] = useState<(User & { type: string; isAuthor: boolean })[]>([]);
+
+  // Search function that fetches users without filtering
   const searchUsers = useCallback(async (searchQuery: string) => {
     if (searchQuery.trim().length < 2) {
-      setUsers([]);
+      setRawUsers([]);
+      setLoading(false);
       return;
     }
 
@@ -143,11 +185,11 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data: SearchAPIResponse = await response.json();
       console.log('✅ User search API response:', data);
 
       // Extract ALL users from the response (both users and authors)
-      let foundUsers: User[] = [];
+      let foundUsers: SearchResult[] = [];
       
       // Combine users and authors from categories
       if (data.categories) {
@@ -164,25 +206,16 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
       
       // Fallback: filter from general results
       if (foundUsers.length === 0 && data.results) {
-        foundUsers = data.results.filter((result: any) => 
+        foundUsers = data.results.filter((result: SearchResult) => 
           result.type === 'user' || result.type === 'author'
         );
       }
 
       console.log('📋 Raw found users:', foundUsers);
 
-      // Build excluded IDs at search time to avoid dependency issues
-      const excludedIds = [...excludeUserIds];
-      if (currentUserId) {
-        excludedIds.push(currentUserId);
-      }
-      if (multiple) {
-        excludedIds.push(...selectedUserIds);
-      }
-
-      // Transform search results to User format
-      const transformedUsers: User[] = foundUsers
-        .map((result: any) => {
+      // Transform search results to User format WITHOUT filtering
+      const transformedUsers: (User & { type: string; isAuthor: boolean })[] = foundUsers
+        .map((result: SearchResult) => {
           // Use the same ID resolution logic as SearchComponent
           const userId = getDatabaseId(result);
           
@@ -196,29 +229,18 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
             // Add additional fields that might be useful
             type: result.type, // 'user' or 'author'
             isAuthor: result.type === 'author',
-          };
-        })
-        .filter((user: User) => {
-          const isExcluded = excludedIds.includes(user.id);
-          console.log('User filter check:', { 
-            userId: user.id, 
-            username: user.username,
-            type: (user as any).type,
-            isExcluded,
-            excludedIds 
-          });
-          return !isExcluded;
+          } as User & { type: string; isAuthor: boolean };
         })
         // Remove duplicates based on ID (in case same user appears as both user and author)
         .filter((user, index, self) => 
           self.findIndex(u => u.id === user.id) === index
         );
 
-      console.log('📋 Transformed users:', transformedUsers);
+      console.log('📋 Transformed users (before filtering):', transformedUsers);
       
       // Only update state if request wasn't aborted
       if (!signal.aborted) {
-        setUsers(transformedUsers);
+        setRawUsers(transformedUsers);
       }
 
     } catch (error) {
@@ -230,22 +252,22 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
       
       console.error('❌ Error searching users:', error);
       if (!signal.aborted) {
-        setUsers([]);
+        setRawUsers([]);
       }
     } finally {
       if (!signal.aborted) {
         setLoading(false);
       }
     }
-  }, []); // Remove all dependencies to prevent loops
+  }, []); // No dependencies
 
-  // Separate debounced search effect - only depends on query
+  // Debounced search effect - ONLY depends on query
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (query) {
+      if (query.trim()) {
         searchUsers(query);
       } else {
-        setUsers([]);
+        setRawUsers([]);
         setLoading(false);
       }
     }, 300);
@@ -257,7 +279,25 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
         searchAbortController.current.abort();
       }
     };
-  }, [query]); // Only depend on query
+  }, [query, searchUsers]); // Only query and searchUsers
+
+  // Filter raw users based on current exclusions - this runs when exclusions change
+  useEffect(() => {
+    const filteredUsers = rawUsers.filter((user) => {
+      const isExcluded = excludedIds.includes(user.id);
+      console.log('User filter check:', { 
+        userId: user.id, 
+        username: user.username,
+        type: user.type,
+        isExcluded,
+        excludedIds 
+      });
+      return !isExcluded;
+    });
+
+    console.log('📋 Filtered users:', filteredUsers);
+    setUsers(filteredUsers);
+  }, [rawUsers, JSON.stringify(excludedIds)]); // Filter when raw results or exclusions change
 
   // Cleanup on unmount
   useEffect(() => {
@@ -281,6 +321,7 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
       // For multiple mode, always clear query and results
       if (clearOnSelect) {
         setQuery('');
+        setRawUsers([]);
         setUsers([]);
       }
     } else {
@@ -290,6 +331,7 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
       }
       
       if (!keepResultsOpen) {
+        setRawUsers([]);
         setUsers([]);
         setIsOpen(false);
       }
@@ -306,6 +348,7 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
   // Function to manually close results (can be called from parent)
   const closeResults = useCallback(() => {
     setIsOpen(false);
+    setRawUsers([]);
     setUsers([]);
     setQuery('');
     if (searchAbortController.current) {
@@ -335,10 +378,12 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
               className="flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
             >
               {user.imageUrl ? (
-                <img
+                <Image
                   src={user.imageUrl}
                   alt={user.username}
-                  className="w-5 h-5 rounded-full object-cover"
+                  width={20}
+                  height={20}
+                  className="rounded-full object-cover"
                 />
               ) : (
                 <div className="w-5 h-5 rounded-full bg-blue-300 flex items-center justify-center">
@@ -354,7 +399,7 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
                 }
               </span>
               {/* Show author badge if this is a Sanity author */}
-              {(user as any).isAuthor && (
+              {(user as User & { isAuthor?: boolean }).isAuthor && (
                 <span className="text-xs bg-green-100 text-green-800 px-1 rounded">
                   Author
                 </span>
@@ -413,10 +458,12 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
                   className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                 >
                   {user.imageUrl ? (
-                    <img
+                    <Image
                       src={user.imageUrl}
                       alt={user.username}
-                      className="w-10 h-10 rounded-full object-cover"
+                      width={40}
+                      height={40}
+                      className="rounded-full object-cover"
                     />
                   ) : (
                     <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
@@ -434,7 +481,7 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
                         }
                       </p>
                       {/* Show badge for authors */}
-                      {(user as any).isAuthor && (
+                      {(user as User & { isAuthor?: boolean }).isAuthor && (
                         <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
                           Author
                         </span>
@@ -470,3 +517,6 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
     </div>
   );
 });
+
+// Add display name to fix react/display-name error
+UserSearch.displayName = 'UserSearch';

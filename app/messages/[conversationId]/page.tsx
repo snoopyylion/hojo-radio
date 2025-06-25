@@ -27,7 +27,6 @@ export default function ConversationPage() {
     const router = useRouter();
     const params = useParams();
     const { userId, isLoaded } = useAuth();
-    const { user } = useUser();
     const conversationId = params.conversationId as string;
 
     const {

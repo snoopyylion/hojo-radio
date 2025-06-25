@@ -21,7 +21,6 @@ export default function ConversationList({
   onNewConversation,
   currentUserId,
   isLoading,
-  showFullPage = false
 }: ConversationListProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -99,7 +98,7 @@ export default function ConversationList({
                   <Search size={24} className="text-gray-400 dark:text-gray-500" />
                 </div>
                 <p className="text-center text-sm">No conversations found matching</p>
-                <p className="text-center text-sm font-medium text-gray-700 dark:text-gray-300">"{searchTerm}"</p>
+                <p className="text-center text-sm font-medium text-gray-700 dark:text-gray-300">&quot;{searchTerm}&quot;</p>
               </>
             ) : (
               <>
