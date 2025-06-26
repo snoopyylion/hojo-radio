@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
-import { useRealTimeMessaging } from '@/hooks/useRealTimeMessaging';
+import { useRealtimeMessaging } from '@/hooks/useRealTimeMessaging';
 import ConversationList from '@/components/messaging/ConversationList';
 import { MessagingLayout } from '@/components/messaging/MessagingLayout';
 import { MessageCircle, Users, Search, Sparkles, Plus, ArrowRight } from 'lucide-react';
@@ -13,7 +13,7 @@ import { Conversation } from '@/types/messaging';
 export default function MessagesPage() {
     const router = useRouter();
     const { user, isLoaded } = useUser();
-    const { conversations, loadConversations, loading, error } = useRealTimeMessaging();
+    const { conversations, loadConversations, loading, error } = useRealtimeMessaging();
     const [, setSelectedConversation] = useState<Conversation | null>(null);
 
     useEffect(() => {

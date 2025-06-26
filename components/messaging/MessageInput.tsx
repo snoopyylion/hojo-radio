@@ -5,6 +5,7 @@ import { Message } from '@/types/messaging';
 import { EmojiPicker } from './EmojiPicker';
 import FileUpload from './FileUpload';
 import Image from 'next/image';
+import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 
 interface MessageMetadata {
   filename?: string;
@@ -25,8 +26,8 @@ interface MessageInputProps {
   replyingTo?: Message;
   onCancelReply?: () => void;
   placeholder?: string;
+  conversationId: string; // Added this required prop
 }
-
 
 const MessageInput: React.FC<MessageInputProps> = ({
   onSendMessage,
@@ -34,16 +35,23 @@ const MessageInput: React.FC<MessageInputProps> = ({
   disabled = false,
   replyingTo,
   onCancelReply,
-  placeholder = "Type a message..."
+  placeholder = "Type a message...",
+  conversationId // Added this prop
 }) => {
   const [message, setMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // Added missing state
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Fixed type
+
+  const { startTyping, stopTyping } = useTypingIndicator({
+    conversationId,
+    isEnabled: !disabled
+  });
 
   // Handle typing indicator
   const handleTyping = useCallback(() => {
@@ -62,11 +70,31 @@ const MessageInput: React.FC<MessageInputProps> = ({
     }, 1000);
   }, [isTyping, onTyping]);
 
+  // Handle blur event - Added missing function
+  const handleBlur = useCallback(() => {
+    stopTyping();
+    setIsTyping(false);
+    onTyping(false);
+  }, [stopTyping, onTyping]);
+
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value);
-    adjustTextareaHeight();
-    handleTyping();
+    const value = e.target.value;
+    setMessage(value);
+
+    // Handle typing indicators
+    if (value.trim() && !disabled) {
+      startTyping();
+      handleTyping(); // Also call the local typing handler
+    } else {
+      stopTyping();
+    }
+
+    // Auto-resize textarea
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+    }
   };
 
   // Auto-resize textarea
@@ -82,42 +110,51 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const handleSendMessage = async () => {
     if ((!message.trim() && attachedFiles.length === 0) || disabled) return;
 
-    if (message.trim()) {
-      await onSendMessage(
-        message.trim(),
-        'text',
-        replyingTo?.id,
-        {}
-      );
-    }
+    setIsLoading(true);
+    stopTyping();
 
-    for (const file of attachedFiles) {
-      const fileUrl = await uploadFile(file);
-      if (fileUrl) {
-        const messageType = file.type.startsWith('image/') ? 'image' : 'file';
+    try {
+      if (message.trim()) {
         await onSendMessage(
-          fileUrl,
-          messageType,
+          message.trim(),
+          'text',
           replyingTo?.id,
-          {
-            filename: file.name,
-            filesize: formatFileSize(file.size),
-            filetype: file.type
-          }
+          {}
         );
       }
+
+      for (const file of attachedFiles) {
+        const fileUrl = await uploadFile(file);
+        if (fileUrl) {
+          const messageType = file.type.startsWith('image/') ? 'image' : 'file';
+          await onSendMessage(
+            fileUrl,
+            messageType,
+            replyingTo?.id,
+            {
+              filename: file.name,
+              filesize: formatFileSize(file.size),
+              filetype: file.type
+            }
+          );
+        }
+      }
+
+      setMessage('');
+      setAttachedFiles([]);
+      if (onCancelReply) onCancelReply();
+
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+
+      setIsTyping(false);
+      onTyping(false);
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setIsLoading(false);
     }
-
-    setMessage('');
-    setAttachedFiles([]);
-    if (onCancelReply) onCancelReply();
-
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
-
-    setIsTyping(false);
-    onTyping(false);
   };
 
   // Handle key press
@@ -268,9 +305,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
             ref={textareaRef}
             value={message}
             onChange={handleInputChange}
-            onKeyPress={handleKeyPress}
+            onKeyPress={handleKeyPress}          
+            onBlur={handleBlur}
             placeholder={placeholder}
-            disabled={disabled}
+            disabled={disabled || isLoading}
             rows={1}
             className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-full resize-none 
                        bg-white dark:bg-gray-900 text-gray-900 dark:text-white 
@@ -293,13 +331,17 @@ const MessageInput: React.FC<MessageInputProps> = ({
         {/* Send button */}
         <button
           onClick={handleSendMessage}
-          disabled={!canSend}
-          className={`p-2 rounded-full transition-colors shadow-sm ${canSend
+          disabled={!canSend || isLoading}
+          className={`p-2 rounded-full transition-colors shadow-sm ${canSend && !isLoading
               ? 'bg-[#EF3866] text-white hover:bg-[#d8325b] shadow-md hover:shadow-lg'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
             }`}
         >
-          <Send className="w-5 h-5" />
+          {isLoading ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+          ) : (
+            <Send size={20} />
+          )}
         </button>
       </div>
 

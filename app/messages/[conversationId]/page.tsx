@@ -4,7 +4,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
-import { useRealTimeMessaging } from '@/hooks/useRealTimeMessaging';
+import { useRealtimeMessaging } from '@/hooks/useRealTimeMessaging';
 import ConversationList from '@/components/messaging/ConversationList';
 import { MessagesList } from '@/components/messaging/MessageList';
 import MessageInput from '@/components/messaging/MessageInput';
@@ -12,8 +12,7 @@ import { TypingIndicator } from '@/components/messaging/TypingIndicator';
 import UserPresence from '@/components/messaging/UserPresence';
 import { ConversationSettings } from '@/components/messaging/chat/ConversationSettings';
 import { MessagingLayout } from '@/components/messaging/MessagingLayout';
-import { Conversation } from '@/types/messaging';
-import { User } from '@/types/messaging';
+import { Conversation, Message, TypingUser, User } from '@/types/messaging';
 import {
     ArrowLeft,
     Settings,
@@ -26,29 +25,245 @@ import {
 export default function ConversationPage() {
     const router = useRouter();
     const params = useParams();
-    const { userId, isLoaded } = useAuth();
+    const { userId, isLoaded, getToken: getClerkToken } = useAuth();
     const conversationId = params.conversationId as string;
 
+    // Use the hook once with proper configuration
     const {
         messages,
         conversations,
         typingUsers,
-        onlineUsers,
         loading,
         error,
         sendMessage,
         sendTypingIndicator,
         reactToMessage,
         loadMessages,
-        loadConversations
-    } = useRealTimeMessaging(conversationId);
+        loadConversations,
+        isSupabaseReady,
+        setMessages,
+        setConversations,
+        setTypingUsers
+    } = useRealtimeMessaging(conversationId);
 
     const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
     const [showSettings, setShowSettings] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [hasInitialized, setHasInitialized] = useState(false);
     const [showMobileMenu, setShowMobileMenu] = useState(false);
+    const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
     const messageListRef = useRef<HTMLDivElement>(null);
+
+    // Fix: Get typing users for current conversation and convert to Set if needed
+    const currentTypingUsers = Array.isArray(typingUsers) ? typingUsers : (typingUsers[conversationId] || []);
+
+    // Convert to Set if your TypingIndicator expects a Set
+    const typingUsersSet = new Set(currentTypingUsers.map(user => user.userId));
+
+    // For edge case fetching (API routes instead of Supabase direct)
+    const [isConnected, setIsConnected] = useState(false);
+    const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
+
+    // WebSocket connection for real-time updates (alternative to Supabase realtime)
+    useEffect(() => {
+    if (!conversationId || !userId) return;
+
+    // Create WebSocket connection for real-time updates
+    const connectWebSocket = () => {
+        // Add this check first
+        if (!process.env.NEXT_PUBLIC_WS_URL) {
+            console.error('❌ WebSocket URL not configured');
+            return;
+        }
+
+        const ws = new WebSocket(`${process.env.NEXT_PUBLIC_WS_URL}/conversations/${conversationId}?userId=${userId}`);
+        
+        ws.onopen = () => {
+            console.log('🔌 WebSocket connected');
+            setIsConnected(true);
+            setWsConnection(ws);
+        };
+
+        ws.onmessage = async (event) => {
+            try {
+                let messageData;
+                
+                // Handle different data types
+                if (event.data instanceof Blob) {
+                    // Convert Blob to text
+                    const text = await event.data.text();
+                    messageData = text;
+                } else if (typeof event.data === 'string') {
+                    // Already a string
+                    messageData = event.data;
+                } else {
+                    // Convert to string if it's something else
+                    messageData = event.data.toString();
+                }
+                
+                console.log('📨 Raw WebSocket message:', messageData);
+                
+                // Parse JSON
+                const data = JSON.parse(messageData);
+                console.log('📊 Parsed data:', data);
+
+                switch (data.type) {
+                    case 'new_message':
+                        console.log('💬 New message received:', data.message);
+                        // Handle new message
+                        setMessages((prev) => {
+                            // Check if message already exists to prevent duplicates
+                            const exists = prev.some(msg => msg.id === data.message.id);
+                            if (exists) return prev;
+                            return [...prev, data.message];
+                        });
+                        
+                        // Update conversation's last message
+                        setConversations((prev) =>
+                            prev.map((conv) =>
+                                conv.id === data.message.conversation_id
+                                    ? { 
+                                        ...conv, 
+                                        last_message: data.message, 
+                                        last_message_at: data.message.created_at 
+                                      }
+                                    : conv
+                            )
+                        );
+                        break;
+
+                    case 'typing_update':
+                        console.log('⌨️ Typing update:', data);
+                        // Handle typing indicator
+                        if (data.userId !== userId) {
+                            // Convert to TypingUser format for compatibility
+                            const typingUser = {
+                                userId: data.userId,
+                                username: data.username || 'Unknown User',
+                                timestamp: Date.now()
+                            };
+
+                            setTypingUsers((prev) => {
+                                const conversationTyping = prev[conversationId] || [];
+                                if (data.isTyping) {
+                                    const filtered = conversationTyping.filter((u) => u.userId !== data.userId);
+                                    return {
+                                        ...prev,
+                                        [conversationId]: [...filtered, typingUser]
+                                    };
+                                } else {
+                                    return {
+                                        ...prev,
+                                        [conversationId]: conversationTyping.filter((u) => u.userId !== data.userId)
+                                    };
+                                }
+                            });
+                        }
+                        break;
+
+                    case 'user_presence':
+                        console.log('👤 User presence update:', data);
+                        // Handle user online/offline status
+                        setOnlineUsers(prev => {
+                            const newSet = new Set(prev);
+                            if (data.isOnline) {
+                                newSet.add(data.userId);
+                            } else {
+                                newSet.delete(data.userId);
+                            }
+                            return newSet;
+                        });
+                        break;
+
+                    default:
+                        console.log('❓ Unknown message type:', data.type);
+                }
+            } catch (error) {
+                console.error('❌ Error parsing WebSocket message:', error);
+                console.error('Raw event data:', event.data);
+                console.error('Event data type:', typeof event.data);
+                console.error('Event data constructor:', event.data?.constructor?.name);
+            }
+        };
+
+        ws.onclose = (event) => {
+            console.log('🔌 WebSocket disconnected:', event.code, event.reason);
+            setIsConnected(false);
+            setWsConnection(null);
+            
+            // Only reconnect if it wasn't a clean close
+            if (event.code !== 1000) {
+                console.log('🔄 Attempting to reconnect in 3 seconds...');
+                setTimeout(connectWebSocket, 3000);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('❌ WebSocket error:', error);
+            console.error('WebSocket error details:', {
+                url: ws.url,
+                readyState: ws.readyState,
+                protocol: ws.protocol
+            });
+            setIsConnected(false);
+        };
+
+        return ws;
+    };
+
+    const ws = connectWebSocket();
+
+    // Cleanup function (this fixes the useEffect error)
+    return () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            console.log('🧹 Cleaning up WebSocket connection');
+            ws.close(1000, 'Component unmounting');
+        }
+    };
+}, [conversationId, userId, setMessages, setConversations, setTypingUsers]);
+
+    // Clean up typing indicators - this should work with the hook's typing users
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const now = Date.now();
+            setTypingUsers((prev: Record<string, TypingUser[]>) => {
+                const updated = { ...prev };
+                Object.keys(updated).forEach(key => {
+                    updated[key] = updated[key].filter((u: TypingUser) => now - u.timestamp < 5000);
+                });
+                return updated;
+            });
+        }, 2000);
+
+        return () => clearInterval(interval);
+    }, [setTypingUsers]);
+
+    // Add polling as backup when WebSocket fails
+    useEffect(() => {
+        if (isConnected || !conversationId || !hasInitialized) return;
+
+        const pollMessages = async () => {
+            try {
+                const response = await fetch(`/api/messages?conversation_id=${conversationId}&limit=1&after=${messages[messages.length - 1]?.created_at || ''}`);
+                const data = await response.json();
+
+                if (data.messages && data.messages.length > 0) {
+                    setMessages(prev => {
+                        const newMessages = data.messages.filter((msg: Message) =>
+                            !prev.some(existingMsg => existingMsg.id === msg.id)
+                        );
+                        return newMessages.length > 0 ? [...prev, ...newMessages] : prev;
+                    });
+                }
+            } catch (error) {
+                console.error('Polling error:', error);
+            }
+        };
+
+        const interval = setInterval(pollMessages, 3000); // Poll every 3 seconds
+
+        return () => clearInterval(interval);
+    }, [isConnected, conversationId, hasInitialized, messages, setMessages]);
 
     // Safely get users from conversation participants
     const users: User[] = currentConversation?.participants
@@ -63,15 +278,69 @@ export default function ConversationPage() {
         setHasInitialized(true);
 
         try {
+            // Use API routes instead of direct Supabase calls
             await Promise.all([
-                loadConversations(),
-                loadMessages()
+                loadConversationsFromAPI(),
+                loadMessagesFromAPI()
             ]);
         } catch (error) {
             console.error('❌ Error initializing data:', error);
-            setHasInitialized(false); // Reset on error to allow retry
+            setHasInitialized(false);
         }
-    }, [userId, conversationId, hasInitialized, loadConversations, loadMessages]);
+    }, [userId, conversationId, hasInitialized]);
+
+    // API call functions (edge case approach)
+    const loadConversationsFromAPI = async () => {
+        try {
+            const response = await fetch('/api/conversations', {
+                headers: {
+                    'Authorization': `Bearer ${await getToken()}` // If using custom auth
+                }
+            });
+            const data = await response.json();
+            setConversations(data.conversations || []);
+        } catch (error) {
+            console.error('Failed to load conversations:', error);
+        }
+    };
+
+    const loadMessagesFromAPI = async (limit = 50, before?: string) => {
+        try {
+            const params = new URLSearchParams({
+                conversation_id: conversationId,
+                limit: limit.toString(),
+                ...(before && { before })
+            });
+
+            const response = await fetch(`/api/messages?${params}`, {
+                headers: {
+                    'Authorization': `Bearer ${await getToken()}` // If using custom auth
+                }
+            });
+            const data = await response.json();
+
+            if (before) {
+                setMessages((prev: Message[]) => [...data.messages, ...prev]);
+            } else {
+                setMessages(data.messages || []);
+            }
+
+            return data.messages;
+        } catch (error) {
+            console.error('Failed to load messages:', error);
+            return [];
+        }
+    };
+
+    // Helper function to get auth token (implement based on your auth system)
+    const getToken = async () => {
+        try {
+            return await getClerkToken();
+        } catch (error) {
+            console.error('Failed to get token:', error);
+            return '';
+        }
+    };
 
     // Handle authentication and initialization
     useEffect(() => {
@@ -89,13 +358,13 @@ export default function ConversationPage() {
     useEffect(() => {
         if (conversations.length === 0) return;
 
-        const conversation = conversations.find(c => c.id === conversationId);
+        const conversation = conversations.find((c: Conversation) => c.id === conversationId);
         if (conversation) {
             console.log('✅ Found conversation:', conversation);
             setCurrentConversation(conversation);
         } else {
             console.log('❌ Conversation not found in list:', conversationId);
-            console.log('Available conversations:', conversations.map(c => c.id));
+            console.log('Available conversations:', conversations.map((c: Conversation) => c.id));
         }
     }, [conversations, conversationId]);
 
@@ -103,61 +372,123 @@ export default function ConversationPage() {
         router.push(`/messages/${conversationId}`);
     }, [router]);
 
-    const handleSendMessage = useCallback(async (
-        content: string,
-        messageType: 'text' | 'image' | 'file' = 'text',
-        replyToId?: string
-    ) => {
-        if (!content.trim() || !currentConversation) {
-            console.log('❌ Cannot send message: missing content or conversation');
-            return;
-        }
-
-        try {
-            const result = await sendMessage(content.trim(), messageType, replyToId);
-            if (result) {
-                // Scroll to bottom after sending
-                setTimeout(() => {
-                    if (messageListRef.current) {
-                        messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
-                    }
-                }, 100);
-            }
-        } catch (error) {
-            console.error('❌ Error sending message:', error);
-        }
-    }, [currentConversation, sendMessage]);
-
     const handleLoadMore = useCallback(async () => {
         if (isLoadingMore || messages.length === 0) return;
 
         setIsLoadingMore(true);
         try {
             const oldestMessage = messages[0];
-            await loadMessages(20, oldestMessage.created_at);
+            await loadMessagesFromAPI(20, oldestMessage.created_at);
         } catch (error) {
             console.error('❌ Error loading more messages:', error);
         } finally {
             setIsLoadingMore(false);
         }
-    }, [isLoadingMore, messages, loadMessages]);
+    }, [isLoadingMore, messages, loadMessagesFromAPI]);
 
     const handleTyping = useCallback((isTyping: boolean) => {
-        try {
-            sendTypingIndicator(isTyping);
-        } catch (error) {
-            console.error('❌ Error sending typing indicator:', error);
+    try {
+        // Send typing indicator via WebSocket
+        if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+            const message = {
+                type: 'typing_update',
+                conversationId,
+                userId,
+                username: 'Current User', // Get from user context if available
+                isTyping
+            };
+            
+            console.log('📤 Sending typing update:', message);
+            wsConnection.send(JSON.stringify(message));
+        } else {
+            console.log('❌ Cannot send typing update - WebSocket not ready');
         }
-    }, [sendTypingIndicator]);
+    } catch (error) {
+        console.error('❌ Error sending typing indicator:', error);
+    }
+}, [wsConnection, conversationId, userId]);
+
+// Fixed message sending
+const handleSendMessage = useCallback(async (
+    content: string,
+    messageType: 'text' | 'image' | 'file' = 'text',
+    replyToId?: string
+) => {
+    if (!content.trim() || !currentConversation) {
+        console.log('❌ Cannot send message: missing content or conversation');
+        return;
+    }
+
+    try {
+        // Send via API route instead of Supabase
+        const response = await fetch('/api/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${await getToken()}`
+            },
+            body: JSON.stringify({
+                conversation_id: conversationId,
+                content: content.trim(),
+                message_type: messageType,
+                reply_to_id: replyToId
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.message) {
+            // Add message to local state immediately
+            setMessages((prev) => [...prev, data.message]);
+
+            // Send real-time update via WebSocket
+            if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+                const wsMessage = {
+                    type: 'new_message',
+                    message: data.message
+                };
+                
+                console.log('📤 Sending new message via WebSocket:', wsMessage);
+                wsConnection.send(JSON.stringify(wsMessage));
+            }
+
+            // Scroll to bottom after sending
+            setTimeout(() => {
+                if (messageListRef.current) {
+                    messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
+                }
+            }, 100);
+        }
+    } catch (error) {
+        console.error('❌ Error sending message:', error);
+    }
+}, [currentConversation, conversationId, wsConnection, setMessages, getToken]);
 
     const handleReaction = useCallback(async (messageId: string, emoji: string) => {
         try {
-            await reactToMessage(messageId, emoji);
+            const response = await fetch('/api/message-reactions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${await getToken()}`
+                },
+                body: JSON.stringify({ message_id: messageId, emoji })
+            });
+
+            const data = await response.json();
+
+            if (data.reaction) {
+                setMessages((prev: Message[]) =>
+                    prev.map((msg: Message) => msg.id === messageId
+                        ? { ...msg, reactions: [...(msg.reactions || []), data.reaction] }
+                        : msg
+                    )
+                );
+            }
         } catch (error) {
             console.error('❌ Error reacting to message:', error);
         }
-    }, [reactToMessage]);
-    
+    }, [setMessages, getToken]);
 
     useEffect(() => {
         setShowMobileMenu(false);
@@ -175,7 +506,6 @@ export default function ConversationPage() {
             return currentConversation.name || 'Group Chat';
         }
 
-        // For direct messages, show the other participant's name
         const otherParticipant = currentConversation.participants?.find(
             (p) => p.user_id !== userId
         );
@@ -296,6 +626,16 @@ export default function ConversationPage() {
 
     return (
         <MessagingLayout sidebar={sidebarContent}>
+            {/* Connection status indicator */}
+            {!isConnected && (
+                <div className="bg-yellow-100 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-3 text-sm">
+                    <div className="flex items-center">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse mr-2"></div>
+                        <span className="text-yellow-800 dark:text-yellow-200">Reconnecting...</span>
+                    </div>
+                </div>
+            )}
+
             {/* Main chat area */}
             <div className="flex flex-col h-full bg-white dark:bg-gray-950">
                 {/* Chat header */}
@@ -431,7 +771,7 @@ export default function ConversationPage() {
                     <div ref={messageListRef} className="flex-1 overflow-y-auto">
                         <MessagesList
                             messages={messages}
-                            typingUsers={typingUsers}
+                            typingUsers={typingUsersSet}
                             users={users}
                             currentUserId={userId!}
                             onReactToMessage={handleReaction}
@@ -441,10 +781,10 @@ export default function ConversationPage() {
                     </div>
 
                     {/* Typing indicator */}
-                    {typingUsers.size > 0 && (
+                    {currentTypingUsers.length > 0 && (
                         <div className="px-4 py-2 bg-white dark:bg-gray-950">
                             <TypingIndicator
-                                typingUsers={typingUsers}
+                                typingUsers={typingUsersSet}
                                 users={users}
                             />
                         </div>
@@ -456,6 +796,7 @@ export default function ConversationPage() {
                             onSendMessage={handleSendMessage}
                             onTyping={handleTyping}
                             disabled={loading}
+                            conversationId={conversationId}
                         />
                     </div>
                 </div>
@@ -470,23 +811,18 @@ export default function ConversationPage() {
                     onClose={() => setShowSettings(false)}
                     onUpdateConversation={async (updates) => {
                         console.log("Update conversation", updates);
-                        // You can call your update logic here
                     }}
                     onLeaveConversation={async () => {
                         console.log("Leave conversation");
-                        // You can handle the leave action here
                     }}
                     onRemoveParticipant={async (userId) => {
                         console.log("Remove participant", userId);
-                        // You can handle removing a participant here
                     }}
                     onAddParticipants={async (userIds) => {
                         console.log("Add participants", userIds);
-                        // You can handle adding participants here
                     }}
                     onPromoteToAdmin={async (userId) => {
                         console.log("Promote to admin", userId);
-                        // You can handle promoting here
                     }}
                 />
             )}

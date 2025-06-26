@@ -46,7 +46,8 @@
     "styled-components": "^6.1.17",
     "svix": "^1.63.1",
     "tailwind-merge": "^3.2.0",
-    "uuid-validate": "^0.0.3"
+    "uuid-validate": "^0.0.3",
+    "ws": "^8.18.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
