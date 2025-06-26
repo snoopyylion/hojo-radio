@@ -35,12 +35,6 @@ export default function ConversationPage() {
         typingUsers,
         loading,
         error,
-        sendMessage,
-        sendTypingIndicator,
-        reactToMessage,
-        loadMessages,
-        loadConversations,
-        isSupabaseReady,
         setMessages,
         setConversations,
         setTypingUsers
