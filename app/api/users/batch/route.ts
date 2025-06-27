@@ -20,19 +20,15 @@ export function useRealtimeMessaging(conversationId?: string) {
 
   // Enhanced function to fetch user data from Clerk
   const fetchUserData = useCallback(async (userIds: string[]) => {
-    if (!userIds.length) return {};
-    
     try {
+        console.log('Fetching user data for IDs:', userIds);
       const response = await fetch('/api/users/batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userIds })
       });
       
-      if (!response.ok) {
-        console.warn('Failed to fetch user data:', response.status);
-        return {};
-      }
+      if (!response.ok) return {};
       
       const { users } = await response.json();
       return users.reduce((acc: any, user: any) => {
@@ -44,21 +40,6 @@ export function useRealtimeMessaging(conversationId?: string) {
       return {};
     }
   }, []);
-
-  // Helper function to get current user data
-  const getCurrentUserData = useCallback(() => {
-    if (!user) return null;
-    
-    return {
-      id: user.id,
-      username: user.username || '',
-      firstName: user.firstName || '',
-      lastName: user.lastName || '',
-      imageUrl: user.imageUrl || '',
-      email: user.emailAddresses?.[0]?.emailAddress || '',
-      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Unknown'
-    };
-  }, [user]);
 
   // Enhanced load messages with user data
   const loadMessages = useCallback(async (limit = 50, before?: string) => {
@@ -72,10 +53,6 @@ export function useRealtimeMessaging(conversationId?: string) {
       });
       
       const res = await fetch(`/api/messages?${params}`);
-      if (!res.ok) {
-        throw new Error(`Failed to load messages: ${res.status}`);
-      }
-      
       const { messages: newMessages } = await res.json();
       
       // Extract unique user IDs from messages
@@ -84,36 +61,21 @@ export function useRealtimeMessaging(conversationId?: string) {
       // Fetch user data for all senders
       const userData = await fetchUserData(userIds);
       
-      // Add current user data if not already present
-      const currentUserData = getCurrentUserData();
-      if (currentUserData && !userData[currentUserData.id]) {
-        userData[currentUserData.id] = currentUserData;
-      }
-      
       // Attach user data to messages
       const messagesWithUsers = newMessages.map((msg: Message) => ({
         ...msg,
-        sender: userData[msg.sender_id] || {
-          id: msg.sender_id,
-          username: 'Unknown User',
-          firstName: '',
-          lastName: '',
-          imageUrl: '',
-          email: '',
-          fullName: 'Unknown User'
-        }
+        sender: userData[msg.sender_id] || null
       }));
       
       setMessages(prev => before ? [...messagesWithUsers, ...prev] : messagesWithUsers);
       return messagesWithUsers;
     } catch (err) {
-      console.error('Error loading messages:', err);
       setError('Failed to load messages');
       return [];
     } finally {
       setLoading(false);
     }
-  }, [conversationId, fetchUserData, getCurrentUserData]);
+  }, [conversationId, fetchUserData]);
 
   // Enhanced load conversations with user data
   const loadConversations = useCallback(async () => {
@@ -121,10 +83,6 @@ export function useRealtimeMessaging(conversationId?: string) {
     setLoading(true);
     try {
       const res = await fetch('/api/conversations');
-      if (!res.ok) {
-        throw new Error(`Failed to load conversations: ${res.status}`);
-      }
-      
       const { conversations: convs } = await res.json();
       
       // Extract all participant user IDs
@@ -141,96 +99,60 @@ export function useRealtimeMessaging(conversationId?: string) {
       // Fetch user data for all participants
       const userData = await fetchUserData(Array.from(allUserIds));
       
-      // Add current user data if not already present
-      const currentUserData = getCurrentUserData();
-      if (currentUserData && !userData[currentUserData.id]) {
-        userData[currentUserData.id] = currentUserData;
-      }
-      
       // Attach user data to conversations
       const conversationsWithUsers = convs.map((conv: Conversation) => ({
         ...conv,
         participants: conv.participants?.map(participant => ({
           ...participant,
-          user: userData[participant.user_id] || {
-            id: participant.user_id,
-            username: 'Unknown User',
-            firstName: '',
-            lastName: '',
-            imageUrl: '',
-            email: '',
-            fullName: 'Unknown User'
-          }
+          user: userData[participant.user_id] || null
         })) || [],
         last_message: conv.last_message ? {
           ...conv.last_message,
-          sender: userData[conv.last_message.sender_id] || {
-            id: conv.last_message.sender_id,
-            username: 'Unknown User',  
-            firstName: '',
-            lastName: '',
-            imageUrl: '',
-            email: '',
-            fullName: 'Unknown User'
-          }
+          sender: userData[conv.last_message.sender_id] || null
         } : undefined
       }));
       
       setConversations(conversationsWithUsers);
       return conversationsWithUsers;
     } catch (err) {
-      console.error('Error loading conversations:', err);
       setError('Failed to load conversations');
       return [];
     } finally {
       setLoading(false);
     }
-  }, [userId, fetchUserData, getCurrentUserData]);
+  }, [userId, fetchUserData]);
 
   // Enhanced send message with user data
   const sendMessage = useCallback(async (content: string, type = 'text') => {
-    if (!conversationId || !user) return null;
-    
+    if (!conversationId) return null;
     try {
       const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          conversation_id: conversationId, 
-          content, 
-          message_type: type 
-        })
+        body: JSON.stringify({ conversation_id: conversationId, content, message_type: type })
       });
-      
-      if (!res.ok) {
-        throw new Error(`Failed to send message: ${res.status}`);
-      }
-      
       const { message } = await res.json();
       
       // Attach current user data to the message
-      const currentUserData = getCurrentUserData();
       const messageWithUser = {
         ...message,
-        sender: currentUserData || {
-          id: user.id,
-          username: 'Unknown User',
-          firstName: '',
-          lastName: '',
-          imageUrl: '',
-          email: '',
-          fullName: 'Unknown User'
+        sender: {
+          id: user?.id || '',
+          username: user?.username || '',
+          firstName: user?.firstName || '',
+          lastName: user?.lastName || '',
+          imageUrl: user?.imageUrl || '',
+          email: user?.emailAddresses?.[0]?.emailAddress || ''
         }
       };
       
       setMessages(prev => [...prev, messageWithUser]);
       return messageWithUser;
     } catch (err) {
-      console.error('Error sending message:', err);
       setError('Failed to send message');
       return null;
     }
-  }, [conversationId, user, getCurrentUserData]);
+  }, [conversationId, user]);
 
   const reactToMessage = useCallback(async (messageId: string, emoji: string) => {
     try {
@@ -239,11 +161,6 @@ export function useRealtimeMessaging(conversationId?: string) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message_id: messageId, emoji }),
       });
-      
-      if (!res.ok) {
-        throw new Error(`Failed to react to message: ${res.status}`);
-      }
-      
       const { reaction } = await res.json();
       if (reaction) {
         setMessages(prev =>
@@ -254,8 +171,7 @@ export function useRealtimeMessaging(conversationId?: string) {
         );
       }
       return reaction;
-    } catch (err) {
-      console.error('Error reacting to message:', err);
+    } catch {
       setError('Failed to react to message');
       return null;
     }
@@ -276,28 +192,14 @@ export function useRealtimeMessaging(conversationId?: string) {
         console.log('📨 New message via Supabase:', payload);
         const newMessage = payload.new as Message;
         
-        // Skip if this is the current user's message (already added locally)
-        if (newMessage.sender_id === user.id) {
-          return;
-        }
-        
         // Fetch user data for the message sender
         const userData = await fetchUserData([newMessage.sender_id]);
         const messageWithUser = {
           ...newMessage,
-          sender: userData[newMessage.sender_id] || {
-            id: newMessage.sender_id,
-            username: 'Unknown User',
-            firstName: '',
-            lastName: '',
-            imageUrl: '',
-            email: '',
-            fullName: 'Unknown User'
-          }
+          sender: userData[newMessage.sender_id] || null
         };
         
         setMessages(prev => {
-          // Prevent duplicate messages
           if (prev.some(msg => msg.id === newMessage.id)) return prev;
           return [...prev, messageWithUser];
         });
