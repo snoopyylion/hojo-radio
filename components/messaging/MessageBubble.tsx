@@ -1,7 +1,7 @@
 // components/messaging/MessageBubble.tsx
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { Reply, Edit, Trash2, Heart, ThumbsUp, Smile, MoreHorizontal } from 'lucide-react';
+import { Reply, Edit, Trash2, Heart, ThumbsUp, Smile } from 'lucide-react';
 import { Message } from '@/types/messaging';
 import { useAuth } from '@clerk/nextjs';
 import { MessageReactions } from './MessageReactions';
