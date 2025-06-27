@@ -219,52 +219,54 @@ export default function ConversationList({
         </div>
       </div>
 
-      {/* Conversations List */}
-      <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-950">
-        {isLoading ? (
-          <div className="flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#EF3866] border-t-transparent"></div>
-          </div>
-        ) : filteredConversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-8 text-gray-500 dark:text-gray-400">
-            {searchTerm ? (
-              <>
-                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                  <Search size={24} className="text-gray-400 dark:text-gray-500" />
-                </div>
-                <p className="text-center text-sm">No conversations found matching</p>
-                <p className="text-center text-sm font-medium text-gray-700 dark:text-gray-300">&quot;{searchTerm}&quot;</p>
-              </>
-            ) : (
-              <>
-                <div className="w-16 h-16 bg-gradient-to-br from-[#EF3866]/10 to-[#EF3866]/5 rounded-full flex items-center justify-center mb-4">
-                  <Plus size={24} className="text-[#EF3866]" />
-                </div>
-                <p className="text-center mb-2 font-medium text-gray-700 dark:text-gray-300">No active conversations</p>
-                <p className="text-center text-sm mb-4 text-gray-400 dark:text-gray-500">Start messaging to see conversations here</p>
-                <button
-                  onClick={onNewConversation}
-                  className="px-6 py-3 bg-[#EF3866] text-white rounded-xl hover:bg-[#EF3866]/90 transition-all duration-200 font-medium text-sm shadow-md hover:shadow-lg hover:scale-105"
-                >
-                  Start a conversation
-                </button>
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {filteredConversations.map((conversation) => (
-              <ConversationItem
-                key={conversation.id}
-                conversation={conversation}
-                isActive={conversation.id === activeConversationId}
-                onClick={() => onConversationSelect(conversation.id)}
-                currentUserId={currentUserId}
-                typingIndicator={getTypingIndicator(conversation.id)}
-              />
-            ))}
-          </div>
-        )}
+      {/* Conversations List - Fixed scrolling */}
+      <div className="flex-1 min-h-0 bg-white dark:bg-gray-950">
+        <div className="h-full overflow-y-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#EF3866] border-t-transparent"></div>
+            </div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-8 text-gray-500 dark:text-gray-400">
+              {searchTerm ? (
+                <>
+                  <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                    <Search size={24} className="text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <p className="text-center text-sm">No conversations found matching</p>
+                  <p className="text-center text-sm font-medium text-gray-700 dark:text-gray-300">&quot;{searchTerm}&quot;</p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 bg-gradient-to-br from-[#EF3866]/10 to-[#EF3866]/5 rounded-full flex items-center justify-center mb-4">
+                    <Plus size={24} className="text-[#EF3866]" />
+                  </div>
+                  <p className="text-center mb-2 font-medium text-gray-700 dark:text-gray-300">No active conversations</p>
+                  <p className="text-center text-sm mb-4 text-gray-400 dark:text-gray-500">Start messaging to see conversations here</p>
+                  <button
+                    onClick={onNewConversation}
+                    className="px-6 py-3 bg-[#EF3866] text-white rounded-xl hover:bg-[#EF3866]/90 transition-all duration-200 font-medium text-sm shadow-md hover:shadow-lg hover:scale-105"
+                  >
+                    Start a conversation
+                  </button>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+              {filteredConversations.map((conversation) => (
+                <ConversationItem
+                  key={conversation.id}
+                  conversation={conversation}
+                  isActive={conversation.id === activeConversationId}
+                  onClick={() => onConversationSelect(conversation.id)}
+                  currentUserId={currentUserId}
+                  typingIndicator={getTypingIndicator(conversation.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

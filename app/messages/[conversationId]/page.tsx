@@ -275,7 +275,7 @@ export default function ConversationPage() {
             <ConnectionStatus isConnected={isConnected} />
 
             {/* Main chat area */}
-            <div className="flex flex-col h-full bg-white dark:bg-gray-950">
+            <div className="flex flex-col h-screen bg-white dark:bg-gray-950">
                 {/* Chat header */}
                 {currentConversation && (
                     <ConversationHeader

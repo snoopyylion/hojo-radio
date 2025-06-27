@@ -7,6 +7,7 @@ import { useAuth } from '@clerk/nextjs';
 import { MessageReactions } from './MessageReactions';
 import { EmojiPicker } from './EmojiPicker';
 import Image from 'next/image';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 interface MessageBubbleProps {
     message: Message;
@@ -32,6 +33,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     const { userId } = useAuth();
     const [showActions, setShowActions] = useState(false);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+    // Use the hook to get sender profile data
+    const { imageUrl, displayName } = useUserProfile(message.sender_id);
 
     const handleQuickReaction = (emoji: string) => {
         onReact(message.id, emoji);
@@ -60,7 +64,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     <div className="flex-shrink-0 mb-1">
                         <div className="relative">
                             <Image
-                                src={message.sender?.imageUrl || '/default-avatar.png'}
+                                src={imageUrl}
                                 alt={getDisplayName()}
                                 width={28}
                                 height={28}
@@ -93,10 +97,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                                     ? 'bg-gray-50 border-gray-400 text-gray-800'
                                     : 'bg-gray-50 border-gray-400 text-gray-600'
                             }`}>
-                                <div className="font-semibold text-xs">
+                                <div className="font-semibold font-sora text-xs">
                                     {message.reply_to.sender?.firstName || 'Unknown'}
                                 </div>
-                                <div className="opacity-75 truncate text-xs mt-0.5">
+                                <div className="opacity-75 font-sora truncate text-xs mt-0.5">
                                     {message.reply_to.content}
                                 </div>
                             </div>
@@ -114,7 +118,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         >
                             {/* Message content based on type */}
                             {message.message_type === 'text' && (
-                                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                                <p className="whitespace-pre-wrap font-sora break-words text-sm leading-relaxed">
                                     {message.content}
                                 </p>
                             )}
@@ -131,7 +135,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                                         />
                                     </div>
                                     {message.metadata?.caption && (
-                                        <p className="mt-2 text-sm leading-relaxed">{message.metadata.caption}</p>
+                                        <p className="mt-2 text-sm  leading-relaxed">{message.metadata.caption}</p>
                                     )}
                                 </div>
                             )}
@@ -148,10 +152,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                                         </div>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium truncate">
+                                        <p className="text-sm  font-medium truncate">
                                             {message.metadata?.filename || 'File'}
                                         </p>
-                                        <p className="text-xs opacity-75">
+                                        <p className="text-xs font-sora opacity-75">
                                             {message.metadata?.filesize || 'Unknown size'}
                                         </p>
                                     </div>

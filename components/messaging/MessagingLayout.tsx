@@ -90,9 +90,9 @@ export const MessagingLayout: React.FC<MessagingLayoutProps> = ({
             }
             bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 flex flex-col shadow-lg lg:shadow-none
           `}>
-            <div className="w-80"> {/* Fixed width container */}
+            <div className="w-80 flex flex-col h-full"> {/* Fixed width container with full height */}
               {/* Simplified Sidebar Header */}
-              <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex-shrink-0">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-gradient-to-br from-[#EF3866] to-[#EF3866]/80 rounded-xl flex items-center justify-center shadow-md">
                     <MessageCircle className="w-5 h-5 text-white" strokeWidth={2} />
@@ -105,7 +105,7 @@ export const MessagingLayout: React.FC<MessagingLayoutProps> = ({
 
               {/* User Profile Section */}
               {user && (
-                <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <div className="relative">
                       <img
@@ -140,7 +140,7 @@ export const MessagingLayout: React.FC<MessagingLayoutProps> = ({
               )}
 
               {/* Quick Actions Row */}
-              <div className="p-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
+              <div className="p-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex-shrink-0">
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => router.push('/messages/new')}
@@ -169,13 +169,15 @@ export const MessagingLayout: React.FC<MessagingLayoutProps> = ({
                 </div>
               </div>
 
-              {/* Conversations Section */}
+              {/* Conversations Section - Made scrollable */}
               <div className="flex-1 overflow-hidden bg-white dark:bg-gray-950">
-                {sidebar}
+                <div className="h-full overflow-y-auto">
+                  {sidebar}
+                </div>
               </div>
 
               {/* Sidebar Footer */}
-              <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
+              <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex-shrink-0">
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                   <span className="font-medium">© 2025 Messages</span>
                   <div className="flex items-center space-x-2">
@@ -188,10 +190,10 @@ export const MessagingLayout: React.FC<MessagingLayoutProps> = ({
           </div>
         )}
 
-        {/* Main content area */}
-        <div className="flex-1 flex flex-col min-w-0 relative bg-white dark:bg-gray-950">
+        {/* Main content area - Fixed for proper alignment */}
+        <div className="flex-1 flex flex-col min-w-0 relative bg-white dark:bg-gray-950 h-screen overflow-hidden">
           {/* Main Content */}
-          <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 flex flex-col min-h-0 h-full">
             {children}
           </div>
         </div>

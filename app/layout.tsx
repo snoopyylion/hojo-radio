@@ -5,6 +5,7 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AppContextProvider } from "@/context/AppContext";
 import { Toaster } from 'react-hot-toast'
+import { UserProvider } from "@/context/UserContext";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -45,32 +46,34 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider
-  signInUrl="/authentication/sign-in"
->
-      <AppContextProvider>
-        <html lang="en">
-          <body
-            className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${sora.variable} ${manrope.variable} antialiased`}
-          >
-            {children}
-            <Toaster
-              position="top-center"
-              toastOptions={{
-                className: '',
-                style: {
-                  background: '#1f2937',
-                  color: '#fff',
-                  borderRadius: '0.5rem',
-                  padding: '12px 16px',
-                  boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
-                },
-                duration: 4000, // ✅ sets the global default
-              }}
-            />
+      signInUrl="/authentication/sign-in"
+    >
+      <UserProvider>
+        <AppContextProvider>
+          <html lang="en">
+            <body
+              className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${sora.variable} ${manrope.variable} antialiased`}
+            >
+              {children}
+              <Toaster
+                position="top-center"
+                toastOptions={{
+                  className: '',
+                  style: {
+                    background: '#1f2937',
+                    color: '#fff',
+                    borderRadius: '0.5rem',
+                    padding: '12px 16px',
+                    boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
+                  },
+                  duration: 4000, // ✅ sets the global default
+                }}
+              />
 
-          </body>
-        </html>
-      </AppContextProvider>
+            </body>
+          </html>
+        </AppContextProvider>
+      </UserProvider>
     </ClerkProvider>
   );
 }
