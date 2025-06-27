@@ -35,7 +35,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
     // Use the hook to get sender profile data
-    const { imageUrl, displayName } = useUserProfile(message.sender_id);
+    const { imageUrl } = useUserProfile(message.sender_id);
 
     const handleQuickReaction = (emoji: string) => {
         onReact(message.id, emoji);
