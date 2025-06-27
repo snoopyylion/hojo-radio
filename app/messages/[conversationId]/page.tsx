@@ -283,7 +283,6 @@ export default function ConversationPage() {
                         onlineUsers={onlineUsers}
                         currentUserId={userId!}
                         onSettingsClick={() => setShowSettings(true)}
-                        onBackClick={() => router.push('/messages')}
                     />
                 )}
 
