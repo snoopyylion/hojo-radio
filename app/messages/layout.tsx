@@ -22,9 +22,9 @@ export default function MessagesLayout({
   const [loading, setLoading] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [allTypingUsers, setAllTypingUsers] = useState<Record<string, TypingUser[]>>({});
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
+  const [, setMessages] = useState<Message[]>([]);
+  const [, setOnlineUsers] = useState<Set<string>>(new Set());
 
   const { loadConversationsFromAPI } = useMessageApi();
 
@@ -32,8 +32,6 @@ export default function MessagesLayout({
 
   const {
     isConnected,
-    sendTypingUpdate,
-    sendMessage: sendWebSocketMessage,
     isConnecting
   } = useWebSocketConnection({
     conversationId: activeConversationId || '',

@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { useGlobalNotifications } from '@/context/EnhancedGlobalNotificationsContext';
-import { Volume2, VolumeX, Monitor, Smartphone, Mail } from 'lucide-react';
+import { Volume2, Monitor, Smartphone, Mail } from 'lucide-react';
 
 export const NotificationSettings: React.FC = () => {
   const { notificationSettings, updateNotificationSettings } = useGlobalNotifications();

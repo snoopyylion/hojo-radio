@@ -6,6 +6,22 @@ import { useGlobalNotifications } from '@/context/EnhancedGlobalNotificationsCon
 import { formatDistanceToNow } from 'date-fns';
 import { X, Check, CheckCheck, Bell } from 'lucide-react';
 
+interface NotificationData {
+  conversation_id?: string;
+  target_id?: string;
+  [key: string]: unknown;
+}
+
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  read: boolean;
+  created_at: string;
+  data?: NotificationData;
+}
+
 export const NotificationList: React.FC = () => {
   const {
     notifications,
@@ -21,7 +37,7 @@ export const NotificationList: React.FC = () => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  const handleNotificationClick = (notification: any) => {
+  const handleNotificationClick = (notification: Notification) => {
     if (!notification.read) {
       markAsRead(notification.id);
     }
@@ -30,7 +46,7 @@ export const NotificationList: React.FC = () => {
     navigateToNotification(notification);
   };
 
-  const navigateToNotification = (notification: any) => {
+  const navigateToNotification = (notification: Notification) => {
     switch (notification.type) {
       case 'message':
         if (notification.data?.conversation_id) {
@@ -92,7 +108,7 @@ export const NotificationList: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-2">
-          {notifications.map((notification) => (
+          {notifications.map((notification: Notification) => (
             <div
               key={notification.id}
               className={`p-4 rounded-lg border cursor-pointer transition-colors ${

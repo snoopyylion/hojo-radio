@@ -4,13 +4,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { auth } from '@clerk/nextjs/server'
 
+interface WebSocketNotificationData {
+  type: string;
+  [key: string]: unknown;
+}
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 // WebSocket notification sender
-async function sendWebSocketNotification(userId: string, data: any) {
+async function sendWebSocketNotification(userId: string, data: WebSocketNotificationData) {
   console.log(`Sending WebSocket notification to ${userId}:`, data);
   
   // Example implementation with your WebSocket server:
@@ -28,7 +33,7 @@ async function sendWebSocketNotification(userId: string, data: any) {
 }
 
 // DELETE /api/notifications/clear-all - Clear all notifications
-export async function DELETE(request: NextRequest) {
+export async function DELETE(_request: NextRequest) {
   try {
     const { userId } = await auth();
     

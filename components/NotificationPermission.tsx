@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Bell, BellOff } from 'lucide-react';
+import { Bell } from 'lucide-react';
 
 export const NotificationPermission: React.FC = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');

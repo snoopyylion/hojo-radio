@@ -220,16 +220,6 @@ export default function ConversationPage() {
         }
     }, [conversations, conversationId]);
 
-    // Handlers
-    const handleConversationSelect = useCallback((newConversationId: string) => {
-        // Stop typing when switching conversations
-        if (isTyping) {
-            setIsTyping(false);
-            sendTypingUpdate(false); // Pass current conversationId
-        }
-        router.push(`/messages/${newConversationId}`);
-    }, [router, isTyping, sendTypingUpdate, conversationId]);
-
     const handleLoadMore = useCallback(async () => {
         if (isLoadingMore || messages.length === 0) return;
 

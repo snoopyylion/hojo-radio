@@ -1,4 +1,3 @@
-
 // app/api/notifications/mark-all-read/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -9,26 +8,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// WebSocket notification sender
-async function sendWebSocketNotification(userId: string, data: any) {
-  console.log(`Sending WebSocket notification to ${userId}:`, data);
-  
-  // Example implementation with your WebSocket server:
-  /*
-  try {
-    const response = await fetch(`${process.env.WEBSOCKET_SERVER_URL}/notify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, ...data })
-    });
-  } catch (error) {
-    console.error('Error sending WebSocket notification:', error);
-  }
-  */
-}
-
 // PATCH /api/notifications/mark-all-read - Mark all notifications as read
-export async function PATCH(request: NextRequest) {
+export async function PATCH(_request: NextRequest) {
   try {
     const { userId } = await auth();
     

@@ -30,8 +30,12 @@ interface FollowersFollowingSectionProps {
   showCounts?: boolean;
 }
 
+interface FollowStatusResponse {
+  statuses: { [userId: string]: boolean };
+}
+
 // Request cache to prevent duplicate requests
-const requestCache = new Map<string, Promise<any>>();
+const requestCache = new Map<string, Promise<FollowStatusResponse>>();
 
 export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps> = ({
   userId,
@@ -61,63 +65,63 @@ export const FollowersFollowingSection: React.FC<FollowersFollowingSectionProps>
 
   // Enhanced checkCurrentUserFollowStatus with request deduplication
   const checkCurrentUserFollowStatus = useCallback(async (users: FollowUser[]): Promise<FollowUser[]> => {
-    if (!currentUser?.id || users.length === 0) return users;
+  if (!currentUser?.id || users.length === 0) return users;
 
-    const userIds = users.map(u => u.id);
-    const cacheKey = `follow-status-${currentUser.id}-${userIds.sort().join(',')}`;
+  const userIds = users.map(u => u.id);
+  const cacheKey = `follow-status-${currentUser.id}-${userIds.sort().join(',')}`;
 
-    // Check if we already have a pending request for this
-    if (requestCache.has(cacheKey)) {
-      try {
-        const cachedResult = await requestCache.get(cacheKey);
-        return users.map(user => ({
-          ...user,
-          is_following_back: cachedResult.statuses[user.id] || false
-        }));
-      } catch (error) {
-        console.error('Cached request failed:', error);
-        return users;
-      }
-    }
-
-    // Create new request
-    const requestPromise = fetch('/api/follow/check-batch', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user_ids: userIds,
-        check_type: 'am_following'
-      }),
-      signal: abortControllerRef.current?.signal
-    }).then(async (response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      return response.json();
-    });
-
-    // Cache the request
-    requestCache.set(cacheKey, requestPromise);
-
+  // Check if we already have a pending request for this
+  if (requestCache.has(cacheKey)) {
     try {
-      const followStatusData = await requestPromise;
-
+      const cachedResult = await requestCache.get(cacheKey)!;
       return users.map(user => ({
         ...user,
-        is_following_back: followStatusData.statuses[user.id] || false
+        is_following_back: cachedResult.statuses[user.id] || false
       }));
     } catch (error) {
-      console.error('Error checking follow back status:', error);
-      return users; // Return users without follow status
-    } finally {
-      // Clean up cache after some time
-      setTimeout(() => {
-        requestCache.delete(cacheKey);
-      }, 30000); // Cache for 30 seconds
+      console.error('Cached request failed:', error);
+      return users;
     }
-  }, [currentUser?.id]);
+  }
+
+  // Create new request
+  const requestPromise = fetch('/api/follow/check-batch', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      user_ids: userIds,
+      check_type: 'am_following'
+    }),
+    signal: abortControllerRef.current?.signal
+  }).then(async (response): Promise<FollowStatusResponse> => {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
+  });
+
+  // Cache the request
+  requestCache.set(cacheKey, requestPromise);
+
+  try {
+    const followStatusData = await requestPromise;
+
+    return users.map(user => ({
+      ...user,
+      is_following_back: followStatusData.statuses[user.id] || false
+    }));
+  } catch (error) {
+    console.error('Error checking follow back status:', error);
+    return users; // Return users without follow status
+  } finally {
+    // Clean up cache after some time
+    setTimeout(() => {
+      requestCache.delete(cacheKey);
+    }, 30000); // Cache for 30 seconds
+  }
+}, [currentUser?.id]);
 
   const fetchFollowersAndFollowing = useCallback(async () => {
     if (!userId) return;

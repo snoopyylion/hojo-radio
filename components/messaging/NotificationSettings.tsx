@@ -143,7 +143,7 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
           <div className="flex items-center space-x-2">
             <BellOff className="w-4 h-4 text-red-500" />
             <p className="text-sm text-red-700 dark:text-red-400">
-              Browser notifications are blocked. To enable them, click the lock icon in your browser's address bar and allow notifications.
+              Browser notifications are blocked. To enable them, click the lock icon in your browser&apos;s address bar and allow notifications.
             </p>
           </div>
         </div>

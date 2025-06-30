@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
             check_type
         });
 
-    } catch (error) {
+    } catch {
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }

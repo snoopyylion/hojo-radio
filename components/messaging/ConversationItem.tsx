@@ -3,7 +3,6 @@ import { Conversation, TypingUser } from '../../types/messaging';
 import UserPresence from './UserPresence';
 import Image from 'next/image';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { useGlobalNotifications } from '@/context/GlobalNotificationsContext';
 import { useGlobalTyping } from '@/context/GlobalTypingContext';
 
 interface ConversationItemProps {
@@ -31,8 +30,6 @@ const ConversationItem: React.FC<ConversationItemProps> = memo(({
 
     // Use the hook to get user profile data
     const { imageUrl, displayName, isLoading: profileLoading } = useUserProfile(otherParticipant?.user_id || '');
-    const { state } = useGlobalNotifications();
-
     // Get typing users for this conversation with timestamp filtering
     const currentTypingUsers = useMemo(() => {
         if (!typingUsers || !conversation.id) return [];

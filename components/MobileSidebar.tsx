@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
-import { X, Bell, Home, Shield, Mic, BookOpen, Users, ArrowRight, User, ChevronRight, LayoutDashboard } from "lucide-react";
+import { X, Home, Shield, Mic, BookOpen, Users, ArrowRight, User, ChevronRight, LayoutDashboard } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useAppContext } from "@/context/AppContext";
 import Link from "next/link";

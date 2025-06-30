@@ -8,8 +8,26 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Define notification types
+interface NotificationData {
+  type: string;
+  notification?: unknown;
+  [key: string]: unknown;
+}
+
+interface NotificationPayload {
+  user_id: string;
+  type: string;
+  title: string;
+  message: string;
+  data?: Record<string, unknown>;
+  read?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // WebSocket notification sender (implement your WebSocket server)
-async function sendWebSocketNotification(userId: string, data: any) {
+async function sendWebSocketNotification(userId: string, data: NotificationData): Promise<void> {
   // This is where you'd send to your WebSocket server
   // For now, we'll just log it
   console.log(`Sending WebSocket notification to ${userId}:`, data);
@@ -93,7 +111,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const notification = await request.json();
+    const notification: NotificationPayload = await request.json();
 
     // Validate required fields
     if (!notification.user_id || !notification.type || !notification.title || !notification.message) {
@@ -111,7 +129,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Add timestamps
-    const notificationData = {
+    const notificationData: NotificationPayload = {
       ...notification,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

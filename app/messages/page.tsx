@@ -33,12 +33,6 @@ export default function MessagesPage() {
         setSelectedConversation(null);
     }, []);
 
-   const handleConversationSelect = useCallback((conversationId: string) => {
-    const conversation = conversations.find(c => c.id === conversationId);
-    if (conversation) {
-        router.push(`/messages/${conversationId}`);
-    }
-}, [conversations, router]);
 
     const handleNewConversation = () => {
         router.push('/messages/new');
