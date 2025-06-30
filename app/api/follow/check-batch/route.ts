@@ -19,16 +19,18 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function POST(request: NextRequest) {
     try {
-        const { userId } = await auth();
+        const authResult = await auth();
+        const { userId } = authResult;
 
         if (!userId) {
             return NextResponse.json(
-                { error: 'Unauthorized' },
+                { error: 'Unauthorized - No user ID found' },
                 { status: 401 }
             );
         }
 
-        const { user_ids, check_type } = await request.json();
+        const body = await request.json();
+        const { user_ids, check_type } = body;
 
         if (!user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {
             return NextResponse.json(
@@ -48,7 +50,6 @@ export async function POST(request: NextRequest) {
         let targetField: string;
 
         if (check_type === 'am_following') {
-            // Check if current user is following the specified users
             query = supabase
                 .from('follows')
                 .select('following_id')
@@ -56,7 +57,6 @@ export async function POST(request: NextRequest) {
                 .in('following_id', user_ids);
             targetField = 'following_id';
         } else {
-            // Check if specified users are following the current user
             query = supabase
                 .from('follows')
                 .select('follower_id')
@@ -68,29 +68,23 @@ export async function POST(request: NextRequest) {
         const { data, error } = await query;
 
         if (error) {
-            console.error('Error checking follow statuses:', error);
             return NextResponse.json(
-                { error: 'Failed to check follow statuses' },
+                { error: 'Failed to check follow statuses', details: error.message },
                 { status: 500 }
             );
         }
 
-        // Create a map of user_id -> boolean indicating follow status
         const followStatuses: Record<string, boolean> = {};
-
-        // Initialize all users as not following
         user_ids.forEach(id => {
             followStatuses[id] = false;
         });
 
-        // Mark users that are actually following as true
         data?.forEach((follow: FollowRecord) => {
             const targetId = follow[targetField as keyof FollowRecord];
             if (typeof targetId === 'string') {
                 followStatuses[targetId] = true;
             }
         });
-
 
         return NextResponse.json({
             success: true,
@@ -99,7 +93,6 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error) {
-        console.error('Batch follow check API error:', error);
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }

@@ -1,13 +1,12 @@
 // app/messages/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useRealtimeMessaging } from '@/hooks/useRealTimeMessaging';
-import ConversationList from '@/components/messaging/ConversationList';
-import { MessagingLayout } from '@/components/messaging/MessagingLayout';
-import { MessageCircle, Users, Search, Sparkles, Plus, ArrowRight } from 'lucide-react';
+import { useSidebar } from '@/components/messaging/MessagingLayout';
+import { MessageCircle, Users, Search, Sparkles, Plus, ArrowRight, Menu } from 'lucide-react';
 import { Conversation } from '@/types/messaging';
 
 export default function MessagesPage() {
@@ -15,6 +14,7 @@ export default function MessagesPage() {
     const { user, isLoaded } = useUser();
     const { conversations, loadConversations, loading, error } = useRealtimeMessaging();
     const [, setSelectedConversation] = useState<Conversation | null>(null);
+    const { toggleSidebar } = useSidebar();
 
     useEffect(() => {
         if (isLoaded && !user) {
@@ -33,13 +33,12 @@ export default function MessagesPage() {
         setSelectedConversation(null);
     }, []);
 
-    const handleConversationSelect = (conversationId: string) => {
-        const conversation = conversations.find(c => c.id === conversationId);
-        if (conversation) {
-            setSelectedConversation(conversation);
-            router.push(`/messages/${conversationId}`);
-        }
-    };
+   const handleConversationSelect = useCallback((conversationId: string) => {
+    const conversation = conversations.find(c => c.id === conversationId);
+    if (conversation) {
+        router.push(`/messages/${conversationId}`);
+    }
+}, [conversations, router]);
 
     const handleNewConversation = () => {
         router.push('/messages/new');
@@ -80,22 +79,35 @@ export default function MessagesPage() {
         );
     }
 
-    // Render the sidebar content
-    const sidebarContent = (
-        <ConversationList
-            conversations={conversations}
-            activeConversationId={undefined} // No active conversation on main page
-            onConversationSelect={handleConversationSelect}
-            onNewConversation={handleNewConversation}
-            currentUserId={user?.id || ''}
-            isLoading={loading}
-        />
-    );
-
     return (
-        <MessagingLayout sidebar={sidebarContent}>
+        <div className="h-screen">
             {/* Main content area - Start New Chat interface */}
             <div className="flex flex-col h-full bg-white dark:bg-gray-950">
+                {/* Simple Header with Menu Toggle */}
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                            <button
+                                onClick={toggleSidebar}
+                                className="p-2 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
+                                title="Toggle sidebar"
+                            >
+                                <Menu size={20} />
+                            </button>
+                            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                Messages
+                            </h1>
+                        </div>
+                        <button
+                            onClick={handleNewConversation}
+                            className="flex items-center space-x-2 px-4 py-2 bg-[#EF3866] text-white rounded-lg hover:bg-[#EF3866]/90 transition-all duration-200 font-medium text-sm"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>New Chat</span>
+                        </button>
+                    </div>
+                </div>
+
                 {/* Main content */}
                 <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900/50 p-6">
                     <div className="text-center max-w-2xl mx-auto">
@@ -110,9 +122,9 @@ export default function MessagesPage() {
                                 </div>
 
                                 {/* Welcome Message */}
-                                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
                                     Ready to chat?
-                                </h1>
+                                </h2>
                                 <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
                                     Select a conversation from the sidebar or start a new chat with someone special.
                                 </p>
@@ -171,9 +183,9 @@ export default function MessagesPage() {
                                 </div>
 
                                 {/* Welcome Message */}
-                                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
                                     Welcome to Messages
-                                </h1>
+                                </h2>
                                 <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
                                     Connect with friends, family, and colleagues. Start meaningful conversations that matter.
                                 </p>
@@ -221,6 +233,6 @@ export default function MessagesPage() {
                     </div>
                 </div>
             </div>
-        </MessagingLayout>
+        </div>
     );
 }

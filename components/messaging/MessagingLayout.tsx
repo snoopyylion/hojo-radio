@@ -1,4 +1,3 @@
-// components/messaging/MessagingLayout.tsx
 'use client';
 
 import React, { useState, useEffect, createContext, useContext } from 'react';
@@ -90,7 +89,7 @@ export const MessagingLayout: React.FC<MessagingLayoutProps> = ({
             }
             bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 flex flex-col shadow-lg lg:shadow-none
           `}>
-            <div className="w-80 flex flex-col h-full"> {/* Fixed width container with full height */}
+            <div className="w-80 flex flex-col h-full">
               {/* Simplified Sidebar Header */}
               <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex-shrink-0">
                 <div className="flex items-center space-x-3">
@@ -169,7 +168,7 @@ export const MessagingLayout: React.FC<MessagingLayoutProps> = ({
                 </div>
               </div>
 
-              {/* Conversations Section - Made scrollable */}
+              {/* Conversations Section */}
               <div className="flex-1 overflow-hidden bg-white dark:bg-gray-950">
                 <div className="h-full overflow-y-auto">
                   {sidebar}
@@ -190,9 +189,8 @@ export const MessagingLayout: React.FC<MessagingLayoutProps> = ({
           </div>
         )}
 
-        {/* Main content area - Fixed for proper alignment */}
+        {/* Main content area */}
         <div className="flex-1 flex flex-col min-w-0 relative bg-white dark:bg-gray-950 h-screen overflow-hidden">
-          {/* Main Content */}
           <div className="flex-1 flex flex-col min-h-0 h-full">
             {children}
           </div>

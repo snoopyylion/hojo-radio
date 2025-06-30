@@ -1,18 +1,16 @@
 // app/messages/[conversationId]/page.tsx
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { useRealtimeMessaging } from '@/hooks/useRealTimeMessaging';
 import { useWebSocketConnection } from '@/hooks/useWebSocketConnection';
 import { useMessageApi } from '@/hooks/useMessageApi';
-import ConversationList from '@/components/messaging/ConversationList';
 import { MessagesList } from '@/components/messaging/MessageList';
 import MessageInput from '@/components/messaging/MessageInput';
 import { TypingIndicator } from '@/components/messaging/TypingIndicator';
 import { ConversationSettings } from '@/components/messaging/chat/ConversationSettings';
-import { MessagingLayout } from '@/components/messaging/MessagingLayout';
 import { ConversationHeader } from '@/components/messaging/ConversationHeader';
 import {
     LoadingState,
@@ -68,41 +66,107 @@ export default function ConversationPage() {
     const [showSettings, setShowSettings] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [hasInitialized, setHasInitialized] = useState(false);
+    const [isTyping, setIsTyping] = useState(false);
     const messageListRef = useRef<HTMLDivElement>(null);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Process typing users for current conversation
-    const currentTypingUsers = Array.isArray(typingUsers) ? typingUsers : (typingUsers[conversationId] || []);
-    const typingUsersSet = new Set(currentTypingUsers.map(user => user.userId));
+    // Enhanced typing users processing for current conversation
+    const currentTypingUsers = useMemo(() => {
+        if (Array.isArray(typingUsers)) {
+            return typingUsers.filter(user => user.userId !== userId);
+        }
+        return (typingUsers[conversationId] || []).filter(user => user.userId !== userId);
+    }, [typingUsers, conversationId, userId]);
 
-    // Clean up typing indicators
+    const typingUsersSet = useMemo(() =>
+        new Set(currentTypingUsers.map(user => user.userId)),
+        [currentTypingUsers]
+    );
+
+    // Enhanced typing cleanup with better timing
     useEffect(() => {
         const interval = setInterval(() => {
             const now = Date.now();
             setTypingUsers((prev: Record<string, TypingUser[]>) => {
                 const updated = { ...prev };
-                Object.keys(updated).forEach(key => {
-                    updated[key] = updated[key].filter((u: TypingUser) => now - u.timestamp < 5000);
+                let hasChanges = false;
+
+                Object.keys(updated).forEach(conversationId => {
+                    const filteredUsers = updated[conversationId].filter(u => now - u.timestamp < 3000);
+                    if (filteredUsers.length !== updated[conversationId].length) {
+                        updated[conversationId] = filteredUsers;
+                        hasChanges = true;
+                    }
                 });
-                return updated;
+
+                return hasChanges ? updated : prev;
             });
-        }, 2000);
+        }, 1000);
 
         return () => clearInterval(interval);
     }, [setTypingUsers]);
+
+    // Enhanced typing handler with debouncing
+    const handleTyping = useCallback((isCurrentlyTyping: boolean) => {
+        if (!isConnected || !conversationId || !userId) return;
+
+        // Clear existing timeout
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+
+        if (isCurrentlyTyping && !isTyping) {
+            // Start typing
+            setIsTyping(true);
+            sendTypingUpdate(true); // Make sure to pass conversationId
+
+            // Set timeout to stop typing after 3 seconds of inactivity
+            typingTimeoutRef.current = setTimeout(() => {
+                setIsTyping(false);
+                sendTypingUpdate(false);
+            }, 3000);
+        } else if (!isCurrentlyTyping && isTyping) {
+            // Stop typing immediately
+            setIsTyping(false);
+            sendTypingUpdate(false);
+        } else if (isCurrentlyTyping && isTyping) {
+            // Continue typing - reset timeout
+            typingTimeoutRef.current = setTimeout(() => {
+                setIsTyping(false);
+                sendTypingUpdate(false);
+            }, 3000);
+        }
+    }, [isConnected, conversationId, userId, isTyping, sendTypingUpdate]);
+
+
+    // Cleanup typing timeout on unmount or conversation change
+    useEffect(() => {
+        return () => {
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
+            if (isTyping) {
+                sendTypingUpdate(false); // Pass conversationId here
+            }
+        };
+    }, [conversationId, isTyping, sendTypingUpdate]);
 
     // Polling fallback when WebSocket fails
     useEffect(() => {
         if (isConnected || !conversationId || !hasInitialized) return;
 
         const interval = setInterval(async () => {
-            const newMessages = await pollMessages(conversationId, messages);
-            if (newMessages.length > 0) {
-                setMessages(prev => {
-                    const filtered = newMessages.filter((msg: Message) =>
-                        !prev.some(existingMsg => existingMsg.id === msg.id)
-                    );
-                    return filtered.length > 0 ? [...prev, ...filtered] : prev;
-                });
+            try {
+                const newMessages = await pollMessages(conversationId, messages);
+                if (newMessages.length > 0) {
+                    setMessages(prev => {
+                        const messageIds = new Set(prev.map(msg => msg.id));
+                        const filtered = newMessages.filter((msg: Message) => !messageIds.has(msg.id));
+                        return filtered.length > 0 ? [...prev, ...filtered] : prev;
+                    });
+                }
+            } catch (error) {
+                console.error('❌ Error polling messages:', error);
             }
         }, 3000);
 
@@ -117,10 +181,13 @@ export default function ConversationPage() {
         setHasInitialized(true);
 
         try {
-            await Promise.all([
-                loadConversationsFromAPI().then(setConversations),
-                loadMessagesFromAPI(conversationId).then(setMessages)
+            const [conversationsData, messagesData] = await Promise.all([
+                loadConversationsFromAPI(),
+                loadMessagesFromAPI(conversationId)
             ]);
+
+            setConversations(conversationsData);
+            setMessages(messagesData);
         } catch (error) {
             console.error('❌ Error initializing data:', error);
             setHasInitialized(false);
@@ -154,9 +221,14 @@ export default function ConversationPage() {
     }, [conversations, conversationId]);
 
     // Handlers
-    const handleConversationSelect = useCallback((conversationId: string) => {
-        router.push(`/messages/${conversationId}`);
-    }, [router]);
+    const handleConversationSelect = useCallback((newConversationId: string) => {
+        // Stop typing when switching conversations
+        if (isTyping) {
+            setIsTyping(false);
+            sendTypingUpdate(false); // Pass current conversationId
+        }
+        router.push(`/messages/${newConversationId}`);
+    }, [router, isTyping, sendTypingUpdate, conversationId]);
 
     const handleLoadMore = useCallback(async () => {
         if (isLoadingMore || messages.length === 0) return;
@@ -173,10 +245,6 @@ export default function ConversationPage() {
         }
     }, [isLoadingMore, messages, loadMessagesFromAPI, conversationId, setMessages]);
 
-    const handleTyping = useCallback((isTyping: boolean) => {
-        sendTypingUpdate(isTyping);
-    }, [sendTypingUpdate]);
-
     const handleSendMessage = useCallback(async (
         content: string,
         messageType: 'text' | 'image' | 'file' = 'text',
@@ -185,6 +253,15 @@ export default function ConversationPage() {
         if (!content.trim() || !currentConversation) {
             console.log('❌ Cannot send message: missing content or conversation');
             return;
+        }
+
+        // Stop typing when sending message
+        if (isTyping) {
+            setIsTyping(false);
+            sendTypingUpdate(false); // Pass conversationId here
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
         }
 
         try {
@@ -208,7 +285,7 @@ export default function ConversationPage() {
         } catch (error) {
             console.error('❌ Error sending message:', error);
         }
-    }, [currentConversation, conversationId, sendApiMessage, sendWebSocketMessage, setMessages]);
+    }, [currentConversation, conversationId, sendApiMessage, sendWebSocketMessage, setMessages, isTyping, sendTypingUpdate]);
 
     const handleReaction = useCallback(async (messageId: string, emoji: string) => {
         try {
@@ -231,6 +308,7 @@ export default function ConversationPage() {
         setHasInitialized(false);
         window.location.reload();
     }, []);
+
 
     // Get conversation users
     const users: User[] = currentConversation?.participants
@@ -257,20 +335,10 @@ export default function ConversationPage() {
         return <LoadingState message="Loading conversation..." />;
     }
 
-    // Render the sidebar content
-    const sidebarContent = (
-        <ConversationList
-            conversations={conversations}
-            activeConversationId={currentConversation?.id}
-            onConversationSelect={handleConversationSelect}
-            onNewConversation={() => router.push('/messages/new')}
-            currentUserId={userId!}
-            isLoading={loading}
-        />
-    );
+
 
     return (
-        <MessagingLayout sidebar={sidebarContent}>
+        <>
             {/* Connection status indicator */}
             <ConnectionStatus isConnected={isConnected} />
 
@@ -300,9 +368,9 @@ export default function ConversationPage() {
                         />
                     </div>
 
-                    {/* Typing indicator */}
+                    {/* Enhanced Typing indicator */}
                     {currentTypingUsers.length > 0 && (
-                        <div className="px-4 py-2 bg-white dark:bg-gray-950">
+                        <div className="px-4 py-2 bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800">
                             <TypingIndicator
                                 typingUsers={typingUsersSet}
                                 users={users}
@@ -351,6 +419,6 @@ export default function ConversationPage() {
                     }}
                 />
             )}
-        </MessagingLayout>
+        </>
     );
 }

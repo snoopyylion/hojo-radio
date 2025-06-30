@@ -10,6 +10,7 @@ import SignOutBtn from "@/components/SignOutBtn";
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@supabase/supabase-js';
 import { usePathname, useRouter } from 'next/navigation';
+import { NotificationBell } from "./NotificationBell";
 
 // Initialize Supabase client with proper type checking
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -211,19 +212,37 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
                     </div>
                   </div>
 
-                  <button
-                    onClick={onClose}
-                    className={`
-                      w-10 h-10 rounded-full flex items-center justify-center
-                      transition-all duration-200 hover:scale-105
-                      ${isDarkMode
-                        ? 'bg-white/10 hover:bg-white/20 text-white'
-                        : 'bg-black/5 hover:bg-black/10 text-black'
-                      }
-                    `}
-                  >
-                    <X size={18} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* Notification Bell for Mobile */}
+                    {user && (
+                      <Link href="/notifications">
+                        <div className={`
+                          w-10 h-10 rounded-full flex items-center justify-center
+                          transition-all duration-200 hover:scale-105
+                          ${isDarkMode
+                            ? 'bg-white/10 hover:bg-white/20'
+                            : 'bg-black/5 hover:bg-black/10'
+                          }
+                        `}>
+                          <NotificationBell />
+                        </div>
+                      </Link>
+                    )}
+
+                    <button
+                      onClick={onClose}
+                      className={`
+                        w-10 h-10 rounded-full flex items-center justify-center
+                        transition-all duration-200 hover:scale-105
+                        ${isDarkMode
+                          ? 'bg-white/10 hover:bg-white/20 text-white'
+                          : 'bg-black/5 hover:bg-black/10 text-black'
+                        }
+                      `}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Decorative accent line */}
@@ -286,26 +305,26 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
 
               {/* User Section */}
               <div className={`
-  mx-6 mb-6 rounded-2xl overflow-hidden border-2 shadow-xl
-  ${isDarkMode ? 'bg-white/5 border-white/15' : 'bg-black/5 border-black/10'}
-`}>
+                mx-6 mb-6 rounded-2xl overflow-hidden border-2 shadow-xl
+                ${isDarkMode ? 'bg-white/5 border-white/15' : 'bg-black/5 border-black/10'}
+              `}>
                 {user ? (
                   <div className="space-y-0">
                     {/* Dashboard Link */}
                     <Link href="/hashedpage" className="block group">
                       <div className={`
-          p-5 flex items-center gap-4 transition-all duration-300
-          ${isDarkMode
+                        p-5 flex items-center gap-4 transition-all duration-300
+                        ${isDarkMode
                           ? 'hover:bg-white/10 border-b border-white/10'
                           : 'hover:bg-black/5 border-b border-black/10'}
-        `}>
+                      `}>
                         {/* Avatar */}
                         <div className="relative shrink-0">
                           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#EF3866] to-[#EF3866]/70 p-0.5 shadow-lg">
                             <div className={`
-                w-full h-full rounded-2xl flex items-center justify-center overflow-hidden
-                ${isDarkMode ? 'bg-black' : 'bg-white'}
-              `}>
+                              w-full h-full rounded-2xl flex items-center justify-center overflow-hidden
+                              ${isDarkMode ? 'bg-black' : 'bg-white'}
+                            `}>
                               <UserButton>
                                 <UserButton.MenuItems>
                                   <UserButton.Action
@@ -328,23 +347,23 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
                             <LayoutDashboard
                               size={16}
                               className={`transition-colors duration-300 
-                  ${isDarkMode ? 'text-white/80' : 'text-black/80'} 
-                  group-hover:text-[#EF3866]`}
+                                ${isDarkMode ? 'text-white/80' : 'text-black/80'} 
+                                group-hover:text-[#EF3866]`}
                             />
                             <p className={`text-xs font-semibold uppercase tracking-wide transition-colors duration-300
-                ${isDarkMode ? 'text-white/80' : 'text-black/80'} 
-                group-hover:text-[#EF3866]`}>
+                              ${isDarkMode ? 'text-white/80' : 'text-black/80'} 
+                              group-hover:text-[#EF3866]`}>
                               Dashboard Access
                             </p>
                           </div>
 
                           <p className={`text-lg font-bold capitalize truncate leading-tight 
-              ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                            ${isDarkMode ? 'text-white' : 'text-black'}`}>
                             {loading ? 'Loading...' : (userProfile?.first_name || user?.firstName || 'User')}
                           </p>
 
                           <p className={`text-sm font-medium capitalize
-              ${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>
+                            ${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>
                             {loading ? 'Loading...' : (userProfile?.role || 'Member')}
                           </p>
                         </div>
@@ -355,26 +374,19 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
                             size={20}
                             strokeWidth={2.5}
                             className={`transition-transform duration-300 
-                ${isDarkMode
+                              ${isDarkMode
                                 ? 'text-white/60 group-hover:text-[#EF3866]'
                                 : 'text-black/60 group-hover:text-[#EF3866]'} 
-                group-hover:translate-x-1`}
-                          />
-                          <Bell
-                            size={16}
-                            className={`cursor-pointer transition-colors duration-300 
-                ${isDarkMode
-                                ? 'text-white/50 hover:text-[#EF3866]'
-                                : 'text-black/50 hover:text-[#EF3866]'}`}
+                              group-hover:translate-x-1`}
                           />
                         </div>
                       </div>
 
                       {/* Hover Line */}
                       <div className={`
-          mt-1 h-0.5 bg-gradient-to-r from-[#EF3866] to-transparent
-          transition-all duration-300 scale-x-0 group-hover:scale-x-100 origin-left
-        `} />
+                        mt-1 h-0.5 bg-gradient-to-r from-[#EF3866] to-transparent
+                        transition-all duration-300 scale-x-0 group-hover:scale-x-100 origin-left
+                      `} />
                     </Link>
 
                     {/* Sign Out */}

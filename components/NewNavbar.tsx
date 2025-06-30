@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import MobileSidebar from '@/components/MobileSidebar';
 import SearchComponent from '@/components/SearchComponent';
+import { NotificationBell } from "./NotificationBell";
 
 // Initialize Supabase client with proper type checking
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -150,6 +151,11 @@ const NewNavbar = () => {
             <SearchComponent />
             {user ? (
               <div className="flex items-center gap-4">
+                {/* Notification Bell */}
+                <Link href="/notifications">
+                  <NotificationBell />
+                </Link>
+
                 <div
                   className="relative flex items-center"
                   onMouseEnter={() => setShowSignOut(true)}

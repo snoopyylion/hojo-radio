@@ -1,9 +1,30 @@
+// hooks/useRealtimeMessaging.ts
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
 import { createClient } from '@supabase/supabase-js';
 import { Message, Conversation, TypingUser } from '@/types/messaging';
+import { useGlobalTyping } from '@/context/GlobalTypingContext';
 
-export function useRealtimeMessaging(conversationId?: string) {
+interface UseRealtimeMessagingReturn {
+  messages: Message[];
+  conversations: Conversation[];
+  typingUsers: Record<string, TypingUser[]>;
+  loading: boolean;
+  error: string | null;
+  sendMessage: (content: string, type?: string) => Promise<Message | null>;
+  sendTypingIndicator: (isTyping: boolean) => void;
+  reactToMessage: (messageId: string, emoji: string) => Promise<any>;
+  loadMessages: (limit?: number, before?: string) => Promise<Message[]>;
+  loadConversations: () => Promise<Conversation[]>;
+  setError: (err: string | null) => void;
+  isSupabaseReady: boolean;
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  setConversations: React.Dispatch<React.SetStateAction<Conversation[]>>;
+  setTypingUsers: React.Dispatch<React.SetStateAction<Record<string, TypingUser[]>>>;
+}
+
+// Make conversationId optional with a default value
+export function useRealtimeMessaging(conversationId?: string): UseRealtimeMessagingReturn {
   const { user } = useUser();
   const { userId, isLoaded, isSignedIn } = useAuth();
   const supabase = createClient(
@@ -13,7 +34,7 @@ export function useRealtimeMessaging(conversationId?: string) {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [typingUsers, setTypingUsers] = useState<Record<string, TypingUser[]>>({});
+  const { typingUsers, setTypingUsers } = useGlobalTyping();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const channelsRef = useRef<any[]>([]);
@@ -60,7 +81,7 @@ export function useRealtimeMessaging(conversationId?: string) {
     };
   }, [user]);
 
-  // Enhanced load messages with user data
+  // Enhanced load messages with user data - only load if conversationId is provided
   const loadMessages = useCallback(async (limit = 50, before?: string) => {
     if (!conversationId) return [];
     setLoading(true);
@@ -187,7 +208,7 @@ export function useRealtimeMessaging(conversationId?: string) {
     }
   }, [userId, fetchUserData, getCurrentUserData]);
 
-  // Enhanced send message with user data
+  // Enhanced send message with user data - only work if conversationId is provided
   const sendMessage = useCallback(async (content: string, type = 'text') => {
     if (!conversationId || !user) return null;
     
@@ -261,7 +282,7 @@ export function useRealtimeMessaging(conversationId?: string) {
     }
   }, []);
 
-  // Enhanced real-time messages with user data
+  // Enhanced real-time messages with user data - only subscribe if conversationId exists
   useEffect(() => {
     if (!user?.id || !conversationId) return;
 
@@ -336,7 +357,7 @@ export function useRealtimeMessaging(conversationId?: string) {
     };
   }, [supabase]);
 
-  // Real-time: Typing indicator
+  // Real-time: Typing indicator - only subscribe if conversationId exists
   useEffect(() => {
     if (!conversationId || !user?.id) return;
 
@@ -420,7 +441,7 @@ export function useRealtimeMessaging(conversationId?: string) {
   return {
     messages,
     conversations,
-    typingUsers: conversationId ? typingUsers[conversationId] || [] : [],
+    typingUsers,
     loading,
     error,
     sendMessage,

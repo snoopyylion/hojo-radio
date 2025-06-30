@@ -21,13 +21,15 @@ interface ConversationHeaderProps {
   currentUserId: string;
   onlineUsers: Set<string>;
   onSettingsClick: () => void;
+  additionalActions?: React.ReactNode;
 }
 
 export const ConversationHeader = ({
   conversation,
   currentUserId,
   onlineUsers,
-  onSettingsClick
+  onSettingsClick,
+  additionalActions 
 }: ConversationHeaderProps) => {
   const [showCallMenu, setShowCallMenu] = useState(false);
   const { toggleSidebar } = useSidebar();
@@ -155,6 +157,9 @@ export const ConversationHeader = ({
 
           {/* Header actions */}
           <div className="flex items-center space-x-1 shrink-0">
+            {/* Additional actions from props */}
+            {additionalActions}
+            
             <button
               onClick={onSettingsClick}
               className="p-2.5 rounded-xl text-gray-600 dark:text-gray-400 hover:text-[#EF3866] hover:bg-[#EF3866]/10 transition-all duration-200"

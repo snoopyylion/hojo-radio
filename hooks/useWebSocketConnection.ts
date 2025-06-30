@@ -1,6 +1,7 @@
-// hooks/useWebSocketConnection.ts
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Message, TypingUser } from '@/types/messaging';
+import { useGlobalNotifications } from '@/context/GlobalNotificationsContext';
+import { useGlobalTyping } from '@/context/GlobalTypingContext';
 
 interface UseWebSocketConnectionProps {
   conversationId: string;
@@ -16,64 +17,198 @@ export const useWebSocketConnection = ({
   userId,
   setMessages,
   setConversations,
-  setTypingUsers,
-  setOnlineUsers
+  setOnlineUsers,
 }: UseWebSocketConnectionProps) => {
+  const { setTypingUsers } = useGlobalTyping();
   const [isConnected, setIsConnected] = useState(false);
   const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
+  const typingTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const reconnectDelay = useRef(1000); // Start with 1 second
 
-  // Clean up function
+  const { state: globalState, isGlobalConnected, sendGlobalTypingUpdate, setTypingInConversation } = useGlobalNotifications();
+
+  // Add connection state tracking
+  const [isConnecting, setIsConnecting] = useState(false);
+  const pendingReadOperations = useRef<{ messageId: string, timestamp: number }[]>([]);
+
+  // Validate environment variables at startup
+  if (!process.env.NEXT_PUBLIC_WS_URL) {
+    console.error('NEXT_PUBLIC_WS_URL environment variable is not set');
+  }
+
   const cleanup = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
-    
+
     if (wsRef.current) {
       const ws = wsRef.current;
       wsRef.current = null;
-      
-      // Remove event listeners before closing
       ws.onopen = null;
       ws.onmessage = null;
       ws.onclose = null;
       ws.onerror = null;
-      
+
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         ws.close(1000, 'Component cleanup');
       }
     }
-    
+
     setWsConnection(null);
     setIsConnected(false);
   }, []);
 
-  const connectWebSocket = useCallback(() => {
-    // Don't connect if component is unmounted
+  const parseMessageData = useCallback(async (data: string | Blob) => {
+    return data instanceof Blob ? await data.text() : String(data);
+  }, []);
+
+  const handleTypingUpdate = useCallback((data: {
+  conversationId: string;
+  userId: string;
+  username: string;
+  isTyping: boolean;
+  timestamp: number;
+}) => {
+  if (!mountedRef.current || !userId) return;
+
+  // Skip current user's typing indicators
+  if (data.userId === userId) return;
+
+  setTypingUsers(prev => {
+    const conversationTyping = prev[data.conversationId] || [];
+    const existingUserIndex = conversationTyping.findIndex(u => u.userId === data.userId);
+
+    if (data.isTyping) {
+      // Add or update typing user
+      if (existingUserIndex >= 0) {
+        const updated = [...conversationTyping];
+        updated[existingUserIndex] = {
+          userId: data.userId,
+          username: data.username,
+          timestamp: data.timestamp
+        };
+        return { ...prev, [data.conversationId]: updated };
+      } else {
+        return {
+          ...prev,
+          [data.conversationId]: [
+            ...conversationTyping,
+            {
+              userId: data.userId,
+              username: data.username,
+              timestamp: data.timestamp
+            }
+          ]
+        };
+      }
+    } else {
+      // Remove typing user
+      return {
+        ...prev,
+        [data.conversationId]: conversationTyping.filter(u => u.userId !== data.userId)
+      };
+    }
+  });
+
+  if (setTypingInConversation) {
+    setTypingInConversation(data.conversationId,
+      data.isTyping
+        ? [{ userId: data.userId, username: data.username, timestamp: data.timestamp }]
+        : []
+    );
+  }
+}, [userId, setTypingUsers, setTypingInConversation]);
+
+
+  // Process any pending read operations when connection is established
+  const processPendingReadOperations = useCallback(() => {
     if (!mountedRef.current) return;
 
-    // Clean up any existing connection
-    cleanup();
+    const ws = wsRef.current || globalState.globalWs;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
-    // Validate environment
-    if (!process.env.NEXT_PUBLIC_WS_URL) {
-      console.error('❌ WebSocket URL not configured');
+    while (pendingReadOperations.current.length > 0) {
+      const operation = pendingReadOperations.current.shift();
+      if (operation) {
+        try {
+          const message = {
+            type: 'mark_read',
+            messageId: operation.messageId,
+            userId,
+            conversationId
+          };
+          ws.send(JSON.stringify(message));
+        } catch (error) {
+          console.error('Error processing pending read operation:', error);
+        }
+      }
+    }
+  }, [userId, conversationId, globalState.globalWs]);
+
+  const handleWebSocketError = useCallback((error: Event) => {
+    if (!mountedRef.current) return;
+
+    console.error('WebSocket error details:', {
+      type: error.type,
+      url: wsRef.current?.url,
+      readyState: wsRef.current?.readyState,
+      timestamp: Date.now(),
+      isGlobalConnection: wsRef.current === globalState.globalWs,
+      conversationId,
+      userId
+    });
+
+    setIsConnected(false);
+    setWsConnection(null);
+    
+    // Attempt reconnect only if this isn't the global connection
+    if (wsRef.current !== globalState.globalWs) {
+      reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        if (mountedRef.current) {
+          console.log(`Attempting reconnect in ${reconnectDelay.current}ms`);
+          connectWebSocket();
+        }
+      }, reconnectDelay.current);
+    }
+  }, [conversationId, userId, globalState.globalWs]);
+
+  const connectWebSocket = useCallback(() => {
+    if (!mountedRef.current) return;
+
+    setIsConnecting(true);
+
+    if (isGlobalConnected && globalState.globalWs) {
+      console.log('🌐 Using global WebSocket connection');
+      setIsConnected(true);
+      setIsConnecting(false);
+      setWsConnection(globalState.globalWs);
+      processPendingReadOperations();
       return;
     }
 
-    // Validate required parameters
+    cleanup();
+
+    if (!process.env.NEXT_PUBLIC_WS_URL) {
+      console.error('WebSocket URL not configured');
+      setIsConnecting(false);
+      return;
+    }
+
     if (!conversationId || !userId) {
-      console.warn('⚠️ Missing conversationId or userId for WebSocket connection');
+      console.warn('Missing conversationId or userId for WebSocket connection');
+      setIsConnecting(false);
       return;
     }
 
     try {
       const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}/conversations/${conversationId}?userId=${userId}`;
-      console.log('🔌 Connecting to WebSocket:', wsUrl);
-      
+      console.log('🔌 Connecting to Conversation WebSocket:', wsUrl);
+
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
@@ -82,211 +217,260 @@ export const useWebSocketConnection = ({
           ws.close();
           return;
         }
-        
-        console.log('🔌 WebSocket connected successfully');
+        console.log('🔌 Conversation WebSocket connected successfully');
         setIsConnected(true);
+        setIsConnecting(false);
         setWsConnection(ws);
+        reconnectDelay.current = 1000;
+        processPendingReadOperations();
       };
 
       ws.onmessage = async (event) => {
         if (!mountedRef.current) return;
-        
+
         try {
-          let messageData: string;
-          
-          // Handle different data types
-          if (event.data instanceof Blob) {
-            messageData = await event.data.text();
-          } else if (typeof event.data === 'string') {
-            messageData = event.data;
-          } else {
-            messageData = String(event.data);
-          }
-          
-          console.log('📨 Raw WebSocket message:', messageData);
-          
+          const messageData = await parseMessageData(event.data);
           const data = JSON.parse(messageData);
-          console.log('📊 Parsed data:', data);
 
           switch (data.type) {
             case 'new_message':
-              console.log('💬 New message received:', data.message);
-              setMessages((prev) => {
+              setMessages(prev => {
                 const exists = prev.some(msg => msg.id === data.message.id);
-                if (exists) return prev;
-                return [...prev, data.message];
+                return exists ? prev : [...prev, data.message];
               });
-              
-              setConversations((prev) =>
-                prev.map((conv) =>
-                  conv.id === data.message.conversation_id
-                    ? { 
-                        ...conv, 
-                        last_message: data.message, 
-                        last_message_at: data.message.created_at 
-                      }
-                    : conv
-                )
-              );
+
+              setConversations(prev => prev.map(conv =>
+                conv.id === data.message.conversation_id
+                  ? { ...conv, last_message: data.message, last_message_at: data.message.created_at }
+                  : conv
+              ));
               break;
 
             case 'typing_update':
-              console.log('⌨️ Typing update:', data);
-              if (data.userId !== userId) {
-                const typingUser = {
-                  userId: data.userId,
-                  username: data.username || 'Unknown User',
-                  timestamp: Date.now()
-                };
-
-                setTypingUsers((prev) => {
-                  const conversationTyping = prev[conversationId] || [];
-                  if (data.isTyping) {
-                    const filtered = conversationTyping.filter((u) => u.userId !== data.userId);
-                    return {
-                      ...prev,
-                      [conversationId]: [...filtered, typingUser]
-                    };
-                  } else {
-                    return {
-                      ...prev,
-                      [conversationId]: conversationTyping.filter((u) => u.userId !== data.userId)
-                    };
-                  }
-                });
-              }
+              handleTypingUpdate(data);
               break;
 
             case 'user_presence':
-              console.log('👤 User presence update:', data);
               setOnlineUsers(prev => {
                 const newSet = new Set(prev);
-                if (data.isOnline) {
-                  newSet.add(data.userId);
-                } else {
-                  newSet.delete(data.userId);
-                }
+                data.isOnline ? newSet.add(data.userId) : newSet.delete(data.userId);
                 return newSet;
               });
               break;
 
+            case 'message_read':
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === data.messageId
+                    ? { ...msg, read_by: [...(msg.read_by || []), data.readBy] }
+                    : msg
+                )
+              );
+              break;
+
+            case 'message_reaction':
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === data.messageId
+                    ? { ...msg, reactions: data.reactions }
+                    : msg
+                )
+              );
+              break;
+
+            // Handle global typing updates
+            case 'global_typing_update':
+              if (data.conversationId !== conversationId) {
+                handleTypingUpdate(data);
+              }
+              break;
+
             default:
-              console.log('❓ Unknown message type:', data.type);
+              console.log('Received unknown message type:', data.type);
           }
         } catch (error) {
-          console.error('❌ Error parsing WebSocket message:', error);
-          console.error('Raw event data:', event.data);
-          console.error('Event data type:', typeof event.data);
+          console.error('Error parsing WebSocket message:', error);
         }
       };
 
       ws.onclose = (event) => {
-        console.log('🔌 WebSocket disconnected:', event.code, event.reason);
-        
         if (!mountedRef.current) return;
-        
+
+        console.log('WebSocket closed:', event.code, event.reason);
         setIsConnected(false);
+        setIsConnecting(false);
         setWsConnection(null);
         wsRef.current = null;
-        
-        // Only reconnect if it wasn't a clean close and component is still mounted
+
         if (event.code !== 1000 && event.code !== 1001 && mountedRef.current) {
-          console.log('🔄 Attempting to reconnect in 3 seconds...');
+          reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000);
           reconnectTimeoutRef.current = setTimeout(() => {
             if (mountedRef.current) {
+              console.log(`Attempting reconnect in ${reconnectDelay.current}ms`);
               connectWebSocket();
             }
-          }, 3000);
+          }, reconnectDelay.current);
         }
       };
 
-      ws.onerror = (error) => {
-        console.error('❌ WebSocket error:', error);
-        console.error('WebSocket error details:', {
-          url: ws.url,
-          readyState: ws.readyState,
-          protocol: ws.protocol
-        });
-        
-        if (!mountedRef.current) return;
-        
-        setIsConnected(false);
-      };
+      ws.onerror = handleWebSocketError;
 
     } catch (error) {
-      console.error('❌ Error creating WebSocket connection:', error);
+      console.error('Error creating WebSocket connection:', error);
       setIsConnected(false);
+      setIsConnecting(false);
+      reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        if (mountedRef.current) {
+          console.log(`Attempting reconnect in ${reconnectDelay.current}ms`);
+          connectWebSocket();
+        }
+      }, reconnectDelay.current);
     }
-  }, [conversationId, userId, setMessages, setConversations, setTypingUsers, setOnlineUsers, cleanup]);
+  }, [
+    isGlobalConnected,
+    globalState.globalWs,
+    conversationId,
+    userId,
+    cleanup,
+    handleTypingUpdate,
+    parseMessageData,
+    handleWebSocketError,
+    processPendingReadOperations
+  ]);
 
-  // Effect to handle connection
+  const canSendMessages = useCallback(() => {
+    return mountedRef.current &&
+      (wsRef.current?.readyState === WebSocket.OPEN ||
+        (isGlobalConnected && globalState.globalWs?.readyState === WebSocket.OPEN));
+  }, [isGlobalConnected, globalState.globalWs]);
+
   useEffect(() => {
     mountedRef.current = true;
-    
-    // Add a small delay to ensure component is fully mounted
-    const timeoutId = setTimeout(() => {
+    const connect = () => {
       if (mountedRef.current && conversationId && userId) {
         connectWebSocket();
       }
-    }, 100);
+    };
+
+    const timeoutId = setTimeout(connect, 100);
 
     return () => {
       mountedRef.current = false;
       clearTimeout(timeoutId);
       cleanup();
+      Object.values(typingTimeoutsRef.current).forEach(clearTimeout);
     };
   }, [conversationId, userId, connectWebSocket, cleanup]);
 
-  // Memoized send functions to prevent unnecessary re-renders
-  const sendTypingUpdate = useCallback((isTyping: boolean) => {
-    if (!mountedRef.current) return;
-    
-    try {
-      const ws = wsRef.current;
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        const message = {
-          type: 'typing_update',
-          conversationId,
-          userId,
-          username: 'Current User',
-          isTyping
-        };
-        
-        console.log('📤 Sending typing update:', message);
-        ws.send(JSON.stringify(message));
-      } else {
-        console.log('❌ Cannot send typing update - WebSocket not ready');
-      }
-    } catch (error) {
-      console.error('❌ Error sending typing indicator:', error);
-    }
-  }, [conversationId, userId]);
-
-  const sendMessage = useCallback((message: any) => {
-    if (!mountedRef.current) return;
-    
-    try {
-      const ws = wsRef.current;
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        const wsMessage = {
-          type: 'new_message',
-          message
-        };
-        
-        console.log('📤 Sending new message via WebSocket:', wsMessage);
-        ws.send(JSON.stringify(wsMessage));
-      } else {
-        console.log('❌ Cannot send message - WebSocket not ready');
-      }
-    } catch (error) {
-      console.error('❌ Error sending message via WebSocket:', error);
-    }
+  // Clean up pending operations on unmount
+  useEffect(() => {
+    return () => {
+      pendingReadOperations.current = [];
+    };
   }, []);
+
+  useEffect(() => {
+    console.log('WebSocket connection state changed:', {
+      isConnected,
+      readyState: wsRef.current?.readyState,
+      globalReadyState: globalState.globalWs?.readyState
+    });
+  }, [isConnected, globalState.globalWs]);
+
+  const sendTypingUpdate = useCallback((isTyping: boolean) => {
+    if (!mountedRef.current || !userId) return false;
+    
+    if (!canSendMessages()) {
+      console.error('Cannot send typing update - no active WebSocket connection');
+      return false;
+    }
+
+    try {
+      const ws = wsRef.current || globalState.globalWs;
+      const message = {
+        type: 'typing_update',
+        conversationId,
+        userId,
+        username: 'Current User', // Replace with actual username
+        isTyping,
+        timestamp: Date.now()
+      };
+      
+      ws?.send(JSON.stringify(message));
+      
+      if (sendGlobalTypingUpdate) {
+        sendGlobalTypingUpdate(conversationId, userId, 'Current User', isTyping);
+      }
+      return true;
+    } catch (error) {
+      console.error('Error sending typing indicator:', error);
+      return false;
+    }
+  }, [conversationId, userId, globalState.globalWs, sendGlobalTypingUpdate, canSendMessages]);
+
+  const sendMessage = useCallback((message: Message) => {
+    if (!mountedRef.current) return false;
+
+    if (!canSendMessages()) {
+      console.error('Cannot send message - no active WebSocket connection');
+      return false;
+    }
+
+    try {
+      const ws = wsRef.current || globalState.globalWs;
+      const wsMessage = {
+        type: 'new_message',
+        message
+      };
+      ws?.send(JSON.stringify(wsMessage));
+      return true;
+    } catch (error) {
+      console.error('Error sending message:', error);
+      return false;
+    }
+  }, [globalState.globalWs, canSendMessages]);
+
+  const markMessageAsRead = useCallback((messageId: string) => {
+    if (!mountedRef.current) return false;
+
+    if (!canSendMessages()) {
+      pendingReadOperations.current.push({
+        messageId,
+        timestamp: Date.now()
+      });
+
+      if (!isConnecting) {
+        connectWebSocket();
+      }
+
+      console.warn('Queued read operation - no active WebSocket connection');
+      return false;
+    }
+
+    try {
+      const ws = wsRef.current || globalState.globalWs;
+      const message = {
+        type: 'mark_read',
+        messageId,
+        userId,
+        conversationId
+      };
+      ws?.send(JSON.stringify(message));
+      return true;
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+      return false;
+    }
+  }, [userId, conversationId, globalState.globalWs, canSendMessages, isConnecting, connectWebSocket]);
 
   return {
     isConnected,
     wsConnection,
     sendTypingUpdate,
-    sendMessage
+    sendMessage,
+    markMessageAsRead,
+    isGlobalConnected,
+    isConnecting 
   };
 };

@@ -51,6 +51,7 @@ export interface Message {
   reply_to?: Message;
   reactions?: MessageReaction[];
   isRead?: boolean;
+  read_by?: string[];
 }
 
 export interface MessageReaction {
@@ -97,6 +98,7 @@ export interface Conversation {
   participants: ConversationParticipant[];
   last_message?: Message;
   unread_count?: number;
+  typingUsers?: TypingUser[];
 }
 
 // ---------------------------
