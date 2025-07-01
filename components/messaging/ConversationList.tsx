@@ -3,9 +3,31 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Search, Plus } from 'lucide-react';
 import { Conversation, TypingUser, Message } from '../../types/messaging';
 import ConversationItem from './ConversationItem';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { useUser } from '@clerk/nextjs';
 import { useGlobalTyping } from '@/context/GlobalTypingContext';
+
+// Define simplified types for better compatibility
+interface MessagePayload {
+  new: any;
+  old?: any;
+  eventType: string;
+}
+
+interface ConversationPayload {
+  new: any;
+  old?: any;
+  eventType: string;
+}
+
+// Type guards
+const isValidMessage = (obj: any): obj is Message => {
+  return obj && typeof obj === 'object' && 'id' in obj && 'conversation_id' in obj;
+};
+
+const isValidConversation = (obj: any): obj is Conversation => {
+  return obj && typeof obj === 'object' && 'id' in obj && 'type' in obj;
+};
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -38,6 +60,7 @@ export default function ConversationList({
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   const lastUpdateRef = useRef<string>('');
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const channelsRef = useRef<RealtimeChannel[]>([]);
 
   // Initialize Supabase client once
   const supabase = useMemo(() => {
@@ -71,7 +94,7 @@ export default function ConversationList({
     }, 100); // 100ms debounce
   }, [onConversationsUpdate]);
 
-  // Update conversations when props change (with proper comparison)
+  // Update conversations when props change
   useEffect(() => {
     const newHash = createConversationHash(conversations);
     if (newHash !== lastUpdateRef.current && conversations.length > 0) {
@@ -81,26 +104,51 @@ export default function ConversationList({
     }
   }, [conversations, createConversationHash]);
 
+  // Cleanup function for channels
+  const cleanupChannels = useCallback(() => {
+    console.log('🧹 Cleaning up channels');
+    channelsRef.current.forEach(channel => {
+      supabase.removeChannel(channel).catch(console.error);
+    });
+    channelsRef.current = [];
+  }, [supabase]);
+
   // Real-time message subscriptions
   useEffect(() => {
     if (!user?.id || !mountedRef.current) return;
 
     console.log('🔄 Setting up real-time subscriptions for user:', user.id);
 
+    // Clean up existing channels first
+    cleanupChannels();
+
     // Message INSERT subscription
     const messageChannel = supabase
-      .channel(`messages-${user.id}`)
+      .channel(`messages-${user.id}`, {
+        config: {
+          presence: {
+            key: user.id,
+          },
+        },
+      })
       .on(
-        'postgres_changes',
+        'postgres_changes' as any,
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
+          filter: `sender_id=neq.${user.id}`,
         },
         (payload: any) => {
           if (!mountedRef.current) return;
-
-          const newMessage = payload.new as Message;
+          const newMessage = payload.new;
+          
+          // Type guard to ensure we have a valid message
+          if (!isValidMessage(newMessage)) {
+            console.warn('Invalid message payload received:', newMessage);
+            return;
+          }
+          
           console.log('💬 New message received:', newMessage.conversation_id);
 
           setRealTimeConversations(prevConversations => {
@@ -110,15 +158,12 @@ export default function ConversationList({
                   ...conv,
                   last_message: newMessage,
                   last_message_at: newMessage.created_at,
-                  unread_count: newMessage.sender_id !== user.id
-                    ? (conv.unread_count || 0) + 1
-                    : conv.unread_count || 0
+                  unread_count: (conv.unread_count || 0) + 1
                 };
               }
               return conv;
             });
 
-            // Only call update if there are actual changes
             const newHash = createConversationHash(updatedConversations);
             const oldHash = createConversationHash(prevConversations);
             
@@ -131,7 +176,7 @@ export default function ConversationList({
         }
       )
       .on(
-        'postgres_changes',
+        'postgres_changes' as any,
         {
           event: 'UPDATE',
           schema: 'public',
@@ -139,8 +184,14 @@ export default function ConversationList({
         },
         (payload: any) => {
           if (!mountedRef.current) return;
-
-          const updatedMessage = payload.new as Message;
+          const updatedMessage = payload.new;
+          
+          // Type guard to ensure we have a valid message
+          if (!isValidMessage(updatedMessage)) {
+            console.warn('Invalid message update payload received:', updatedMessage);
+            return;
+          }
+          
           console.log('✏️ Message updated:', updatedMessage.conversation_id);
 
           setRealTimeConversations(prevConversations => {
@@ -156,7 +207,6 @@ export default function ConversationList({
               return conv;
             });
 
-            // Only call update if there are actual changes
             const newHash = createConversationHash(updatedConversations);
             const oldHash = createConversationHash(prevConversations);
             
@@ -167,34 +217,44 @@ export default function ConversationList({
             return updatedConversations;
           });
         }
-      )
-      .subscribe();
+      );
 
     // Conversation updates subscription
     const conversationChannel = supabase
-      .channel(`conversations-${user.id}`)
+      .channel(`conversations-${user.id}`, {
+        config: {
+          presence: {
+            key: user.id,
+          },
+        },
+      })
       .on(
-        'postgres_changes',
+        'postgres_changes' as any,
         {
           event: '*',
           schema: 'public',
-          table: 'conversations'
+          table: 'conversations',
+          filter: `participants=cs.["${user.id}"]`,
         },
         (payload: any) => {
           if (!mountedRef.current) return;
-
           console.log('🔄 Conversation event:', payload.eventType);
+          
+          const conversation = payload.new;
+          
+          // Type guard to ensure we have a valid conversation
+          if (!isValidConversation(conversation)) {
+            console.warn('Invalid conversation payload received:', conversation);
+            return;
+          }
           
           setRealTimeConversations(prevConversations => {
             let updatedConversations = [...prevConversations];
-            const conversation = payload.new as Conversation;
 
             switch (payload.eventType) {
               case 'INSERT':
-                if (conversation.participants?.some(p => p.user_id === user.id)) {
-                  console.log('🆕 Adding new conversation:', conversation.id);
-                  updatedConversations = [...prevConversations, conversation];
-                }
+                console.log('🆕 Adding new conversation:', conversation.id);
+                updatedConversations = [...prevConversations, conversation];
                 break;
               
               case 'UPDATE':
@@ -210,7 +270,6 @@ export default function ConversationList({
                 break;
             }
 
-            // Only call update if there are actual changes
             const newHash = createConversationHash(updatedConversations);
             const oldHash = createConversationHash(prevConversations);
             
@@ -221,10 +280,15 @@ export default function ConversationList({
             return updatedConversations;
           });
         }
-      )
-      .subscribe();
+      );
 
-    // Cleanup function
+    // Subscribe to channels
+    messageChannel.subscribe();
+    conversationChannel.subscribe();
+
+    // Store channel references
+    channelsRef.current = [messageChannel, conversationChannel];
+
     return () => {
       console.log('🧹 Cleaning up conversation list subscriptions');
       mountedRef.current = false;
@@ -233,10 +297,9 @@ export default function ConversationList({
         clearTimeout(updateTimeoutRef.current);
       }
 
-      messageChannel.unsubscribe();
-      conversationChannel.unsubscribe();
+      cleanupChannels();
     };
-  }, [user?.id, supabase, createConversationHash, debouncedUpdate]);
+  }, [user?.id, supabase, createConversationHash, debouncedUpdate, cleanupChannels]);
 
   // Cleanup on unmount
   useEffect(() => {

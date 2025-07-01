@@ -20,7 +20,7 @@
     "@sanity/image-url": "^1.1.0",
     "@sanity/vision": "^3.84.0",
     "@supabase/ssr": "^0.6.1",
-    "@supabase/supabase-js": "^2.49.4",
+    "@supabase/supabase-js": "^2.50.2",
     "@uiw/react-md-editor": "^4.0.5",
     "@xata.io/client": "^0.0.0-next.v93343b9646f57a1e5c51c35eccf0767c2bb80baa",
     "axios": "^1.8.4",
