@@ -1,33 +1,24 @@
-// components/messaging/ConversationsList.tsx
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { Conversation, TypingUser, Message } from '../../types/messaging';
 import ConversationItem from './ConversationItem';
-import { createClient, RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { useUser } from '@clerk/nextjs';
 import { useGlobalTyping } from '@/context/GlobalTypingContext';
 
-// Define simplified types for better compatibility
-interface MessagePayload {
-  new: any;
-  old?: any;
-  eventType: string;
+// Ultra-defensive typing approach - treating all realtime payloads as unknown
+interface GenericRealtimePayload {
+  [key: string]: unknown;
+  new?: unknown;
+  old?: unknown;
+  eventType?: string;
+  event?: string;
+  schema?: string;
+  table?: string;
+  commit_timestamp?: string;
+  errors?: string[];
 }
-
-interface ConversationPayload {
-  new: any;
-  old?: any;
-  eventType: string;
-}
-
-// Type guards
-const isValidMessage = (obj: any): obj is Message => {
-  return obj && typeof obj === 'object' && 'id' in obj && 'conversation_id' in obj;
-};
-
-const isValidConversation = (obj: any): obj is Conversation => {
-  return obj && typeof obj === 'object' && 'id' in obj && 'type' in obj;
-};
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -41,6 +32,81 @@ interface ConversationListProps {
   typingUsers?: Record<string, TypingUser[]>;
   realtimeMessages?: Message[];
 }
+
+// Comprehensive type guards with detailed validation
+const isValidMessage = (obj: unknown): obj is Message => {
+  if (!obj || typeof obj !== 'object' || obj === null) return false;
+  
+  const msgObj = obj as Record<string, unknown>;
+  
+  // Check required fields
+  const hasRequiredFields = (
+    typeof msgObj.id === 'string' &&
+    typeof msgObj.conversation_id === 'string' &&
+    typeof msgObj.content === 'string' &&
+    typeof msgObj.sender_id === 'string' &&
+    typeof msgObj.created_at === 'string'
+  );
+  
+  if (!hasRequiredFields) return false;
+  
+  // Check optional fields if they exist
+  if (msgObj.updated_at !== undefined && typeof msgObj.updated_at !== 'string') return false;
+  if (msgObj.message_type !== undefined && typeof msgObj.message_type !== 'string') return false;
+  if (msgObj.is_edited !== undefined && typeof msgObj.is_edited !== 'boolean') return false;
+  if (msgObj.is_deleted !== undefined && typeof msgObj.is_deleted !== 'boolean') return false;
+  
+  return true;
+};
+
+const isValidConversation = (obj: unknown): obj is Conversation => {
+  if (!obj || typeof obj !== 'object' || obj === null) return false;
+  
+  const convObj = obj as Record<string, unknown>;
+  
+  // Check required fields
+  const hasRequiredFields = (
+    typeof convObj.id === 'string' &&
+    typeof convObj.type === 'string' &&
+    (convObj.type === 'direct' || convObj.type === 'group')
+  );
+  
+  if (!hasRequiredFields) return false;
+  
+  // Check optional fields if they exist
+  if (convObj.name !== undefined && typeof convObj.name !== 'string') return false;
+  if (convObj.created_at !== undefined && typeof convObj.created_at !== 'string') return false;
+  if (convObj.last_message_at !== undefined && typeof convObj.last_message_at !== 'string') return false;
+  if (convObj.unread_count !== undefined && typeof convObj.unread_count !== 'number') return false;
+  if (convObj.participants !== undefined && !Array.isArray(convObj.participants)) return false;
+  
+  return true;
+};
+
+// Safe payload extraction functions
+const extractMessageFromPayload = (payload: GenericRealtimePayload): Message | null => {
+  try {
+    const candidate = payload.new || payload.old;
+    return isValidMessage(candidate) ? candidate : null;
+  } catch (error) {
+    console.warn('Error extracting message from payload:', error);
+    return null;
+  }
+};
+
+const extractConversationFromPayload = (payload: GenericRealtimePayload): Conversation | null => {
+  try {
+    const candidate = payload.new || payload.old;
+    return isValidConversation(candidate) ? candidate : null;
+  } catch (error) {
+    console.warn('Error extracting conversation from payload:', error);
+    return null;
+  }
+};
+
+const getEventType = (payload: GenericRealtimePayload): string => {
+  return (payload.eventType || payload.event || 'UNKNOWN') as string;
+};
 
 export default function ConversationList({
   conversations,
@@ -60,9 +126,9 @@ export default function ConversationList({
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   const lastUpdateRef = useRef<string>('');
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const channelsRef = useRef<RealtimeChannel[]>([]);
+  const channelRefs = useRef<Array<{ unsubscribe: () => void }>>([]);
 
-  // Initialize Supabase client once
+  // Initialize Supabase client
   const supabase = useMemo(() => {
     if (!supabaseRef.current) {
       supabaseRef.current = createClient(
@@ -81,7 +147,7 @@ export default function ConversationList({
       .join('|');
   }, []);
 
-  // Debounced update function to prevent rapid successive calls
+  // Debounced update function
   const debouncedUpdate = useCallback((newConversations: Conversation[]) => {
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
@@ -91,7 +157,7 @@ export default function ConversationList({
       if (onConversationsUpdate && mountedRef.current) {
         onConversationsUpdate(newConversations);
       }
-    }, 100); // 100ms debounce
+    }, 100);
   }, [onConversationsUpdate]);
 
   // Update conversations when props change
@@ -104,154 +170,97 @@ export default function ConversationList({
     }
   }, [conversations, createConversationHash]);
 
-  // Cleanup function for channels
-  const cleanupChannels = useCallback(() => {
-    console.log('🧹 Cleaning up channels');
-    channelsRef.current.forEach(channel => {
-      supabase.removeChannel(channel).catch(console.error);
+  // Cleanup function
+  const cleanup = useCallback(() => {
+    console.log('🧹 Cleaning up subscriptions');
+    channelRefs.current.forEach(channel => {
+      try {
+        channel.unsubscribe();
+      } catch (error) {
+        console.error('Error unsubscribing:', error);
+      }
     });
-    channelsRef.current = [];
-  }, [supabase]);
+    channelRefs.current = [];
+  }, []);
 
-  // Real-time message subscriptions
-  useEffect(() => {
-    if (!user?.id || !mountedRef.current) return;
+  // Error-resistant subscription handler
+  const createSubscriptionHandler = useCallback((
+    handlerType: 'message' | 'conversation',
+    eventType: string
+  ) => {
+    return (payload: unknown) => {
+      if (!mountedRef.current) return;
 
-    console.log('🔄 Setting up real-time subscriptions for user:', user.id);
-
-    // Clean up existing channels first
-    cleanupChannels();
-
-    // Message INSERT subscription
-    const messageChannel = supabase
-      .channel(`messages-${user.id}`, {
-        config: {
-          presence: {
-            key: user.id,
-          },
-        },
-      })
-      .on(
-        'postgres_changes' as any,
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `sender_id=neq.${user.id}`,
-        },
-        (payload: any) => {
-          if (!mountedRef.current) return;
-          const newMessage = payload.new;
+      try {
+        // Cast to our generic payload type
+        const genericPayload = payload as GenericRealtimePayload;
+        
+        if (handlerType === 'message') {
+          const message = extractMessageFromPayload(genericPayload);
+          const actualEventType = getEventType(genericPayload);
           
-          // Type guard to ensure we have a valid message
-          if (!isValidMessage(newMessage)) {
-            console.warn('Invalid message payload received:', newMessage);
+          if (!message) {
+            console.warn('Invalid message payload received:', genericPayload);
             return;
           }
-          
-          console.log('💬 New message received:', newMessage.conversation_id);
 
-          setRealTimeConversations(prevConversations => {
-            const updatedConversations = prevConversations.map(conv => {
-              if (conv.id === newMessage.conversation_id) {
-                return {
-                  ...conv,
-                  last_message: newMessage,
-                  last_message_at: newMessage.created_at,
-                  unread_count: (conv.unread_count || 0) + 1
-                };
-              }
-              return conv;
-            });
+          console.log(`💬 Message ${actualEventType.toLowerCase()}:`, message.conversation_id);
 
-            const newHash = createConversationHash(updatedConversations);
-            const oldHash = createConversationHash(prevConversations);
-            
-            if (newHash !== oldHash) {
-              debouncedUpdate(updatedConversations);
-            }
-
-            return updatedConversations;
-          });
-        }
-      )
-      .on(
-        'postgres_changes' as any,
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-        },
-        (payload: any) => {
-          if (!mountedRef.current) return;
-          const updatedMessage = payload.new;
-          
-          // Type guard to ensure we have a valid message
-          if (!isValidMessage(updatedMessage)) {
-            console.warn('Invalid message update payload received:', updatedMessage);
-            return;
-          }
-          
-          console.log('✏️ Message updated:', updatedMessage.conversation_id);
-
-          setRealTimeConversations(prevConversations => {
-            const updatedConversations = prevConversations.map(conv => {
-              if (conv.id === updatedMessage.conversation_id &&
-                  conv.last_message?.id === updatedMessage.id) {
-                return {
-                  ...conv,
-                  last_message: updatedMessage,
-                  last_message_at: updatedMessage.updated_at || updatedMessage.created_at
-                };
-              }
-              return conv;
-            });
-
-            const newHash = createConversationHash(updatedConversations);
-            const oldHash = createConversationHash(prevConversations);
-            
-            if (newHash !== oldHash) {
-              debouncedUpdate(updatedConversations);
-            }
-
-            return updatedConversations;
-          });
-        }
-      );
-
-    // Conversation updates subscription
-    const conversationChannel = supabase
-      .channel(`conversations-${user.id}`, {
-        config: {
-          presence: {
-            key: user.id,
-          },
-        },
-      })
-      .on(
-        'postgres_changes' as any,
-        {
-          event: '*',
-          schema: 'public',
-          table: 'conversations',
-          filter: `participants=cs.["${user.id}"]`,
-        },
-        (payload: any) => {
-          if (!mountedRef.current) return;
-          console.log('🔄 Conversation event:', payload.eventType);
-          
-          const conversation = payload.new;
-          
-          // Type guard to ensure we have a valid conversation
-          if (!isValidConversation(conversation)) {
-            console.warn('Invalid conversation payload received:', conversation);
-            return;
-          }
-          
           setRealTimeConversations(prevConversations => {
             let updatedConversations = [...prevConversations];
 
-            switch (payload.eventType) {
+            if (actualEventType === 'INSERT' && message.sender_id !== currentUserId) {
+              // Handle new message from others
+              updatedConversations = prevConversations.map(conv => {
+                if (conv.id === message.conversation_id) {
+                  return {
+                    ...conv,
+                    last_message: message,
+                    last_message_at: message.created_at,
+                    unread_count: (conv.unread_count || 0) + 1
+                  };
+                }
+                return conv;
+              });
+            } else if (actualEventType === 'UPDATE') {
+              // Handle message updates
+              updatedConversations = prevConversations.map(conv => {
+                if (conv.id === message.conversation_id &&
+                    conv.last_message?.id === message.id) {
+                  return {
+                    ...conv,
+                    last_message: message,
+                    last_message_at: message.updated_at || message.created_at
+                  };
+                }
+                return conv;
+              });
+            }
+
+            const newHash = createConversationHash(updatedConversations);
+            const oldHash = createConversationHash(prevConversations);
+            
+            if (newHash !== oldHash) {
+              debouncedUpdate(updatedConversations);
+            }
+
+            return updatedConversations;
+          });
+        } else if (handlerType === 'conversation') {
+          const conversation = extractConversationFromPayload(genericPayload);
+          const actualEventType = getEventType(genericPayload);
+          
+          if (!conversation) {
+            console.warn('Invalid conversation payload received:', genericPayload);
+            return;
+          }
+
+          console.log(`🔄 Conversation ${actualEventType.toLowerCase()}:`, conversation.id);
+
+          setRealTimeConversations(prevConversations => {
+            let updatedConversations = [...prevConversations];
+
+            switch (actualEventType) {
               case 'INSERT':
                 console.log('🆕 Adding new conversation:', conversation.id);
                 updatedConversations = [...prevConversations, conversation];
@@ -268,6 +277,10 @@ export default function ConversationList({
                 console.log('🗑️ Removing conversation:', conversation.id);
                 updatedConversations = prevConversations.filter(conv => conv.id !== conversation.id);
                 break;
+
+              default:
+                console.log('Unknown conversation event type:', actualEventType);
+                break;
             }
 
             const newHash = createConversationHash(updatedConversations);
@@ -280,14 +293,87 @@ export default function ConversationList({
             return updatedConversations;
           });
         }
-      );
+      } catch (error) {
+        console.error(`Error handling ${handlerType} ${eventType} event:`, error);
+      }
+    };
+  }, [currentUserId, createConversationHash, debouncedUpdate]);
 
-    // Subscribe to channels
-    messageChannel.subscribe();
-    conversationChannel.subscribe();
+  // Real-time subscriptions with maximum defensive approach
+  useEffect(() => {
+    if (!user?.id || !mountedRef.current) return;
 
-    // Store channel references
-    channelsRef.current = [messageChannel, conversationChannel];
+    console.log('🔄 Setting up real-time subscriptions for user:', user.id);
+    cleanup();
+
+    try {
+      // Message subscription with completely generic typing
+      const messageChannel = supabase
+        .channel(`messages-${user.id}-${Date.now()}`)
+        .on(
+          'postgres_changes' as any, // Bypass all type checking
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `sender_id=neq.${user.id}`,
+          } as any,
+          createSubscriptionHandler('message', 'INSERT')
+        )
+        .on(
+          'postgres_changes' as any,
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'messages',
+          } as any,
+          createSubscriptionHandler('message', 'UPDATE')
+        );
+
+      // Conversation subscription with completely generic typing
+      const conversationChannel = supabase
+        .channel(`conversations-${user.id}-${Date.now()}`)
+        .on(
+          'postgres_changes' as any,
+          {
+            event: '*',
+            schema: 'public',
+            table: 'conversations',
+            filter: `participants=cs.["${user.id}"]`,
+          } as any,
+          createSubscriptionHandler('conversation', '*')
+        );
+
+      // Subscribe with error handling
+      const subscriptions = [
+        messageChannel.subscribe((status: string) => {
+          console.log('Message channel status:', status);
+          if (status === 'CHANNEL_ERROR') {
+            console.error('Message channel subscription failed');
+          }
+        }),
+        conversationChannel.subscribe((status: string) => {
+          console.log('Conversation channel status:', status);
+          if (status === 'CHANNEL_ERROR') {
+            console.error('Conversation channel subscription failed');
+          }
+        })
+      ];
+
+      // Store channel references for cleanup
+      channelRefs.current = [
+        { unsubscribe: () => supabase.removeChannel(messageChannel) },
+        { unsubscribe: () => supabase.removeChannel(conversationChannel) }
+      ];
+
+      // Wait for subscriptions to complete
+      Promise.all(subscriptions).catch(error => {
+        console.error('Error subscribing to channels:', error);
+      });
+
+    } catch (error) {
+      console.error('Error setting up realtime subscriptions:', error);
+    }
 
     return () => {
       console.log('🧹 Cleaning up conversation list subscriptions');
@@ -297,9 +383,9 @@ export default function ConversationList({
         clearTimeout(updateTimeoutRef.current);
       }
 
-      cleanupChannels();
+      cleanup();
     };
-  }, [user?.id, supabase, createConversationHash, debouncedUpdate, cleanupChannels]);
+  }, [user?.id, supabase, cleanup, createSubscriptionHandler]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -514,3 +600,51 @@ export default function ConversationList({
     </div>
   );
 }
+
+// Additional utility functions for even more defensive programming
+
+// Utility to safely parse JSON strings from unknown sources
+export const safeJsonParse = (jsonString: unknown): unknown => {
+  if (typeof jsonString !== 'string') return null;
+  
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.warn('Failed to parse JSON:', error);
+    return null;
+  }
+};
+
+// Utility to safely access nested object properties
+export const safeGet = (obj: unknown, path: string): unknown => {
+  if (!obj || typeof obj !== 'object') return undefined;
+  
+  const keys = path.split('.');
+  let current = obj as Record<string, unknown>;
+  
+  for (const key of keys) {
+    if (current === null || current === undefined || typeof current !== 'object') {
+      return undefined;
+    }
+    current = current[key] as Record<string, unknown>;
+  }
+  
+  return current;
+};
+
+// Enhanced error boundary for realtime subscriptions
+export const withErrorBoundary = <T extends unknown[]>(
+  fn: (...args: T) => void,
+  fallback?: () => void
+) => {
+  return (...args: T) => {
+    try {
+      fn(...args);
+    } catch (error) {
+      console.error('Error in subscription handler:', error);
+      if (fallback) {
+        fallback();
+      }
+    }
+  };
+};
