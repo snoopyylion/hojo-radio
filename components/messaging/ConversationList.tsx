@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { Conversation, TypingUser, Message } from '../../types/messaging';
 import ConversationItem from './ConversationItem';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useUser } from '@clerk/nextjs';
 import { useGlobalNotifications } from '@/context/GlobalNotificationsContext';
 import { useGlobalTyping } from '@/context/GlobalTypingContext';
@@ -21,6 +21,8 @@ interface ConversationListProps {
   realtimeMessages?: Message[];
 }
 
+// Note: Using any types for Supabase payloads due to typing conflicts
+
 export default function ConversationList({
   conversations,
   activeConversationId,
@@ -29,7 +31,6 @@ export default function ConversationList({
   currentUserId,
   isLoading,
   onConversationsUpdate,
-  realtimeMessages,
 }: ConversationListProps) {
   const { typingUsers } = useGlobalTyping();
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,9 +38,8 @@ export default function ConversationList({
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
 
   const { user } = useUser();
-  const { isGlobalConnected } = useGlobalNotifications();
   const mountedRef = useRef(true);
-  const supabaseRef = useRef<any>(null);
+  const supabaseRef = useRef<SupabaseClient | null>(null);
 
   // Initialize Supabase client with ref to prevent recreation
   if (!supabaseRef.current) {
@@ -57,14 +57,14 @@ export default function ConversationList({
       setRealTimeConversations(conversations);
       setLastUpdateTime(Date.now());
     }
-  }, [conversations]);
+  }, [conversations, realTimeConversations]);
 
   // Add this effect to handle conversation updates
   useEffect(() => {
     if (onConversationsUpdate && realTimeConversations !== conversations) {
       onConversationsUpdate(realTimeConversations);
     }
-  }, [realTimeConversations, onConversationsUpdate]);
+  }, [realTimeConversations, onConversationsUpdate, conversations]);
 
   // Enhanced real-time subscriptions
   useEffect(() => {
@@ -76,7 +76,7 @@ export default function ConversationList({
     const messageChannel = supabase
       .channel('conversations-messages')
       .on(
-        'postgres_changes',
+        'postgres_changes' as any,
         {
           event: 'INSERT',
           schema: 'public',
@@ -89,7 +89,7 @@ export default function ConversationList({
           console.log('💬 New message received in conversation list:', newMessage);
 
           // Compute the new state first
-          const updated = realTimeConversations.map(conv => {
+          setRealTimeConversations(prev => prev.map(conv => {
             if (conv.id === newMessage.conversation_id) {
               const updatedConv = {
                 ...conv,
@@ -104,14 +104,11 @@ export default function ConversationList({
               return updatedConv;
             }
             return conv;
-          });
-
-          // Then update state
-          setRealTimeConversations(updated);
+          }));
         }
       )
       .on(
-        'postgres_changes',
+        'postgres_changes' as any,
         {
           event: 'UPDATE',
           schema: 'public',
@@ -124,7 +121,7 @@ export default function ConversationList({
           console.log('✏️ Message updated in conversation list:', updatedMessage);
 
           // Compute the new state first
-          const updated = realTimeConversations.map(conv => {
+          setRealTimeConversations(prev => prev.map(conv => {
             if (conv.id === updatedMessage.conversation_id &&
               conv.last_message?.id === updatedMessage.id) {
               return {
@@ -134,10 +131,7 @@ export default function ConversationList({
               };
             }
             return conv;
-          });
-
-          // Then update state
-          setRealTimeConversations(updated);
+          }));
         }
       )
       .subscribe();
@@ -145,11 +139,11 @@ export default function ConversationList({
     // Subscribe to conversation updates - Enhanced with your new logic
     const conversationChannel = supabase
       .channel('conversations-updates')
-      .on('postgres_changes', {
+      .on('postgres_changes' as any, {
         event: '*',
         schema: 'public',
         table: 'conversations'
-      }, (payload: { eventType: string; new: Conversation; old: Conversation }) => {
+      }, (payload: any) => {
         if (!mountedRef.current) return;
 
         const updatedConversation = payload.new as Conversation;
@@ -190,7 +184,7 @@ export default function ConversationList({
       .on('broadcast', { event: 'typing' }, (payload: any) => {
         if (!mountedRef.current) return;
 
-        const { conversation_id, user_id, username, is_typing } = payload.payload;
+        const { conversation_id, user_id, is_typing } = payload.payload;
 
         // Don't show typing indicator for current user
         if (user_id === user.id) return;
@@ -218,8 +212,7 @@ export default function ConversationList({
     // Clean up typing indicators periodically
     const cleanupInterval = setInterval(() => {
       if (!mountedRef.current) return;
-
-      const now = Date.now();
+      // Cleanup logic can be added here if needed
     }, 2000);
 
     // Cleanup function
@@ -234,7 +227,7 @@ export default function ConversationList({
 
       clearInterval(cleanupInterval);
     };
-  }, [user?.id, supabase, realTimeConversations]);
+  }, [user?.id, supabase]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -279,7 +272,7 @@ export default function ConversationList({
       const bTime = new Date(b.last_message_at || b.created_at).getTime();
       return bTime - aTime;
     });
-  }, [realTimeConversations, lastUpdateTime]);
+  }, [realTimeConversations]);
 
   // Optimized search filtering
   const filteredConversations = React.useMemo(() => {
@@ -345,22 +338,22 @@ const getTypingIndicator = useCallback((conversationId: string) => {
     console.log('🎯 Selecting conversation:', conversationId);
 
     // Compute the new state first
-    const updated = realTimeConversations.map(conv => {
+    setRealTimeConversations(prev => prev.map(conv => {
       if (conv.id === conversationId && conv.unread_count && conv.unread_count > 0) {
         return { ...conv, unread_count: 0 };
       }
       return conv;
-    });
+    }));
     
-    // Then update state
-    setRealTimeConversations(updated);
-    
-    // Finally call the callbacks
-    if (onConversationsUpdate) {
-      onConversationsUpdate(updated);
-    }
     onConversationSelect(conversationId);
-  }, [realTimeConversations, onConversationSelect, onConversationsUpdate]);
+  }, [onConversationSelect]);
+
+  // Handle conversations update when realTimeConversations changes
+  useEffect(() => {
+    if (onConversationsUpdate) {
+      onConversationsUpdate(realTimeConversations);
+    }
+  }, [realTimeConversations, onConversationsUpdate]);
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-950">
