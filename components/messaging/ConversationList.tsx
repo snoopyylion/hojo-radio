@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { Conversation, TypingUser, Message } from '../../types/messaging';
@@ -18,6 +17,14 @@ interface GenericRealtimePayload {
   table?: string;
   commit_timestamp?: string;
   errors?: string[];
+}
+
+// Supabase-compatible filter type
+interface SupabasePostgresFilter {
+  event: 'INSERT' | 'UPDATE' | 'DELETE' | '*';
+  schema: string;
+  table: string;
+  filter?: string;
 }
 
 interface ConversationListProps {
@@ -307,42 +314,43 @@ export default function ConversationList({
     cleanup();
 
     try {
-      // Message subscription with completely generic typing
-      const messageChannel = supabase
-        .channel(`messages-${user.id}-${Date.now()}`)
-        .on(
-          'postgres_changes' as any, // Bypass all type checking
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `sender_id=neq.${user.id}`,
-          } as any,
-          createSubscriptionHandler('message', 'INSERT')
-        )
-        .on(
-          'postgres_changes' as any,
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'messages',
-          } as any,
-          createSubscriptionHandler('message', 'UPDATE')
-        );
+      // Create channels and subscribe with proper Supabase typing
+      const messageChannel = supabase.channel(`messages-${user.id}-${Date.now()}`);
+      const conversationChannel = supabase.channel(`conversations-${user.id}-${Date.now()}`);
 
-      // Conversation subscription with completely generic typing
-      const conversationChannel = supabase
-        .channel(`conversations-${user.id}-${Date.now()}`)
-        .on(
-          'postgres_changes' as any,
-          {
-            event: '*',
-            schema: 'public',
-            table: 'conversations',
-            filter: `participants=cs.["${user.id}"]`,
-          } as any,
-          createSubscriptionHandler('conversation', '*')
-        );
+      // Subscribe to message changes
+      messageChannel.on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `sender_id=neq.${user.id}`,
+        },
+        createSubscriptionHandler('message', 'INSERT')
+      );
+
+      messageChannel.on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+        },
+        createSubscriptionHandler('message', 'UPDATE')
+      );
+
+      // Subscribe to conversation changes
+      conversationChannel.on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+          filter: `participants=cs.["${user.id}"]`,
+        },
+        createSubscriptionHandler('conversation', '*')
+      );
 
       // Subscribe with error handling
       const subscriptions = [
