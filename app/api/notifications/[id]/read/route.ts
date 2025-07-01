@@ -36,14 +36,16 @@ async function sendWebSocketNotification(userId: string, data: WebSocketNotifica
 // PATCH /api/notifications/[id]/read - Mark notification as read
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Record<string, string> }
 ) {
   try {
     const { userId } = await auth();
-    
+
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const notificationId = context.params.id;
 
     const { error } = await supabase
       .from('notifications')
@@ -51,7 +53,7 @@ export async function PATCH(
         read: true,
         read_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', notificationId)
       .eq('user_id', userId);
 
     if (error) {
@@ -59,10 +61,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Failed to mark notification as read' }, { status: 500 });
     }
 
-    // Send WebSocket notification
     await sendWebSocketNotification(userId, {
       type: 'notification_read',
-      notificationId: params.id
+      notificationId
     });
 
     return NextResponse.json({ success: true });
