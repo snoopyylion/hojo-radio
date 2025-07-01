@@ -19,13 +19,6 @@ interface GenericRealtimePayload {
   errors?: string[];
 }
 
-// Supabase-compatible filter type
-interface SupabasePostgresFilter {
-  event: 'INSERT' | 'UPDATE' | 'DELETE' | '*';
-  schema: string;
-  table: string;
-  filter?: string;
-}
 
 interface ConversationListProps {
   conversations: Conversation[];
