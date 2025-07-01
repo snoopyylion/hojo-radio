@@ -1,4 +1,3 @@
-
 // app/api/notifications/[id]/read/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -36,16 +35,17 @@ async function sendWebSocketNotification(userId: string, data: WebSocketNotifica
 // PATCH /api/notifications/[id]/read - Mark notification as read
 export async function PATCH(
   request: NextRequest,
-  context: { params: Record<string, string> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
-
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const notificationId = context.params.id;
+    // Await the params Promise
+    const params = await context.params;
+    const notificationId = params.id;
 
     const { error } = await supabase
       .from('notifications')
@@ -67,7 +67,6 @@ export async function PATCH(
     });
 
     return NextResponse.json({ success: true });
-
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
