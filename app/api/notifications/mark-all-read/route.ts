@@ -1,5 +1,5 @@
 // app/api/notifications/mark-all-read/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { auth } from '@clerk/nextjs/server'
 
