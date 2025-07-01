@@ -1,5 +1,5 @@
 import React, { memo, useMemo, useCallback } from 'react';
-import { Conversation, TypingUser } from '../../types/messaging';
+import { Conversation } from '../../types/messaging';
 import UserPresence from './UserPresence';
 import Image from 'next/image';
 import { useUserProfile } from '@/hooks/useUserProfile';

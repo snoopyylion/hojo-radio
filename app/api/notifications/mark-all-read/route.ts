@@ -9,7 +9,7 @@ const supabase = createClient(
 );
 
 // PATCH /api/notifications/mark-all-read - Mark all notifications as read
-export async function PATCH(_request: NextRequest) {
+export async function PATCH() {
   try {
     const { userId } = await auth();
     

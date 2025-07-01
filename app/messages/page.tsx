@@ -1,7 +1,7 @@
 // app/messages/page.tsx
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import {  useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useRealtimeMessaging } from '@/hooks/useRealTimeMessaging';

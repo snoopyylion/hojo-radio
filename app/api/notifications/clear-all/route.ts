@@ -1,6 +1,6 @@
 
 // app/api/notifications/clear-all/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { auth } from '@clerk/nextjs/server'
 
@@ -33,7 +33,7 @@ async function sendWebSocketNotification(userId: string, data: WebSocketNotifica
 }
 
 // DELETE /api/notifications/clear-all - Clear all notifications
-export async function DELETE(_request: NextRequest) {
+export async function DELETE() {
   try {
     const { userId } = await auth();
     

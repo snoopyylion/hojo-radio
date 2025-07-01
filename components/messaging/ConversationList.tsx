@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { Conversation, TypingUser, Message } from '../../types/messaging';
 import ConversationItem from './ConversationItem';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useUser } from '@clerk/nextjs';
 import { useGlobalNotifications } from '@/context/GlobalNotificationsContext';
 import { useGlobalTyping } from '@/context/GlobalTypingContext';
@@ -21,6 +21,35 @@ interface ConversationListProps {
   realtimeMessages?: Message[];
 }
 
+// Define interfaces for Supabase payload types with proper typing
+interface MessagePayload {
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+  new: Message;
+  old?: Message;
+}
+
+interface ConversationPayload {
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+  new: Conversation;
+  old?: Conversation;
+}
+
+interface TypingPayload {
+  payload: {
+    conversation_id: string;
+    user_id: string;
+    username: string;
+    is_typing: boolean;
+  };
+}
+
+interface ReadReceiptPayload {
+  payload: {
+    conversation_id: string;
+    user_id: string;
+  };
+}
+
 export default function ConversationList({
   conversations,
   activeConversationId,
@@ -29,7 +58,6 @@ export default function ConversationList({
   currentUserId,
   isLoading,
   onConversationsUpdate,
-  realtimeMessages,
 }: ConversationListProps) {
   const { typingUsers } = useGlobalTyping();
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,9 +65,8 @@ export default function ConversationList({
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
 
   const { user } = useUser();
-  const { isGlobalConnected } = useGlobalNotifications();
   const mountedRef = useRef(true);
-  const supabaseRef = useRef<any>(null);
+  const supabaseRef = useRef<SupabaseClient | null>(null);
 
   // Initialize Supabase client with ref to prevent recreation
   if (!supabaseRef.current) {
@@ -57,22 +84,22 @@ export default function ConversationList({
       setRealTimeConversations(conversations);
       setLastUpdateTime(Date.now());
     }
-  }, [conversations]);
+  }, [conversations, realTimeConversations]);
 
   // Add this effect to handle conversation updates
   useEffect(() => {
     if (onConversationsUpdate && realTimeConversations !== conversations) {
       onConversationsUpdate(realTimeConversations);
     }
-  }, [realTimeConversations, onConversationsUpdate]);
+  }, [realTimeConversations, onConversationsUpdate, conversations]);
 
-  // Enhanced real-time subscriptions
+  // Enhanced real-time subscriptions with proper typing
   useEffect(() => {
     if (!user?.id || !mountedRef.current) return;
 
     console.log('🔄 Setting up real-time subscriptions for user:', user.id);
 
-    // Subscribe to message updates
+    // Subscribe to message updates with proper payload typing
     const messageChannel = supabase
       .channel('conversations-messages')
       .on(
@@ -88,8 +115,7 @@ export default function ConversationList({
           const newMessage = payload.new as Message;
           console.log('💬 New message received in conversation list:', newMessage);
 
-          // Compute the new state first
-          const updated = realTimeConversations.map(conv => {
+          setRealTimeConversations(prev => prev.map(conv => {
             if (conv.id === newMessage.conversation_id) {
               const updatedConv = {
                 ...conv,
@@ -104,10 +130,7 @@ export default function ConversationList({
               return updatedConv;
             }
             return conv;
-          });
-
-          // Then update state
-          setRealTimeConversations(updated);
+          }));
         }
       )
       .on(
@@ -123,8 +146,7 @@ export default function ConversationList({
           const updatedMessage = payload.new as Message;
           console.log('✏️ Message updated in conversation list:', updatedMessage);
 
-          // Compute the new state first
-          const updated = realTimeConversations.map(conv => {
+          setRealTimeConversations(prev => prev.map(conv => {
             if (conv.id === updatedMessage.conversation_id &&
               conv.last_message?.id === updatedMessage.id) {
               return {
@@ -134,92 +156,101 @@ export default function ConversationList({
               };
             }
             return conv;
-          });
-
-          // Then update state
-          setRealTimeConversations(updated);
+          }));
         }
       )
       .subscribe();
 
-    // Subscribe to conversation updates - Enhanced with your new logic
+    // Subscribe to conversation updates with proper event handling
     const conversationChannel = supabase
       .channel('conversations-updates')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'conversations'
-      }, (payload: { eventType: string; new: Conversation; old: Conversation }) => {
-        if (!mountedRef.current) return;
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations'
+        },
+        (payload: any) => {
+          if (!mountedRef.current) return;
 
-        const updatedConversation = payload.new as Conversation;
-        console.log('🔄 Conversation event:', payload.eventType, updatedConversation);
-        
-        setRealTimeConversations(prev => {
-          // Handle INSERT
-          if (payload.eventType === 'INSERT') {
-            if (updatedConversation.participants?.some(p => p.user_id === user.id)) {
-              console.log('🆕 Adding new conversation:', updatedConversation.id);
-              return [...prev, updatedConversation];
+          const updatedConversation = payload.new as Conversation;
+          const eventType = payload.eventType as string;
+          console.log('🔄 Conversation event:', eventType, updatedConversation);
+          
+          setRealTimeConversations(prev => {
+            // Handle INSERT
+            if (eventType === 'INSERT') {
+              if (updatedConversation.participants?.some(p => p.user_id === user.id)) {
+                console.log('🆕 Adding new conversation:', updatedConversation.id);
+                return [...prev, updatedConversation];
+              }
+              return prev;
             }
+            
+            // Handle UPDATE
+            if (eventType === 'UPDATE') {
+              console.log('📝 Updating conversation:', updatedConversation.id);
+              return prev.map(conv => 
+                conv.id === updatedConversation.id ? updatedConversation : conv
+              );
+            }
+            
+            // Handle DELETE
+            if (eventType === 'DELETE') {
+              console.log('🗑️ Removing conversation:', updatedConversation.id);
+              return prev.filter(conv => conv.id !== updatedConversation.id);
+            }
+            
             return prev;
-          }
-          
-          // Handle UPDATE
-          if (payload.eventType === 'UPDATE') {
-            console.log('📝 Updating conversation:', updatedConversation.id);
-            return prev.map(conv => 
-              conv.id === updatedConversation.id ? updatedConversation : conv
-            );
-          }
-          
-          // Handle DELETE
-          if (payload.eventType === 'DELETE') {
-            console.log('🗑️ Removing conversation:', updatedConversation.id);
-            return prev.filter(conv => conv.id !== updatedConversation.id);
-          }
-          
-          return prev;
-        });
-      })
+          });
+        }
+      )
       .subscribe();
 
-    // Subscribe to typing indicators with better error handling
+    // Subscribe to typing indicators with proper broadcast event
     const typingChannel = supabase
       .channel('typing-indicators')
-      .on('broadcast', { event: 'typing' }, (payload: any) => {
-        if (!mountedRef.current) return;
+      .on(
+        'broadcast',
+        { event: 'typing' },
+        (payload: TypingPayload) => {
+          if (!mountedRef.current) return;
 
-        const { conversation_id, user_id, username, is_typing } = payload.payload;
+          const { conversation_id, user_id, is_typing } = payload.payload;
 
-        // Don't show typing indicator for current user
-        if (user_id === user.id) return;
+          // Don't show typing indicator for current user
+          if (user_id === user.id) return;
 
-        console.log('⌨️ Typing indicator received:', { conversation_id, user_id, is_typing });
-      })
+          console.log('⌨️ Typing indicator received:', { conversation_id, user_id, is_typing });
+        }
+      )
       .subscribe();
 
-    // Subscribe to read receipts
+    // Subscribe to read receipts with proper broadcast event
     const readReceiptChannel = supabase
       .channel('read-receipts')
-      .on('broadcast', { event: 'message_read' }, (payload: any) => {
-        if (!mountedRef.current) return;
+      .on(
+        'broadcast',
+        { event: 'message_read' },
+        (payload: ReadReceiptPayload) => {
+          if (!mountedRef.current) return;
 
-        const { conversation_id, user_id } = payload.payload;
+          const { conversation_id, user_id } = payload.payload;
 
-        // If someone else read messages in a conversation, we might want to update unread counts
-        if (user_id !== user.id) {
-          console.log('👁️ Message read by other user:', { conversation_id, user_id });
-          // You can implement additional logic here if needed
+          // If someone else read messages in a conversation, we might want to update unread counts
+          if (user_id !== user.id) {
+            console.log('👁️ Message read by other user:', { conversation_id, user_id });
+            // You can implement additional logic here if needed
+          }
         }
-      })
+      )
       .subscribe();
 
     // Clean up typing indicators periodically
     const cleanupInterval = setInterval(() => {
       if (!mountedRef.current) return;
-
-      const now = Date.now();
+      // Cleanup logic can be added here if needed
     }, 2000);
 
     // Cleanup function
@@ -234,7 +265,7 @@ export default function ConversationList({
 
       clearInterval(cleanupInterval);
     };
-  }, [user?.id, supabase, realTimeConversations]);
+  }, [user?.id, supabase]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -279,7 +310,7 @@ export default function ConversationList({
       const bTime = new Date(b.last_message_at || b.created_at).getTime();
       return bTime - aTime;
     });
-  }, [realTimeConversations, lastUpdateTime]);
+  }, [realTimeConversations]);
 
   // Optimized search filtering
   const filteredConversations = React.useMemo(() => {
@@ -313,54 +344,52 @@ export default function ConversationList({
   }, [processedConversations, searchTerm, currentUserId]);
 
   // Update the typing indicator getter function to use the new structure
-const getTypingIndicator = useCallback((conversationId: string) => {
-  if (!typingUsers) return null;
-  
-  // Since we're now receiving typing users as Record<string, TypingUser[]>
-  const currentTypingUsers = typingUsers[conversationId] || [];
-  
-  // Filter out current user and check timestamps
-  const activeTypingUsers = currentTypingUsers.filter(user => {
-    const isNotCurrentUser = user.userId !== currentUserId;
-    const isRecent = Date.now() - user.timestamp < 3000; // 3 second timeout
-    return isNotCurrentUser && isRecent;
-  });
+  const getTypingIndicator = useCallback((conversationId: string) => {
+    if (!typingUsers) return null;
+    
+    // Since we're now receiving typing users as Record<string, TypingUser[]>
+    const currentTypingUsers = typingUsers[conversationId] || [];
+    
+    // Filter out current user and check timestamps
+    const activeTypingUsers = currentTypingUsers.filter(user => {
+      const isNotCurrentUser = user.userId !== currentUserId;
+      const isRecent = Date.now() - user.timestamp < 3000; // 3 second timeout
+      return isNotCurrentUser && isRecent;
+    });
 
-  if (activeTypingUsers.length === 0) return null;
+    if (activeTypingUsers.length === 0) return null;
 
-  const usernames = activeTypingUsers.map(user => user.username);
-  
-  if (usernames.length === 1) {
-    return `${usernames[0]} is typing...`;
-  } else if (usernames.length === 2) {
-    return `${usernames[0]} and ${usernames[1]} are typing...`;
-  } else {
-    return `${usernames.length} people are typing...`;
-  }
-}, [typingUsers, currentUserId]);
-
+    const usernames = activeTypingUsers.map(user => user.username);
+    
+    if (usernames.length === 1) {
+      return `${usernames[0]} is typing...`;
+    } else if (usernames.length === 2) {
+      return `${usernames[0]} and ${usernames[1]} are typing...`;
+    } else {
+      return `${usernames.length} people are typing...`;
+    }
+  }, [typingUsers, currentUserId]);
 
   // Enhanced conversation selection with optimistic updates
   const handleConversationSelect = useCallback((conversationId: string) => {
     console.log('🎯 Selecting conversation:', conversationId);
 
-    // Compute the new state first
-    const updated = realTimeConversations.map(conv => {
+    setRealTimeConversations(prev => prev.map(conv => {
       if (conv.id === conversationId && conv.unread_count && conv.unread_count > 0) {
         return { ...conv, unread_count: 0 };
       }
       return conv;
-    });
+    }));
     
-    // Then update state
-    setRealTimeConversations(updated);
-    
-    // Finally call the callbacks
-    if (onConversationsUpdate) {
-      onConversationsUpdate(updated);
-    }
     onConversationSelect(conversationId);
-  }, [realTimeConversations, onConversationSelect, onConversationsUpdate]);
+  }, [onConversationSelect]);
+
+  // Handle conversations update when realTimeConversations changes
+  useEffect(() => {
+    if (onConversationsUpdate) {
+      onConversationsUpdate(realTimeConversations);
+    }
+  }, [realTimeConversations, onConversationsUpdate]);
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-950">
