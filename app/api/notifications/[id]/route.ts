@@ -35,7 +35,7 @@ async function sendWebSocketNotification(userId: string, data: WebSocketNotifica
 // DELETE /api/notifications/[id] - Delete specific notification
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -43,6 +43,9 @@ export async function DELETE(
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Await the params Promise
+    const params = await context.params;
 
     // First check if notification belongs to user
     const { data: existing } = await supabase
