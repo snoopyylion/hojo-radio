@@ -549,7 +549,7 @@ const NewsPage = () => {
                   value={search}
                   onChange={handleSearchChange}
                   placeholder="Search the latest stories, trends, and insights..."
-                  className="flex-1 ml-4 mr-4 py-4 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none text-base"
+                  className="flex-1 ml-4 mr-4 py-2 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none text-base"
                 />
                 <button className="bg-[#EF3866] hover:bg-[#EF3866]/90 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-[1.02] focus:ring-2 focus:ring-[#EF3866]/20">
                   Search
