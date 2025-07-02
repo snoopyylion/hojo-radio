@@ -1,4 +1,3 @@
-
 "use client";
 import { client } from '@/sanity/lib/client';
 import { notFound } from 'next/navigation';
@@ -38,6 +37,9 @@ interface Author {
     };
   };
   imageUrl?: string;
+  // Add these fields to get the Supabase user ID for navigation
+  _id?: string; // Sanity author ID
+  supabaseUserId?: string; // The actual user ID we need for navigation
 }
 
 interface RelatedPost {
@@ -71,6 +73,7 @@ interface PostClientProps {
   id: string;
 }
 
+// ... (keep all your existing markdownComponents and ptComponents code exactly the same)
 const markdownComponents: Components = {
   h1: ({ children, ...props }) => (
     <h1 {...props} className="text-3xl md:text-4xl font-light text-gray-900 dark:text-white mb-8 mt-12 first:mt-0 leading-tight">
@@ -223,7 +226,6 @@ const markdownComponents: Components = {
     </td>
   ),
 };
-
 
 const ptComponents: Partial<PortableTextReactComponents> = {
   types: {
@@ -400,11 +402,19 @@ export default function PostClient({ id }: PostClientProps) {
           throw new Error("Missing post ID");
         }
 
+        // Updated Sanity query to include the supabaseUserId field
         const fetchedPost = await client.fetch<Post>(
           `*[_type == "post" && _id == $id][0]{
             _id, title, slug, description, body, publishedAt, _createdAt,
             mainImage{ asset->{url}, alt },
-            "author": author->{ name, bio, image{asset->{url}}, "imageUrl": image.asset->url },
+            "author": author->{ 
+              _id,
+              name, 
+              bio, 
+              image{asset->{url}}, 
+              "imageUrl": image.asset->url,
+              supabaseUserId
+            },
             categories[]->{title},
             "nextPost": *[_type == "post" && publishedAt > ^.publishedAt] | order(publishedAt asc)[0]{ _id, title, slug },
             "prevPost": *[_type == "post" && publishedAt < ^.publishedAt] | order(publishedAt desc)[0]{ _id, title, slug }
@@ -532,32 +542,67 @@ export default function PostClient({ id }: PostClientProps) {
             </span>
           </div>
 
-          {/* Author */}
+          {/* Author - UPDATED WITH CLICKABLE NAVIGATION */}
           {post.author && (
-            <div className="flex items-center gap-4 pb-8 border-b border-gray-100 dark:border-gray-800">
-              {post.author.imageUrl || post.author.image?.asset?.url ? (
-                <Image
-                  src={post.author.imageUrl || post.author.image?.asset?.url || '/placeholder-avatar.png'}
-                  alt={post.author.name || "Author"}
-                  width={48}
-                  height={48}
-                  className="rounded-full object-cover"
-                />
+            <div className="pb-8 border-b border-gray-100 dark:border-gray-800">
+              {post.author.supabaseUserId ? (
+                // If we have a supabaseUserId, make it clickable
+                <Link 
+                  href={`/user/${post.author.supabaseUserId || post.author._id || ''}`}
+                  className="flex items-center gap-4 group hover:bg-gray-50 dark:hover:bg-gray-900/30 p-2 -m-2 rounded-lg transition-colors"
+                >
+                  {post.author.imageUrl || post.author.image?.asset?.url ? (
+                    <Image
+                      src={post.author.imageUrl || post.author.image?.asset?.url || '/placeholder-avatar.png'}
+                      alt={post.author.name || "Author"}
+                      width={48}
+                      height={48}
+                      className="rounded-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#EF3866] to-pink-400 flex items-center justify-center text-white font-medium group-hover:scale-105 transition-transform">
+                      {post.author.name?.charAt(0) || "A"}
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white group-hover:text-[#EF3866] dark:group-hover:text-[#ff7a9c] transition-colors">
+                      {post.author.name}
+                    </p>
+                    {post.author.bio && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {post.author.bio}
+                      </p>
+                    )}
+                  </div>
+                </Link>
               ) : (
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#EF3866] to-pink-400 flex items-center justify-center text-white font-medium">
-                  {post.author.name?.charAt(0) || "A"}
+                // If no supabaseUserId, display as non-clickable
+                <div className="flex items-center gap-4">
+                  {post.author.imageUrl || post.author.image?.asset?.url ? (
+                    <Image
+                      src={post.author.imageUrl || post.author.image?.asset?.url || '/placeholder-avatar.png'}
+                      alt={post.author.name || "Author"}
+                      width={48}
+                      height={48}
+                      className="rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#EF3866] to-pink-400 flex items-center justify-center text-white font-medium">
+                      {post.author.name?.charAt(0) || "A"}
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {post.author.name}
+                    </p>
+                    {post.author.bio && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {post.author.bio}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">
-                  {post.author.name}
-                </p>
-                {post.author.bio && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {post.author.bio}
-                  </p>
-                )}
-              </div>
             </div>
           )}
         </div>

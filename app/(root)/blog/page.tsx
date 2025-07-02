@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo, startTransition } from "react";
 import { client } from "@/sanity/lib/client";
 import { groq } from "next-sanity";
-import { ChevronUp, Search, TrendingUp } from "lucide-react";
+import { ChevronUp, Search, TrendingUp, Calendar, Users, Globe } from "lucide-react";
 import NewsTile from "@/components/NewsTile";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -151,8 +151,9 @@ const NewsPage = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
-  
+
   // Track visible count for each category (including Latest News)
   const [visibleCounts, setVisibleCounts] = useState<Record<string, number>>({});
 
@@ -161,6 +162,7 @@ const NewsPage = () => {
   const searchRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollTopRef = useRef<HTMLButtonElement>(null);
+  const navRef = useRef<HTMLDivElement>(null);
 
   // Debounce search input
   useEffect(() => {
@@ -175,7 +177,7 @@ const NewsPage = () => {
 
   // Initialize visible counts when categories change
   useEffect(() => {
-    const initialCounts: Record<string, number> = { 'Latest News': 6 }; // Increased initial load
+    const initialCounts: Record<string, number> = { 'Latest News': 6 };
     categories.forEach(category => {
       initialCounts[category] = 4;
     });
@@ -185,7 +187,7 @@ const NewsPage = () => {
   // Memoized filtered posts to avoid recalculation
   const filteredPosts = useMemo(() => {
     if (!debouncedSearch.trim()) return posts;
-    
+
     const searchLower = debouncedSearch.toLowerCase();
     return posts.filter(post => {
       return (
@@ -227,14 +229,17 @@ const NewsPage = () => {
     setCategories(extractedCategories);
   }, [extractedCategories]);
 
-  // Optimized scroll handler with throttling
+  // Enhanced scroll handler with nav animation
   const handleScroll = useCallback(() => {
-    const shouldShow = window.scrollY > 400;
-    if (shouldShow !== showScrollTop) {
-      setShowScrollTop(shouldShow);
+    const scrollY = window.scrollY;
+    const shouldShowScrollTop = scrollY > 400;
+    const shouldShowNav = scrollY > 300; // Increased threshold to avoid early activation
+
+    if (shouldShowScrollTop !== showScrollTop) {
+      setShowScrollTop(shouldShowScrollTop);
 
       if (scrollTopRef.current) {
-        if (shouldShow) {
+        if (shouldShowScrollTop) {
           gsap.to(scrollTopRef.current, {
             scale: 1,
             rotation: 0,
@@ -251,12 +256,16 @@ const NewsPage = () => {
         }
       }
     }
-  }, [showScrollTop]);
+
+    if (shouldShowNav !== isScrolled) {
+      setIsScrolled(shouldShowNav);
+    }
+  }, [showScrollTop, isScrolled]);
 
   // Throttled scroll event listener
   useEffect(() => {
     let ticking = false;
-    
+
     const throttledHandleScroll = () => {
       if (!ticking) {
         requestAnimationFrame(() => {
@@ -326,10 +335,9 @@ const NewsPage = () => {
   // Optimized data fetching with error handling and caching
   useEffect(() => {
     let isMounted = true;
-    
+
     async function fetchPosts() {
       try {
-        // Use a more efficient query that only fetches necessary fields initially
         const optimizedQuery = groq`*[_type == "post"] | order(publishedAt desc) {
           _id,
           title,
@@ -343,7 +351,7 @@ const NewsPage = () => {
         }`;
 
         const data = await client.fetch<Post[]>(optimizedQuery);
-        
+
         if (isMounted) {
           setPosts(data);
           setIsLoading(false);
@@ -358,7 +366,6 @@ const NewsPage = () => {
 
     fetchPosts();
 
-    // Optimized real-time listener
     const subscription = client
       .listen(
         groq`*[_type == "post"] {
@@ -412,11 +419,10 @@ const NewsPage = () => {
   const handleShowMore = useCallback((categoryTitle: string) => {
     setVisibleCounts(prev => ({
       ...prev,
-      [categoryTitle]: (prev[categoryTitle] || 4) + 6 // Load more items at once
+      [categoryTitle]: (prev[categoryTitle] || 4) + 6
     }));
   }, []);
 
-  // Memoized search handler
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
   }, []);
@@ -432,44 +438,129 @@ const NewsPage = () => {
     );
   }
 
+  const currentDate = new Date();
+  const formattedDate = currentDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
   return (
-    <div className="min-h-screen pt-[20px] bg-white dark:bg-black transition-colors duration-300">
-      {/* Minimalist Professional Header */}
-      <header className="relative pt-[100px] md:pt-[120px] pb-16 px-4 md:px-8 lg:px-16 max-w-7xl mx-auto">
-        {/* Subtle background accent */}
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#EF3866]/20 to-transparent"></div>
+    <div className="min-h-screen bg-white dark:bg-black transition-colors duration-300 pt-[90px]">
+      {/* Floating Navigation Bar - Only shows when scrolled */}
+      {/* Enhanced Floating Navigation Bar - Better positioning and styling */}
+      <nav
+        ref={navRef}
+        className={`fixed top-3 sm:top-6 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-700 ease-out w-full max-w-[calc(100%-2rem)] ${isScrolled
+            ? 'opacity-100 translate-y-0 scale-100'
+            : 'opacity-0 -translate-y-8 scale-95 pointer-events-none'
+          }`}
+      >
+        <div className="relative">
+          {/* Glow effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#EF3866]/10 via-[#EF3866]/5 to-[#EF3866]/10 rounded-2xl blur-xl scale-110 opacity-60"></div>
 
-        <div ref={heroRef} className="text-center mb-12">
-          {/* Clean, minimal title */}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-light text-gray-900 dark:text-white mb-6 tracking-tight">
-            News & Insights
-          </h1>
+          {/* Main navbar */}
+          <div className="relative bg-white/95 dark:bg-black/95 backdrop-blur-2xl border border-gray-200/60 dark:border-gray-800/60 rounded-2xl shadow-2xl shadow-black/5 dark:shadow-black/20 px-4 sm:px-8 py-3 sm:py-4">
+            <div className="flex items-center justify-between w-full gap-4 sm:gap-8">
 
-          {/* Accent line */}
-          <div className="w-24 h-0.5 bg-[#EF3866] mx-auto mb-6"></div>
+              {/* Left section - Brand */}
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <div className="relative">
+                  {/* Animated dot indicator */}
+                  <div className="w-2 h-2 bg-[#EF3866] rounded-full animate-pulse"></div>
+                  <div className="absolute inset-0 w-2 h-2 bg-[#EF3866] rounded-full animate-ping opacity-30"></div>
+                </div>
+                <div className="font-serif text-lg sm:text-xl font-bold tracking-tight">
+                  <span className="text-gray-900 dark:text-white">News</span>
+                  <span className="text-[#EF3866] ml-1 sm:ml-2">&</span>
+                  <span className="text-gray-900 dark:text-white ml-1 sm:ml-2 italic font-light">Insights</span>
+                </div>
+              </div>
 
-          {/* Subtitle */}
-          <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto font-light leading-relaxed">
-            Stay informed with carefully curated stories and expert analysis
-          </p>
+              {/* Right section - Date and status */}
+              <div className="flex items-center space-x-4 sm:space-x-8">
+                {/* Date */}
+                <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap">
+                  {formattedDate}
+                </div>
+
+                {/* Separator */}
+                <div className="h-6 w-px bg-gradient-to-b from-transparent via-gray-300 dark:via-gray-600 to-transparent"></div>
+
+                {/* Live indicator */}
+                <div className="flex items-center space-x-2 sm:space-x-3 text-xs sm:text-sm">
+                  <div className="relative">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div className="absolute inset-0 w-2 h-2 bg-green-500 rounded-full animate-ping opacity-40"></div>
+                  </div>
+                  <span className="text-gray-600 dark:text-gray-300 font-medium">Live</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom accent line */}
+            <div className="absolute bottom-0 left-4 sm:left-8 right-4 sm:right-8 h-px bg-gradient-to-r from-transparent via-[#EF3866]/20 to-transparent"></div>
+          </div>
+        </div>
+      </nav>
+      {/* Enhanced Header - No longer conflicts with floating nav */}
+      <header className="relative pt-8 pb-16 px-4 md:px-8 lg:px-16 max-w-7xl mx-auto overflow-hidden">
+        {/* Subtle animated background elements */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-32 left-16 w-1 h-1 bg-[#EF3866]/20 rounded-full animate-pulse"></div>
+          <div className="absolute top-48 right-24 w-0.5 h-0.5 bg-[#EF3866]/30 rounded-full animate-pulse delay-500"></div>
+          <div className="absolute bottom-32 left-1/3 w-1.5 h-1.5 bg-[#EF3866]/15 rounded-full animate-pulse delay-1000"></div>
         </div>
 
-        {/* Clean Search Bar */}
-        <div ref={searchRef} className="max-w-xl mx-auto">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              value={search}
-              onChange={handleSearchChange}
-              placeholder="Search articles..."
-              className="w-full pl-12 pr-4 py-4 border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-black text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#EF3866]/20 focus:border-[#EF3866] transition-all duration-200"
-            />
+        {/* Top accent line */}
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#EF3866]/20 to-transparent"></div>
+
+        <div ref={heroRef} className="text-center mb-2 relative z-10">
+          {/* Publication date */}
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-6 tracking-widest uppercase">
+            {formattedDate}
+          </div>
+
+          {/* Main title with enhanced typography */}
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif font-bold text-gray-900 dark:text-whiteleading-tight tracking-tight">
+            <span className="mr-4">News</span>
+            <span className="text-[#EF3866] italic font-light">&amp; Insights</span>
+          </h1>
+
+          {/* Refined accent line */}
+          <div className="flex items-center justify-center">
+            <div className="w-8 h-px bg-gray-300 dark:bg-gray-700"></div>
+            <div className="w-3 h-px bg-[#EF3866] mx-2"></div>
+            <div className="w-8 h-px bg-gray-300 dark:bg-gray-700"></div>
+          </div>
+        </div>
+
+        {/* Enhanced Search Bar */}
+        <div ref={searchRef} className="max-w-2xl mx-auto relative z-10">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#EF3866]/5 via-transparent to-[#EF3866]/5 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <div className="relative bg-white/80 dark:bg-black/80 backdrop-blur-sm border border-gray-200/60 dark:border-gray-800/60 rounded-xl shadow-sm hover:shadow-md transition-all duration-300">
+              <div className="flex items-center p-1">
+                <Search className="ml-5 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={handleSearchChange}
+                  placeholder="Search the latest stories, trends, and insights..."
+                  className="flex-1 ml-4 mr-4 py-4 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none text-base"
+                />
+                <button className="bg-[#EF3866] hover:bg-[#EF3866]/90 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-[1.02] focus:ring-2 focus:ring-[#EF3866]/20">
+                  Search
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content with Responsive Layout */}
+      {/* Main Content */}
       <main className="px-4 md:px-8 lg:px-16 max-w-7xl mx-auto pb-16">
         <div ref={contentRef}>
           {/* Show search results if searching */}
@@ -501,7 +592,7 @@ const NewsPage = () => {
             </section>
           ) : (
             <>
-              {/* Latest News Section - Full Width */}
+              {/* Latest News Section */}
               <div className="news-section mb-16">
                 <CategorySection
                   title="Latest News"
@@ -512,7 +603,7 @@ const NewsPage = () => {
                 />
               </div>
 
-              {/* Category Sections - Responsive Grid */}
+              {/* Category Sections */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
                 {categories.map((category) => (
                   <div key={category} className="news-section">
