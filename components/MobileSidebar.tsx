@@ -2,13 +2,13 @@
 
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
-import { X, Home, Shield, Mic, BookOpen, Users, ArrowRight, User, ChevronRight, LayoutDashboard } from "lucide-react";
+import { X, Home, Shield, Mic, BookOpen, Users, ArrowRight, ChevronRight, LayoutDashboard } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useAppContext } from "@/context/AppContext";
 import Link from "next/link";
 import SignOutBtn from "@/components/SignOutBtn";
 import { motion, AnimatePresence } from 'framer-motion';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { NotificationBell } from "./NotificationBell";
 
 const navItems = [
@@ -47,7 +47,6 @@ interface MobileSidebarProps {
 const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
   const { user, isLoaded } = useAppContext();
   const pathname = usePathname();
-  const router = useRouter();
   const isDarkMode = useDarkMode();
 
   // Get user display data with fallbacks
