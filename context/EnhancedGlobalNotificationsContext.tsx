@@ -38,6 +38,12 @@ interface NotificationSettings {
   showTypingNotifications: boolean;
   emailNotifications: boolean;
   notificationTypes: Record<NotificationType, boolean>;
+  // Add this new property
+  followedEntities: {
+    users: string[]; // User IDs you want to follow
+    tags: string[];  // Tags/categories you want to follow
+    conversations: string[]; // Conversation IDs you want to follow
+  };
 }
 
 const defaultNotificationSettings: NotificationSettings = {

@@ -1,8 +1,9 @@
+// components/NewNavbar.tsx - Updated with better debugging and testing
 "use client";
 
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
-import { Menu, X, Home, Shield, Mic, BookOpen, Users, User } from "lucide-react";
+import { Menu, X, Home, Shield, Mic, BookOpen, Users, User, MessageCircle } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useAppContext } from "@/context/AppContext";
 import Link from "next/link";
@@ -12,14 +13,21 @@ import { useRouter } from 'next/navigation';
 import MobileSidebar from '@/components/MobileSidebar';
 import SearchComponent from '@/components/SearchComponent';
 import { NotificationBell } from "./NotificationBell";
+import { useInstantNotifications } from '@/hooks/useInstantNotifications';
+import { NotificationDot } from './NotificationDot';
 
-// Navigation items with icons
 const navItems = [
   { href: "/", label: "Home", icon: Home },
   { href: "/verify-news", label: "Verify News", icon: Shield },
   { href: "/podcast", label: "Podcast", icon: Mic },
   { href: "/blog", label: "Blog", icon: BookOpen },
   { href: "/aboutus", label: "About Us", icon: Users },
+  {
+    href: "/messages",
+    label: "Messages",
+    icon: MessageCircle,
+    showNotification: true // Flag to show notification dot
+  },
 ];
 
 const NewNavbar = () => {
@@ -30,18 +38,33 @@ const NewNavbar = () => {
   const [showSignOut, setShowSignOut] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
+  // Use the instant notifications hook
+  const {
+    hasNewMessages,
+    unreadCount,
+    markAsViewed,
+    resetViewedTime,
+    simulateUnreadMessages
+  } = useInstantNotifications();
+
   // Mobile sidebar handlers
   const toggleMobileSidebar = () => setIsMobileSidebarOpen(!isMobileSidebarOpen);
   const closeMobileSidebar = () => setIsMobileSidebarOpen(false);
 
-  // Get user display data with fallbacks - moved to a function that takes user as parameter
+  // Handle messages link click to mark as viewed
+  const handleMessagesClick = () => {
+    console.log('🔔 Messages clicked, marking as viewed');
+    markAsViewed();
+    router.push('/messages');
+  };
+
+  // Get user display data with fallbacks
   const getUserDisplayData = (currentUser: typeof user) => {
     if (!currentUser) return { name: 'User', role: 'Member' };
-    
-    // First check Supabase profile, then fallback to Clerk data
+
     const name = currentUser.supabaseProfile?.first_name || currentUser.firstName || 'User';
     const role = currentUser.supabaseProfile?.role || currentUser.role || 'Member';
-    
+
     return { name, role };
   };
 
@@ -69,13 +92,16 @@ const NewNavbar = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Debug logging
-  console.log("🔍 Navbar user:", user);
-  console.log("🔍 isLoaded:", isLoaded);
-  if (user) {
-    const { name: debugName, role: debugRole } = getUserDisplayData(user);
-    console.log("🔍 displayName:", debugName, "displayRole:", debugRole);
-  }
+  // Enhanced notification logging
+  useEffect(() => {
+    console.log('🔔 DEBUG: Notification state in navbar:', {
+      hasNewMessages,
+      unreadCount,
+      user: !!user,
+      isLoaded,
+      timestamp: new Date().toISOString()
+    });
+  }, [hasNewMessages, unreadCount, user?.id, isLoaded]);
 
   return (
     <>
@@ -95,9 +121,42 @@ const NewNavbar = () => {
             {/* Navigation Links */}
             <div className="flex items-center space-x-14">
               {navItems.map((item) => (
-                <Link key={item.href} href={item.href} className="hover:text-[#EF3866] transition font-sora">
-                  {item.label}
-                </Link>
+                <div key={item.href} className="relative">
+                  {item.showNotification && user ? (
+                    <div className="relative">
+                      <button
+                        onClick={handleMessagesClick}
+                        className="hover:text-[#EF3866] transition font-sora relative flex items-center gap-2"
+                      >
+                        <span>{item.label}</span>
+                        {/* Enhanced notification dot with better visibility */}
+                        <div className="relative">
+                          <NotificationDot
+                            show={hasNewMessages && unreadCount > 0}
+                            count={unreadCount > 0 ? unreadCount : undefined}
+                            size="small"
+                            position="top-right"
+                          />
+                          {/* Always visible test indicator */}
+                          <div
+                            className="absolute -top-1 -right-1 w-3 h-3 rounded-full text-[8px] flex items-center justify-center font-bold border border-white"
+                            style={{
+                              backgroundColor: hasNewMessages && unreadCount > 0 ? '#ef4444' : '#gray',
+                              color: 'white',
+                              display: 'flex'
+                            }}
+                          >
+                            {unreadCount > 0 ? unreadCount : ''}
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  ) : (
+                    <Link href={item.href} className="hover:text-[#EF3866] transition font-sora">
+                      {item.label}
+                    </Link>
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -106,7 +165,7 @@ const NewNavbar = () => {
           <div className="hidden md:flex items-center">
             {/* Desktop Search Component */}
             <SearchComponent />
-            
+
             {/* Show loading state while context is loading */}
             {!isLoaded ? (
               <div className="flex items-center gap-4">
@@ -118,9 +177,8 @@ const NewNavbar = () => {
               </div>
             ) : user ? (
               (() => {
-                // Get display data only when user is available
                 const { name: displayName, role: displayRole } = getUserDisplayData(user);
-                
+
                 return (
                   <div className="flex items-center gap-4">
                     {/* Notification Bell */}
@@ -134,10 +192,10 @@ const NewNavbar = () => {
                       onMouseLeave={() => setShowSignOut(false)}
                     >
                       {/* User Info Section */}
-                      <div className="flex items-center gap-[2px] w-[212px] h-[50px]">                    
+                      <div className="flex items-center gap-[2px] w-[212px] h-[50px]">
                         <div className="flex w-[161.5px] h-[50px] gap-[5px] items-center">
-                          {/* User Button */}
-                          <div className="w-[50px] h-[50px] flex items-center justify-center">
+                          {/* User Button with notification dot */}
+                          <div className="w-[50px] h-[50px] flex items-center justify-center relative">
                             <UserButton afterSignOutUrl="/">
                               <UserButton.MenuItems>
                                 <UserButton.Action
@@ -147,6 +205,16 @@ const NewNavbar = () => {
                                 />
                               </UserButton.MenuItems>
                             </UserButton>
+                            {/* Enhanced notification dot on user avatar */}
+                            <div className="absolute -top-1 -right-1">
+                              <NotificationDot
+                                show={hasNewMessages && unreadCount > 0}
+                                count={unreadCount > 0 ? unreadCount : undefined}
+                                size="small"
+                                position="top-right" // or "top-left", "bottom-right", "bottom-left"
+                                className="border-2 border-white"
+                              />
+                            </div>
                           </div>
 
                           {/* User Profile Info */}
@@ -200,25 +268,42 @@ const NewNavbar = () => {
               <SearchComponent isMobile={true} />
             </div>
 
-            {/* Mobile Menu Button */}
-            <button
-              onClick={toggleMobileSidebar}
-              className="relative flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 hover:from-gray-700 hover:to-gray-900 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              {isMobileSidebarOpen ? (
-                <X size={24} className="text-white" />
-              ) : (
-                <Menu size={24} className="text-white" />
+            {/* Mobile Menu Button with notification dot */}
+            <div className="relative">
+              <button
+                onClick={toggleMobileSidebar}
+                className="relative flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 hover:from-gray-700 hover:to-gray-900 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                {isMobileSidebarOpen ? (
+                  <X size={24} className="text-white" />
+                ) : (
+                  <Menu size={24} className="text-white" />
+                )}
+              </button>
+              {/* Enhanced notification dot on mobile menu */}
+              {user && (
+                <div className="absolute -top-1 -right-1">
+                  <NotificationDot
+                    show={hasNewMessages && unreadCount > 0}
+                    count={unreadCount > 0 ? unreadCount : undefined}
+                    size="small"
+                    position="top-right"
+                    className="border-2 border-white"
+                  />
+                </div>
               )}
-            </button>
+            </div>
           </div>
         </div>
       </nav>
 
       {/* Mobile Sidebar Integration */}
-      <MobileSidebar 
-        isOpen={isMobileSidebarOpen} 
-        onClose={closeMobileSidebar} 
+      <MobileSidebar
+        isOpen={isMobileSidebarOpen}
+        onClose={closeMobileSidebar}
+        hasNewMessages={hasNewMessages}
+        unreadCount={unreadCount}
+        onMessagesClick={handleMessagesClick}
       />
     </>
   );

@@ -12,9 +12,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return (
         <ClerkProvider signInUrl="/authentication/sign-in">
             <UserProvider>
-                <AppContextProvider>
-                    <GlobalTypingProvider>
-                        <GlobalNotificationsProvider>
+                <GlobalNotificationsProvider>
+                    <AppContextProvider>
+                        <GlobalTypingProvider>
                             <GlobalChatNotificationsProvider>
                                 {children}
                                 <Toaster
@@ -32,9 +32,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
                                     }}
                                 />
                             </GlobalChatNotificationsProvider>
-                        </GlobalNotificationsProvider>
-                    </GlobalTypingProvider>
-                </AppContextProvider>
+                        </GlobalTypingProvider>
+                    </AppContextProvider>
+                </GlobalNotificationsProvider>
             </UserProvider>
         </ClerkProvider>
     );

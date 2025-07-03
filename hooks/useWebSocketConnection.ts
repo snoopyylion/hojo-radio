@@ -6,6 +6,7 @@ import { useGlobalTyping } from '@/context/GlobalTypingContext';
 interface UseWebSocketConnectionProps {
   conversationId: string;
   userId: string;
+  isViewingConversation?: boolean; // Add this
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   setConversations: React.Dispatch<React.SetStateAction<any[]>>;
   setTypingUsers: React.Dispatch<React.SetStateAction<Record<string, TypingUser[]>>>;
@@ -16,6 +17,7 @@ export const useWebSocketConnection = ({
   conversationId,
   userId,
   setMessages,
+  isViewingConversation = false,
   setConversations,
   setOnlineUsers,
 }: UseWebSocketConnectionProps) => {
@@ -67,61 +69,61 @@ export const useWebSocketConnection = ({
   }, []);
 
   const handleTypingUpdate = useCallback((data: {
-  conversationId: string;
-  userId: string;
-  username: string;
-  isTyping: boolean;
-  timestamp: number;
-}) => {
-  if (!mountedRef.current || !userId) return;
+    conversationId: string;
+    userId: string;
+    username: string;
+    isTyping: boolean;
+    timestamp: number;
+  }) => {
+    if (!mountedRef.current || !userId) return;
 
-  // Skip current user's typing indicators
-  if (data.userId === userId) return;
+    // Skip current user's typing indicators
+    if (data.userId === userId) return;
 
-  setTypingUsers(prev => {
-    const conversationTyping = prev[data.conversationId] || [];
-    const existingUserIndex = conversationTyping.findIndex(u => u.userId === data.userId);
+    setTypingUsers(prev => {
+      const conversationTyping = prev[data.conversationId] || [];
+      const existingUserIndex = conversationTyping.findIndex(u => u.userId === data.userId);
 
-    if (data.isTyping) {
-      // Add or update typing user
-      if (existingUserIndex >= 0) {
-        const updated = [...conversationTyping];
-        updated[existingUserIndex] = {
-          userId: data.userId,
-          username: data.username,
-          timestamp: data.timestamp
-        };
-        return { ...prev, [data.conversationId]: updated };
+      if (data.isTyping) {
+        // Add or update typing user
+        if (existingUserIndex >= 0) {
+          const updated = [...conversationTyping];
+          updated[existingUserIndex] = {
+            userId: data.userId,
+            username: data.username,
+            timestamp: data.timestamp
+          };
+          return { ...prev, [data.conversationId]: updated };
+        } else {
+          return {
+            ...prev,
+            [data.conversationId]: [
+              ...conversationTyping,
+              {
+                userId: data.userId,
+                username: data.username,
+                timestamp: data.timestamp
+              }
+            ]
+          };
+        }
       } else {
+        // Remove typing user
         return {
           ...prev,
-          [data.conversationId]: [
-            ...conversationTyping,
-            {
-              userId: data.userId,
-              username: data.username,
-              timestamp: data.timestamp
-            }
-          ]
+          [data.conversationId]: conversationTyping.filter(u => u.userId !== data.userId)
         };
       }
-    } else {
-      // Remove typing user
-      return {
-        ...prev,
-        [data.conversationId]: conversationTyping.filter(u => u.userId !== data.userId)
-      };
-    }
-  });
+    });
 
-  if (setTypingInConversation) {
-    setTypingInConversation(data.conversationId,
-      data.isTyping
-        ? [{ userId: data.userId, username: data.username, timestamp: data.timestamp }]
-        : []
-    );
-  }
-}, [userId, setTypingUsers, setTypingInConversation]);
+    if (setTypingInConversation) {
+      setTypingInConversation(data.conversationId,
+        data.isTyping
+          ? [{ userId: data.userId, username: data.username, timestamp: data.timestamp }]
+          : []
+      );
+    }
+  }, [userId, setTypingUsers, setTypingInConversation]);
 
 
   // Process any pending read operations when connection is established
@@ -164,7 +166,7 @@ export const useWebSocketConnection = ({
 
     setIsConnected(false);
     setWsConnection(null);
-    
+
     // Attempt reconnect only if this isn't the global connection
     if (wsRef.current !== globalState.globalWs) {
       reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000);
@@ -241,7 +243,16 @@ export const useWebSocketConnection = ({
 
               setConversations(prev => prev.map(conv =>
                 conv.id === data.message.conversation_id
-                  ? { ...conv, last_message: data.message, last_message_at: data.message.created_at }
+                  ? {
+                    ...conv,
+                    last_message: data.message,
+                    last_message_at: data.message.created_at,
+                    // Only increment unread count if message is not from current user
+                    // and we're not currently viewing this conversation
+                    unread_count: data.message.sender_id !== userId && !isViewingConversation
+                      ? (conv.unread_count || 0) + 1
+                      : conv.unread_count || 0
+                  }
                   : conv
               ));
               break;
@@ -345,6 +356,14 @@ export const useWebSocketConnection = ({
         (isGlobalConnected && globalState.globalWs?.readyState === WebSocket.OPEN));
   }, [isGlobalConnected, globalState.globalWs]);
 
+  const markConversationAsRead = useCallback((conversationId: string) => {
+  setConversations(prev => prev.map(conv => 
+    conv.id === conversationId 
+      ? { ...conv, unread_count: 0 }
+      : conv
+  ));
+}, []);
+
   useEffect(() => {
     mountedRef.current = true;
     const connect = () => {
@@ -380,7 +399,7 @@ export const useWebSocketConnection = ({
 
   const sendTypingUpdate = useCallback((isTyping: boolean) => {
     if (!mountedRef.current || !userId) return false;
-    
+
     if (!canSendMessages()) {
       console.error('Cannot send typing update - no active WebSocket connection');
       return false;
@@ -396,9 +415,9 @@ export const useWebSocketConnection = ({
         isTyping,
         timestamp: Date.now()
       };
-      
+
       ws?.send(JSON.stringify(message));
-      
+
       if (sendGlobalTypingUpdate) {
         sendGlobalTypingUpdate(conversationId, userId, 'Current User', isTyping);
       }
@@ -471,6 +490,6 @@ export const useWebSocketConnection = ({
     sendMessage,
     markMessageAsRead,
     isGlobalConnected,
-    isConnecting 
+    isConnecting
   };
 };

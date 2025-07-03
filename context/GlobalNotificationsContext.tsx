@@ -32,6 +32,13 @@ type Action =
   | { type: 'SET_WS_CONNECTION'; payload: { ws: WebSocket | null; isConnected: boolean } };
 
 interface GlobalNotificationsContextType {
+  followUser: (userId: string) => Promise<void>;
+  unfollowUser: (userId: string) => Promise<void>;
+  followConversation: (conversationId: string) => Promise<void>;
+  unfollowConversation: (conversationId: string) => Promise<void>;
+  followTag: (tag: string) => Promise<void>;
+  unfollowTag: (tag: string) => Promise<void>;
+  isFollowing: (type: 'user' | 'conversation' | 'tag', id: string) => boolean;
   setTypingInConversation: (conversationId: string, users: TypingUser[]) => void;
   sendGlobalTypingUpdate: (
     conversationId: string,
@@ -190,6 +197,15 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
   const mountedRef = useRef(true);
   const processedMessageIds = useRef<Set<string>>(new Set());
   const activeTypingNotifications = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const followingRef = useRef<{
+    users: Set<string>;
+    conversations: Set<string>;
+    tags: Set<string>;
+  }>({
+    users: new Set(),
+    conversations: new Set(),
+    tags: new Set()
+  });
 
   // Get current conversation ID from pathname - memoize to prevent infinite loops
   const getCurrentConversationId = useCallback(() => {
@@ -215,6 +231,50 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
     isWindowFocused: state.notificationSettings.inAppNotificationsEnabled,
     conversations: conversationsForNotifications
   });
+
+  // Follow/unfollow functions
+  const followUser = useCallback(async (userId: string) => {
+    followingRef.current.users.add(userId);
+    // Here you would typically make an API call to follow the user
+  }, []);
+
+  const unfollowUser = useCallback(async (userId: string) => {
+    followingRef.current.users.delete(userId);
+    // Here you would typically make an API call to unfollow the user
+  }, []);
+
+  const followConversation = useCallback(async (conversationId: string) => {
+    followingRef.current.conversations.add(conversationId);
+    // Here you would typically make an API call to follow the conversation
+  }, []);
+
+  const unfollowConversation = useCallback(async (conversationId: string) => {
+    followingRef.current.conversations.delete(conversationId);
+    // Here you would typically make an API call to unfollow the conversation
+  }, []);
+
+  const followTag = useCallback(async (tag: string) => {
+    followingRef.current.tags.add(tag);
+    // Here you would typically make an API call to follow the tag
+  }, []);
+
+  const unfollowTag = useCallback(async (tag: string) => {
+    followingRef.current.tags.delete(tag);
+    // Here you would typically make an API call to unfollow the tag
+  }, []);
+
+  const isFollowing = useCallback((type: 'user' | 'conversation' | 'tag', id: string) => {
+    switch (type) {
+      case 'user':
+        return followingRef.current.users.has(id);
+      case 'conversation':
+        return followingRef.current.conversations.has(id);
+      case 'tag':
+        return followingRef.current.tags.has(id);
+      default:
+        return false;
+    }
+  }, []);
 
   // Window focus tracking - use stable dependencies
   useEffect(() => {
@@ -347,81 +407,77 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
     }
   }, [userId, isLoaded]);
 
+  const handleGlobalMessage = useCallback((message: Message, conversation?: Conversation, users: User[] = []) => {
+    // Skip if from current user or already processed
+    if (message.sender_id === userId || processedMessageIds.current.has(message.id)) return;
+    processedMessageIds.current.add(message.id);
 
-// In GlobalNotificationsContext
-const handleGlobalMessage = useCallback((message: Message, conversation?: Conversation, users: User[] = []) => {
-  // Skip if from current user or already processed
-  if (message.sender_id === userId || processedMessageIds.current.has(message.id)) return;
-  processedMessageIds.current.add(message.id);
-
-  // Check if user is viewing this conversation
-  const isViewingConv = window.location.pathname.includes(`/messages/${message.conversation_id}`);
-  
-  // Only notify if not viewing the conversation
-  if (!isViewingConv) {
-    const conversationName = conversation?.name ||
-      (conversation?.participants?.length === 2 ?
-        users.find(u => u.id !== userId)?.username || 'Direct Message' :
-        'Group Chat');
-
-    // Compile complete notification data
-    const notificationData: InAppNotification = {
-      id: `msg-${message.id}-${Date.now()}`,
-      type: 'message',
-      message,
-      users,
-      conversationName,
-      conversationId: message.conversation_id,
-      createdAt: Date.now(),
-      onClick: () => {
-        window.location.href = `/messages/${message.conversation_id}`;
-      }
-    };
-
-    // Send to notification system
-    dispatch({ type: 'ADD_NOTIFICATION', payload: notificationData });
+    // Check if user is viewing this conversation
+    const isViewingConv = window.location.pathname.includes(`/messages/${message.conversation_id}`);
     
-    // Optionally show browser notification using the existing notifyNewMessage function
-    if (state.notificationSettings.browserNotificationsEnabled) {
-      notifyNewMessage(message, users, () => {
-        window.focus();
-        window.location.href = `/messages/${message.conversation_id}`;
-      });
-    }
-  }
-}, [userId, state.notificationSettings, notifyNewMessage]);
+    // Only notify if not viewing the conversation
+    if (!isViewingConv) {
+      const conversationName = conversation?.name ||
+        (conversation?.participants?.length === 2 ?
+          users.find(u => u.id !== userId)?.username || 'Direct Message' :
+          'Group Chat');
 
+      // Compile complete notification data
+      const notificationData: InAppNotification = {
+        id: `msg-${message.id}-${Date.now()}`,
+        type: 'message',
+        message,
+        users,
+        conversationName,
+        conversationId: message.conversation_id,
+        createdAt: Date.now(),
+        onClick: () => {
+          window.location.href = `/messages/${message.conversation_id}`;
+        }
+      };
 
-// Handle global typing notifications - ALWAYS update state, selective notifications
-const handleGlobalTyping = useCallback((
-  typingUsers: TypingUser[],
-  conversationId: string,
-  conversation?: Conversation,
-  users: User[] = []
-) => {
-  // Always update the typing state
-  dispatch({
-    type: 'UPDATE_TYPING_USERS',
-    payload: {
-      conversationId,
-      typingUsers: typingUsers.filter(tu => tu.userId !== userId) // Filter out self
-    }
-  });
-
-  // Update conversations list to show typing in sidebar
-  dispatch({
-    type: 'SET_CONVERSATIONS',
-    payload: state.conversations.map(conv => {
-      if (conv.id === conversationId) {
-        return {
-          ...conv,
-          typingUsers: typingUsers.filter(tu => tu.userId !== userId)
-        };
+      // Send to notification system
+      dispatch({ type: 'ADD_NOTIFICATION', payload: notificationData });
+      
+      // Optionally show browser notification using the existing notifyNewMessage function
+      if (state.notificationSettings.browserNotificationsEnabled) {
+        notifyNewMessage(message, users, () => {
+          window.focus();
+          window.location.href = `/messages/${message.conversation_id}`;
+        });
       }
-      return conv;
-    })
-  });
-}, [userId, state.conversations]);
+    }
+  }, [userId, state.notificationSettings, notifyNewMessage]);
+
+  const handleGlobalTyping = useCallback((
+    typingUsers: TypingUser[],
+    conversationId: string,
+    conversation?: Conversation,
+    users: User[] = []
+  ) => {
+    // Always update the typing state
+    dispatch({
+      type: 'UPDATE_TYPING_USERS',
+      payload: {
+        conversationId,
+        typingUsers: typingUsers.filter(tu => tu.userId !== userId) // Filter out self
+      }
+    });
+
+    // Update conversations list to show typing in sidebar
+    dispatch({
+      type: 'SET_CONVERSATIONS',
+      payload: state.conversations.map(conv => {
+        if (conv.id === conversationId) {
+          return {
+            ...conv,
+            typingUsers: typingUsers.filter(tu => tu.userId !== userId)
+          };
+        }
+        return conv;
+      })
+    });
+  }, [userId, state.conversations]);
 
   // Initialize global WebSocket
   useEffect(() => {
@@ -490,7 +546,7 @@ const handleGlobalTyping = useCallback((
     }, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [state.inAppNotifications]);
 
   // Clear notifications when user navigates to the specific conversation
   useEffect(() => {
@@ -506,7 +562,7 @@ const handleGlobalTyping = useCallback((
         });
       }
     }
-  }, [currentConversationId, isInMessagesApp]);
+  }, [currentConversationId, isInMessagesApp, state.notificationSettings.inAppNotificationsEnabled, state.inAppNotifications]);
 
   // Notification management functions
   const addMessageNotification = useCallback((message: Message, conversation?: Conversation, users: User[] = []) => {
@@ -585,7 +641,7 @@ const handleGlobalTyping = useCallback((
     clearBrowserNotifications();
   }, [clearBrowserNotifications]);
 
-  // ✅ NEW: Helper function to get typing users for a specific conversation
+  // Helper function to get typing users for a specific conversation
   const getTypingUsersForConversation = useCallback((conversationId: string) => {
     return state.typingUsers[conversationId] || [];
   }, [state.typingUsers]);
@@ -608,34 +664,41 @@ const handleGlobalTyping = useCallback((
   }, [state.onlineUsers]);
 
   const setTypingInConversation = useCallback((conversationId: string, users: TypingUser[]) => {
-  dispatch({
-    type: 'UPDATE_TYPING_USERS',
-    payload: { conversationId, typingUsers: users }
-  });
-}, []);
+    dispatch({
+      type: 'UPDATE_TYPING_USERS',
+      payload: { conversationId, typingUsers: users }
+    });
+  }, []);
 
-const sendGlobalTypingUpdate = useCallback((
-  conversationId: string,
-  userId: string,
-  username: string,
-  isTyping: boolean
-) => {
-  if (!state.globalWs || state.globalWs.readyState !== WebSocket.OPEN) return;
+  const sendGlobalTypingUpdate = useCallback((
+    conversationId: string,
+    userId: string,
+    username: string,
+    isTyping: boolean
+  ) => {
+    if (!state.globalWs || state.globalWs.readyState !== WebSocket.OPEN) return;
 
-  const message = {
-    type: 'typing_update',
-    conversationId,
-    userId,
-    username,
-    isTyping,
-    timestamp: Date.now()
-  };
+    const message = {
+      type: 'typing_update',
+      conversationId,
+      userId,
+      username,
+      isTyping,
+      timestamp: Date.now()
+    };
 
-  state.globalWs.send(JSON.stringify(message));
-}, [state.globalWs]);
+    state.globalWs.send(JSON.stringify(message));
+  }, [state.globalWs]);
 
   // Memoized context value
   const contextValue = useMemo(() => ({
+    followUser,
+    unfollowUser,
+    followConversation,
+    unfollowConversation,
+    followTag,
+    unfollowTag,
+    isFollowing,
     state,
     dispatch,
     addMessageNotification,
@@ -645,12 +708,19 @@ const sendGlobalTypingUpdate = useCallback((
     connectGlobalWebSocket,
     getCurrentConversationId,
     isGlobalConnected: state.isGlobalConnected,
-    getTypingUsersForConversation, // ✅ NEW: Expose this function
+    getTypingUsersForConversation,
     setTypingUsers,
     setOnlineUsers,
     setTypingInConversation,
-  sendGlobalTypingUpdate,
+    sendGlobalTypingUpdate,
   }), [
+    followUser,
+    unfollowUser,
+    followConversation,
+    unfollowConversation,
+    followTag,
+    unfollowTag,
+    isFollowing,
     state,
     addMessageNotification,
     addTypingNotification,
@@ -662,7 +732,7 @@ const sendGlobalTypingUpdate = useCallback((
     setTypingUsers,
     setOnlineUsers,
     setTypingInConversation,
-  sendGlobalTypingUpdate,
+    sendGlobalTypingUpdate,
   ]);
 
   // Determine when to show the global notification container
