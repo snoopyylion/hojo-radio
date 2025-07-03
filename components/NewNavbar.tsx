@@ -42,9 +42,7 @@ const NewNavbar = () => {
   const {
     hasNewMessages,
     unreadCount,
-    markAsViewed,
-    resetViewedTime,
-    simulateUnreadMessages
+    markAsViewed
   } = useInstantNotifications();
 
   // Mobile sidebar handlers
