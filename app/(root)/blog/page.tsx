@@ -525,7 +525,7 @@ const NewsPage = () => {
 
           {/* Main title with enhanced typography */}
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif font-bold text-gray-900 dark:text-whiteleading-tight tracking-tight">
-            <span className="mr-4">News</span>
+            <span className="mr-4 text-gray-900 dark:text-white">News</span>
             <span className="text-[#EF3866] italic font-light">&amp; Insights</span>
           </h1>
 
