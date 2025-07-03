@@ -165,9 +165,34 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({
                 </div>
               </div>
 
-              {/* User Section */}
+              {/* User Section with Loading State */}
               <div className={`mx-6 mb-6 rounded-2xl overflow-hidden border-2 shadow-xl ${isDark ? 'bg-white/5 border-white/15' : 'bg-black/5 border-black/10'}`}>
-                {isLoaded && user ? (
+                {!isLoaded ? (
+                  // Loading State
+                  <div className="p-5">
+                    <div className="flex items-center gap-4">
+                      {/* Avatar Skeleton */}
+                      <div className="relative shrink-0">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gray-300 to-gray-400 animate-pulse" />
+                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gray-300 rounded-full animate-pulse" />
+                      </div>
+
+                      {/* User Info Skeleton */}
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-gray-300 rounded animate-pulse" />
+                          <div className="w-24 h-3 bg-gray-300 rounded animate-pulse" />
+                        </div>
+                        <div className="w-20 h-5 bg-gray-300 rounded animate-pulse" />
+                        <div className="w-16 h-4 bg-gray-300 rounded animate-pulse" />
+                      </div>
+
+                      {/* Chevron Skeleton */}
+                      <div className="w-5 h-5 bg-gray-300 rounded animate-pulse" />
+                    </div>
+                  </div>
+                ) : user ? (
+                  // User Authenticated State
                   <div className="space-y-0">
                     <Link href="/hashedpage" className="block group">
                       <div className={`p-5 flex items-center gap-4 transition-all duration-300 ${isDark ? 'hover:bg-white/10 border-b border-white/10' : 'hover:bg-black/5 border-b border-black/10'}`}>
@@ -198,6 +223,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({
                     </div>
                   </div>
                 ) : (
+                  // No User State - Show Sign Up Button
                   <div className="p-5">
                     <Link href="/authentication/sign-up">
                       <button className="w-full relative overflow-hidden px-8 py-5 rounded-2xl font-bold text-white bg-gradient-to-r from-[#EF3866] to-[#EF3866]/80 hover:from-[#d7325a] hover:to-[#d7325a]/80 shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300">
