@@ -1,4 +1,4 @@
-// components/NewNavbar.tsx - Updated with better debugging and testing
+// components/NewNavbar.tsx
 "use client";
 
 import Image from "next/image";
@@ -16,19 +16,28 @@ import { NotificationBell } from "./NotificationBell";
 import { useInstantNotifications } from '@/hooks/useInstantNotifications';
 import { NotificationDot } from './NotificationDot';
 
-const navItems = [
+// Define the navigation item type
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ComponentType<any>;
+  showNotification?: boolean;
+}
+
+const baseNavItems: NavItem[] = [
   { href: "/", label: "Home", icon: Home },
   { href: "/verify-news", label: "Verify News", icon: Shield },
   { href: "/podcast", label: "Podcast", icon: Mic },
   { href: "/blog", label: "Blog", icon: BookOpen },
   { href: "/aboutus", label: "About Us", icon: Users },
-  {
-    href: "/messages",
-    label: "Messages",
-    icon: MessageCircle,
-    showNotification: true // Flag to show notification dot
-  },
 ];
+
+const messagesNavItem: NavItem = {
+  href: "/messages",
+  label: "Messages",
+  icon: MessageCircle,
+  showNotification: true
+};
 
 const NewNavbar = () => {
   const { user, isLoaded } = useAppContext();
@@ -37,6 +46,9 @@ const NewNavbar = () => {
   const [lastScrollY, setLastScrollY] = useState(0);
   const [showSignOut, setShowSignOut] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Conditionally include Messages button only if user exists
+  const navItems = user ? [...baseNavItems, messagesNavItem] : baseNavItems;
 
   // Use the instant notifications hook
   const {
@@ -135,17 +147,6 @@ const NewNavbar = () => {
                             size="small"
                             position="top-right"
                           />
-                          {/* Always visible test indicator */}
-                          <div
-                            className="absolute -top-1 -right-1 w-3 h-3 rounded-full text-[8px] flex items-center justify-center font-bold border border-white"
-                            style={{
-                              backgroundColor: hasNewMessages && unreadCount > 0 ? '#ef4444' : '#gray',
-                              color: 'white',
-                              display: 'flex'
-                            }}
-                          >
-                            {unreadCount > 0 ? unreadCount : ''}
-                          </div>
                         </div>
                       </button>
                     </div>
@@ -209,7 +210,7 @@ const NewNavbar = () => {
                                 show={hasNewMessages && unreadCount > 0}
                                 count={unreadCount > 0 ? unreadCount : undefined}
                                 size="small"
-                                position="top-right" // or "top-left", "bottom-right", "bottom-left"
+                                position="top-right"
                                 className="border-2 border-white"
                               />
                             </div>
@@ -291,7 +292,6 @@ const NewNavbar = () => {
                 </div>
               )}
             </div>
-
           </div>
         </div>
       </nav>

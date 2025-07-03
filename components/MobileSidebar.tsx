@@ -1,4 +1,4 @@
-// components/MobileSidebar.tsx
+// components/MobileSidebar.tsx - Updated
 'use client';
 
 import React, { useEffect } from 'react';
@@ -24,14 +24,30 @@ export interface MobileSidebarProps {
   onMessagesClick?: () => void;
 }
 
-const navItems = [
+// Define the navigation item type
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ComponentType<any>;
+  description: string;
+  showNotification?: boolean;
+}
+
+const baseNavItems: NavItem[] = [
   { href: '/', label: 'Home', icon: Home, description: 'Latest updates' },
   { href: '/verify-news', label: 'Verify News', icon: Shield, description: 'Fact checking' },
   { href: '/podcast', label: 'Podcast', icon: Mic, description: 'Audio content' },
   { href: '/blog', label: 'Blog', icon: BookOpen, description: 'Read articles' },
   { href: '/aboutus', label: 'About Us', icon: Users, description: 'Our story' },
-  { href: '/messages', label: 'Messages', icon: MessageCircle, description: 'Your chats', showNotification: true },
 ];
+
+const messagesNavItem: NavItem = {
+  href: '/messages',
+  label: 'Messages',
+  icon: MessageCircle,
+  description: 'Your chats',
+  showNotification: true
+};
 
 const MobileSidebar: React.FC<MobileSidebarProps> = ({
   isOpen,
@@ -42,6 +58,9 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({
 }) => {
   const { user, isLoaded } = useAppContext();
   const pathname = usePathname();
+
+  // Conditionally include Messages button only if user exists
+  const navItems = user ? [...baseNavItems, messagesNavItem] : baseNavItems;
 
   const isDark = typeof window !== 'undefined'
     ? window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -123,9 +142,9 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({
                 <div className="absolute bottom-0 left-6 right-6 h-px bg-gradient-to-r from-[#EF3866] to-transparent" />
               </div>
 
-              {/* Nav Grid */}
+              {/* Nav Grid - Dynamic columns based on user */}
               <div className="px-6 pb-6 mt-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className={`grid gap-3 ${user ? 'grid-cols-2' : 'grid-cols-2'}`}>
                   {navItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href;
@@ -140,7 +159,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({
                           hover:scale-[1.02] hover:shadow-lg w-full`}
                       >
                         <div className="flex flex-col items-center text-center space-y-2">
-                          <div className={`p-3 rounded-xl transition-all duration-300
+                          <div className={`p-3 rounded-xl transition-all duration-300 relative
                             ${isActive
                               ? 'bg-[#EF3866] text-white shadow-lg'
                               : `${isDark ? 'bg-white/10 text-white group-hover:bg-[#EF3866]' : 'bg-black/10 text-black group-hover:bg-[#EF3866]'} group-hover:text-white`}`}>
