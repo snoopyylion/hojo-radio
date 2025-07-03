@@ -2,8 +2,8 @@
 "use client";
 
 import Image from "next/image";
-import React, { useEffect, useState } from "react";
-import { Menu, X, Home, Shield, Mic, BookOpen, Users, User, MessageCircle } from "lucide-react";
+import React, { useEffect, useState, useCallback } from "react";
+import { Menu, X, Home, Shield, Mic, BookOpen, Users, User, MessageCircle, LucideIcon } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useAppContext } from "@/context/AppContext";
 import Link from "next/link";
@@ -16,11 +16,11 @@ import { NotificationBell } from "./NotificationBell";
 import { useInstantNotifications } from '@/hooks/useInstantNotifications';
 import { NotificationDot } from './NotificationDot';
 
-// Define the navigation item type
+// Define the navigation item type with proper typing
 interface NavItem {
   href: string;
   label: string;
-  icon: React.ComponentType<any>;
+  icon: LucideIcon;
   showNotification?: boolean;
 }
 
@@ -58,15 +58,15 @@ const NewNavbar = () => {
   } = useInstantNotifications();
 
   // Mobile sidebar handlers
-  const toggleMobileSidebar = () => setIsMobileSidebarOpen(!isMobileSidebarOpen);
-  const closeMobileSidebar = () => setIsMobileSidebarOpen(false);
+  const toggleMobileSidebar = useCallback(() => setIsMobileSidebarOpen(!isMobileSidebarOpen), [isMobileSidebarOpen]);
+  const closeMobileSidebar = useCallback(() => setIsMobileSidebarOpen(false), []);
 
   // Handle messages link click to mark as viewed
-  const handleMessagesClick = () => {
+  const handleMessagesClick = useCallback(() => {
     console.log('🔔 Messages clicked, marking as viewed');
     markAsViewed();
     router.push('/messages');
-  };
+  }, [markAsViewed, router]);
 
   // Get user display data with fallbacks
   const getUserDisplayData = (currentUser: typeof user) => {
@@ -102,7 +102,7 @@ const NewNavbar = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Enhanced notification logging
+  // Enhanced notification logging with proper dependencies
   useEffect(() => {
     console.log('🔔 DEBUG: Notification state in navbar:', {
       hasNewMessages,
@@ -111,7 +111,7 @@ const NewNavbar = () => {
       isLoaded,
       timestamp: new Date().toISOString()
     });
-  }, [hasNewMessages, unreadCount, user?.id, isLoaded]);
+  }, [hasNewMessages, unreadCount, user, isLoaded]);
 
   return (
     <>

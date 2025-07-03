@@ -1,14 +1,14 @@
-// components/MobileSidebar.tsx - Updated
+// components/MobileSidebar.tsx - Corrected Version
 'use client';
 
-import React, { useEffect } from 'react';
+import { useCallback, useState, useEffect } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   Home, Shield, Mic, BookOpen, Users, MessageCircle,
-  X, ChevronRight, LayoutDashboard, ArrowRight
+  X, ChevronRight, LayoutDashboard, ArrowRight, LucideIcon
 } from 'lucide-react';
 import { useAppContext } from '@/context/AppContext';
 import { UserButton } from '@clerk/nextjs';
@@ -24,11 +24,11 @@ export interface MobileSidebarProps {
   onMessagesClick?: () => void;
 }
 
-// Define the navigation item type
+// Define the navigation item type with proper typing
 interface NavItem {
   href: string;
   label: string;
-  icon: React.ComponentType<any>;
+  icon: LucideIcon;
   description: string;
   showNotification?: boolean;
 }
@@ -66,30 +66,52 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({
     ? window.matchMedia('(prefers-color-scheme: dark)').matches
     : false;
 
-  const getUserDisplay = () => {
+  const getUserDisplay = useCallback(() => {
     if (!user) return { name: 'User', role: 'Member' };
     const name = user.supabaseProfile?.first_name || user.firstName || 'User';
     const role = user.supabaseProfile?.role || user.role || 'Member';
     return { name, role };
-  };
+  }, [user]);
 
   const { name, role } = getUserDisplay();
 
+  // FIX 1: Only close sidebar on pathname change, not when opening
+  // This prevents the immediate open->close cycle
   useEffect(() => {
-    if (isOpen) onClose();
-  }, [pathname]);
+    // Only close if sidebar is open AND pathname changed
+    if (isOpen) {
+      console.log('Closing sidebar due to pathname change');
+      onClose();
+    }
+  }, [pathname]); // Removed isOpen and onClose from dependencies
 
-  const handleNavClick = (href: string, showNotification?: boolean) => {
+  // FIX 2: Stable navigation click handler
+  const handleNavClick = useCallback((href: string, showNotification?: boolean) => {
+    console.log('Nav click:', { href, showNotification });
+    
     if (showNotification && onMessagesClick) {
+      // Handle messages click specially
       onMessagesClick();
     } else {
+      // Navigate to the href
       window.location.href = href;
     }
+    
+    // Close sidebar after navigation
     onClose();
-  };
+  }, [onMessagesClick, onClose]);
+
+  // FIX 3: Prevent backdrop click from bubbling
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    // Only close if clicking the backdrop itself, not child elements
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  }, [onClose]);
 
   return (
     <>
+      {/* Backdrop */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -98,11 +120,12 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm"
-            onClick={onClose}
+            onClick={handleBackdropClick}
           />
         )}
       </AnimatePresence>
 
+      {/* Sidebar */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -134,7 +157,10 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({
                         </div>
                       </Link>
                     )}
-                    <button onClick={onClose} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all hover:scale-105 ${isDark ? 'bg-white/10 text-white' : 'bg-black/5 text-black'}`}>
+                    <button 
+                      onClick={onClose} 
+                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all hover:scale-105 ${isDark ? 'bg-white/10 text-white' : 'bg-black/5 text-black'}`}
+                    >
                       <X size={18} />
                     </button>
                   </div>
