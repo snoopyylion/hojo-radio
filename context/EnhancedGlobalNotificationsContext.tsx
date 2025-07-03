@@ -62,8 +62,14 @@ const defaultNotificationSettings: NotificationSettings = {
     mention: true,
     application_approved: true,
     application_rejected: true,
-  }
+  },
+  followedEntities: {
+    users: [],
+    tags: [],
+    conversations: [],
+  },
 };
+
 
 const GlobalNotificationsContext = createContext<GlobalNotificationsContextType | null>(null);
 
