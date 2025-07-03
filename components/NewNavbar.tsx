@@ -270,12 +270,12 @@ const NewNavbar = () => {
             <div className="relative">
               <button
                 onClick={toggleMobileSidebar}
-                className="relative flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 hover:from-gray-700 hover:to-gray-900 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="relative flex items-center justify-center w-8 h-8 rounded-md hover:bg-gray-100 transition-all duration-200"
               >
                 {isMobileSidebarOpen ? (
-                  <X size={24} className="text-white" />
+                  <X size={18} className="text-gray-600" />
                 ) : (
-                  <Menu size={24} className="text-white" />
+                  <Menu size={18} className="text-gray-600" />
                 )}
               </button>
               {/* Enhanced notification dot on mobile menu */}
@@ -291,6 +291,7 @@ const NewNavbar = () => {
                 </div>
               )}
             </div>
+
           </div>
         </div>
       </nav>
