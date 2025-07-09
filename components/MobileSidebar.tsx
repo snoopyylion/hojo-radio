@@ -1,7 +1,7 @@
 // components/MobileSidebar.tsx - Corrected Version
 'use client';
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';

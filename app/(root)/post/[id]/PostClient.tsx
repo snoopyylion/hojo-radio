@@ -1,4 +1,3 @@
-"use client";
 import { client } from '@/sanity/lib/client';
 import { notFound } from 'next/navigation';
 import { PortableText } from '@portabletext/react';
@@ -8,7 +7,7 @@ import { formatDate } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { ChevronUp, ChevronLeft, ChevronRight, Heart, Bookmark, Share2, Clock, Eye, MessageCircle } from 'lucide-react';
 import CommentSection from '@/components/CommentSection';
 import type { PortableTextBlock } from '@portabletext/types';
@@ -16,6 +15,7 @@ import { useLikes } from '../../../../hooks/likes/useLikes';
 import { useUserLikes } from '../../../../hooks/user-likes/useUserLikes';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
 
 // Register GSAP plugins
 gsap.registerPlugin(ScrollTrigger);
@@ -48,6 +48,12 @@ interface RelatedPost {
   slug: {
     current: string;
   };
+}
+
+interface BookmarkState {
+  isBookmarked: boolean;
+  bookmarkCount: number;
+  isBookmarkLoading: boolean;
 }
 
 interface Post {
@@ -105,11 +111,41 @@ const markdownComponents: Components = {
       {children}
     </h6>
   ),
-  p: ({ children, ...props }) => (
-    <p {...props} className="mb-6 text-gray-800 dark:text-gray-200 leading-relaxed text-lg md:text-xl font-light">
-      {children}
-    </p>
+  p: ({ node, children, ...props }) => {
+    // Check if the paragraph contains only an image
+    const hasOnlyImage = node?.children?.length === 1 &&
+      node.children[0]?.type === 'element' &&
+      node.children[0]?.tagName === 'img';
+
+    if (hasOnlyImage) {
+      return <div className="my-8 first:mt-0">{children}</div>;
+    }
+
+    return (
+      <p {...props} className="mb-6 text-gray-800 dark:text-gray-200 leading-relaxed text-lg md:text-xl font-light">
+        {children}
+      </p>
+    );
+  },
+
+  img: ({ src, alt, ...props }) => (
+    <div className="my-8 first:mt-0">
+      <div className="relative w-full">
+        <img
+          {...props}
+          src={src}
+          alt={alt || 'Content image'}
+          className="w-full h-auto rounded-lg shadow-sm"
+        />
+      </div>
+      {alt && (
+        <div className="text-sm text-gray-500 dark:text-gray-400 mt-3 text-center italic">
+          {alt}
+        </div>
+      )}
+    </div>
   ),
+
   blockquote: ({ children, ...props }) => (
     <blockquote {...props} className="my-8 pl-6 border-l-4 border-[#EF3866] dark:border-[#ff7a9c] italic text-lg md:text-xl text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/30 py-4 pr-4 rounded-r-lg">
       {children}
@@ -173,23 +209,6 @@ const markdownComponents: Components = {
       {children}
     </a>
   ),
-  img: ({ src, alt, ...props }) => (
-    <figure className="my-8 first:mt-0">
-      <div className="relative w-full">
-        <img
-          {...props}
-          src={src}
-          alt={alt || 'Content image'}
-          className="w-full h-auto rounded-lg shadow-sm"
-        />
-      </div>
-      {alt && (
-        <figcaption className="text-sm text-gray-500 dark:text-gray-400 mt-3 text-center italic">
-          {alt}
-        </figcaption>
-      )}
-    </figure>
-  ),
   hr: (props) => (
     <hr {...props} className="my-12 border-0 h-px bg-gray-200 dark:bg-gray-700" />
   ),
@@ -232,7 +251,7 @@ const ptComponents: Partial<PortableTextReactComponents> = {
     image: ({ value }) => {
       if (!value?.asset?.url) return null;
       return (
-        <figure className="my-12 first:mt-0">
+        <div className="my-12 first:mt-0">
           <div className="relative w-full aspect-video">
             <Image
               src={value.asset.url}
@@ -246,7 +265,7 @@ const ptComponents: Partial<PortableTextReactComponents> = {
               {value.alt}
             </figcaption>
           )}
-        </figure>
+        </div>
       );
     },
   },
@@ -300,6 +319,11 @@ export default function PostClient({ id }: PostClientProps) {
   const [readingProgress, setReadingProgress] = useState(0);
   const [saved, setSaved] = useState(false);
   const [estimatedReadTime, setEstimatedReadTime] = useState(0);
+  const [bookmarkState, setBookmarkState] = useState<BookmarkState>({
+    isBookmarked: false,
+    bookmarkCount: 0,
+    isBookmarkLoading: false,
+  });
 
   const { likeCount, hasLiked, toggleLike, loading, isSignedIn } = useLikes(id);
   const { refreshUserLikes } = useUserLikes();
@@ -473,6 +497,76 @@ export default function PostClient({ id }: PostClientProps) {
     }
   };
 
+  useEffect(() => {
+    const fetchBookmarkData = async () => {
+      try {
+        const response = await fetch(`/api/post/${id}/bookmark`);
+        const data = await response.json();
+
+        setBookmarkState(prev => ({
+          ...prev,
+          isBookmarked: data.hasBookmarked || false,
+          bookmarkCount: data.bookmarkCount || 0,
+        }));
+      } catch (error) {
+        console.error("Failed to fetch bookmark data:", error);
+      }
+    };
+
+    if (id) {
+      fetchBookmarkData();
+    }
+  }, [id]);
+
+  // Replace your existing bookmark button handler with this:
+  const handleBookmark = useCallback(async () => {
+    if (bookmarkState.isBookmarkLoading) return;
+
+    // Optimistic update
+    const previousState = {
+      isBookmarked: bookmarkState.isBookmarked,
+      bookmarkCount: bookmarkState.bookmarkCount
+    };
+
+    setBookmarkState(prev => ({
+      ...prev,
+      isBookmarked: !prev.isBookmarked,
+      bookmarkCount: prev.isBookmarked ? prev.bookmarkCount - 1 : prev.bookmarkCount + 1,
+      isBookmarkLoading: true,
+    }));
+
+    try {
+      const response = await fetch(`/api/post/${id}/bookmark`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Update with server response
+      setBookmarkState(prev => ({
+        ...prev,
+        isBookmarked: data.bookmarked || false,
+        bookmarkCount: data.bookmarkCount || 0,
+        isBookmarkLoading: false,
+      }));
+    } catch (error) {
+      // Revert optimistic update on error
+      setBookmarkState(prev => ({
+        ...prev,
+        isBookmarked: previousState.isBookmarked,
+        bookmarkCount: previousState.bookmarkCount,
+        isBookmarkLoading: false,
+      }));
+      console.error("Bookmark request failed:", error);
+    }
+  }, [id, bookmarkState.isBookmarked, bookmarkState.bookmarkCount, bookmarkState.isBookmarkLoading]);
+
+
   // Determine content type
   const isPortableText = post?.body && typeof post.body === 'object' && Array.isArray(post.body);
   const isMarkdown = post?.body && typeof post.body === 'string';
@@ -547,7 +641,7 @@ export default function PostClient({ id }: PostClientProps) {
             <div className="pb-8 border-b border-gray-100 dark:border-gray-800">
               {post.author.supabaseUserId ? (
                 // If we have a supabaseUserId, make it clickable
-                <Link 
+                <Link
                   href={`/user/${post.author.supabaseUserId || post.author._id || ''}`}
                   className="flex items-center gap-4 group hover:bg-gray-50 dark:hover:bg-gray-900/30 p-2 -m-2 rounded-lg transition-colors"
                 >
@@ -612,23 +706,21 @@ export default function PostClient({ id }: PostClientProps) {
       {post.mainImage?.asset?.url && (
         <div className="mb-12 px-4 md:px-8 lg:px-16">
           <div className="max-w-4xl mx-auto">
-            <figure>
-              <div className="w-full aspect-video relative">
-                <Image
-                  src={post.mainImage.asset.url}
-                  alt={post.mainImage.alt || post.title}
-                  fill
-                  className="object-cover rounded-lg"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
-                  priority
-                />
+            <div className="w-full aspect-video relative">
+              <Image
+                src={post.mainImage.asset.url}
+                alt={post.mainImage.alt || post.title}
+                fill
+                className="object-cover rounded-lg"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+                priority
+              />
+            </div>
+            {post.mainImage.alt && (
+              <div className="text-sm text-gray-500 dark:text-gray-400 mt-3 text-center italic">
+                {post.mainImage.alt}
               </div>
-              {post.mainImage.alt && (
-                <figcaption className="text-sm text-gray-500 dark:text-gray-400 mt-3 text-center italic">
-                  {post.mainImage.alt}
-                </figcaption>
-              )}
-            </figure>
+            )}
           </div>
         </div>
       )}
@@ -648,7 +740,9 @@ export default function PostClient({ id }: PostClientProps) {
             )}
             {isMarkdown && (
               <div className="markdown-content [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                <ReactMarkdown components={markdownComponents}>
+                <ReactMarkdown
+                  components={markdownComponents}
+                >
                   {post.body as string}
                 </ReactMarkdown>
               </div>
@@ -663,8 +757,8 @@ export default function PostClient({ id }: PostClientProps) {
                   onClick={handleLikeClick}
                   disabled={loading || !isSignedIn}
                   className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 ${hasLiked
-                      ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                     } ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
                   title={!isSignedIn ? 'Sign in to like posts' : hasLiked ? 'Unlike this post' : 'Like this post'}
                 >
@@ -678,14 +772,21 @@ export default function PostClient({ id }: PostClientProps) {
                 </button>
 
                 <button
-                  onClick={() => setSaved(prev => !prev)}
-                  className={`p-2 rounded-full transition-all duration-200 hover:scale-105 ${saved
-                      ? 'text-yellow-600 hover:bg-yellow-50'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
-                  title={saved ? 'Remove from saved' : 'Save for later'}
+                  onClick={handleBookmark}
+                  disabled={bookmarkState.isBookmarkLoading}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 ${bookmarkState.isBookmarked
+                      ? 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    } ${bookmarkState.isBookmarkLoading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                  title={bookmarkState.isBookmarked ? 'Remove from saved' : 'Save for later'}
                 >
-                  <Bookmark className={`w-5 h-5 ${saved ? 'fill-current' : ''}`} />
+                  <Bookmark
+                    className={`w-5 h-5 transition-all duration-200 ${bookmarkState.isBookmarked ? 'fill-current text-yellow-600' : 'text-gray-600 dark:text-gray-400'
+                      } ${bookmarkState.isBookmarkLoading ? 'animate-pulse' : ''}`}
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {bookmarkState.isBookmarkLoading ? '...' : (bookmarkState.isBookmarked ? 'Saved' : 'Save')}
+                  </span>
                 </button>
 
                 <button

@@ -122,8 +122,8 @@ export const MessagingLayout: React.FC<MessagingLayoutProps> = ({
                       <Image
                         src={user.imageUrl}
                         alt={user.fullName || user.firstName || 'User'}
-                        width={48} // 👈 required
-                        height={48} // 👈 required
+                        width={48}
+                        height={48}
                         className="w-12 h-12 rounded-full ring-2 ring-blue-500/20 dark:ring-blue-400/30 object-cover"
                       />
                       <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-950 rounded-full"></div>
@@ -159,7 +159,7 @@ export const MessagingLayout: React.FC<MessagingLayoutProps> = ({
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => router.push('/messages/new')}
-                    className="flex-1 flex items-center justify-center space-x-2 px-3 py-2.5 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 transition-all font-medium duration-200 shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
+                    className="flex-1 flex items-center justify-center space-x-2 px-3 py-2.5 rounded-xl bg-[#EF3866] dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 transition-all font-medium duration-200 shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
                     title="New conversation"
                   >
                     <Plus size={16} strokeWidth={2} />

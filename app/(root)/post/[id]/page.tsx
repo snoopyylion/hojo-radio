@@ -1,6 +1,6 @@
 import { client } from '@/sanity/lib/client';
 import { Metadata } from 'next';
-import PostClient from './PostClient';
+import PostClientWrapper from './PostClientWrapper'; // Changed import
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -34,5 +34,5 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function PostPage({ params }: PageProps) {
   const { id } = await params;
 
-  return <PostClient id={id} />;
+  return <PostClientWrapper id={id} />; // Use wrapper instead
 }

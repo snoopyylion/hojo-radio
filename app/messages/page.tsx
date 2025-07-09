@@ -1,13 +1,14 @@
 // app/messages/page.tsx
 'use client';
 
-import {  useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useRealtimeMessaging } from '@/hooks/useRealTimeMessaging';
 import { useSidebar } from '@/components/messaging/MessagingLayout';
 import { MessageCircle, Users, Search, Plus, ArrowRight, Menu } from 'lucide-react';
 import { Conversation } from '@/types/messaging';
+import Image from 'next/image';
 
 export default function MessagesPage() {
     const router = useRouter();
@@ -33,7 +34,7 @@ export default function MessagesPage() {
         setSelectedConversation(null);
     }, []);
 
-    
+
 
     const handleNewConversation = () => {
         router.push('/messages/new');
@@ -79,7 +80,7 @@ export default function MessagesPage() {
                 {/* Simple Header */}
                 <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
+                        <div className="flex items-center justify-between space-x-3">
                             <button
                                 onClick={toggleSidebar}
                                 className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -87,17 +88,20 @@ export default function MessagesPage() {
                             >
                                 <Menu size={20} />
                             </button>
-                            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                            <div className="w-10 h-10 rounded-xl relative overflow-hidden flex-shrink-0 shadow-md border border-gray-200/60 dark:border-gray-300/20 group-hover:shadow-lg transition-shadow">
+                                <Image
+                                    src="/img/logo.jpg"
+                                    alt="logo"
+                                    fill
+                                    className="object-cover"
+                                />
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
                                 Messages
                             </h1>
+                            </div>
                         </div>
-                        <button
-                            onClick={handleNewConversation}
-                            className="flex items-center space-x-2 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors text-sm font-medium"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span>New Chat</span>
-                        </button>
                     </div>
                 </div>
 
@@ -125,7 +129,7 @@ export default function MessagesPage() {
                                 {/* Action Button */}
                                 <button
                                     onClick={handleNewConversation}
-                                    className="group inline-flex items-center space-x-2 px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors font-medium"
+                                    className="group inline-flex items-center space-x-2 px-6 py-3 bg-[#EF3866] dark:bg-white text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors font-medium"
                                 >
                                     <Plus className="w-4 h-4" />
                                     <span>New Chat</span>
@@ -183,7 +187,7 @@ export default function MessagesPage() {
                                 {/* Action Button */}
                                 <button
                                     onClick={handleNewConversation}
-                                    className="group inline-flex items-center space-x-2 px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors font-medium"
+                                    className="group inline-flex items-center space-x-2 px-6 py-3 bg-[#EF3866] dark:bg-white text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors font-medium"
                                 >
                                     <Plus className="w-4 h-4" />
                                     <span>Start Your First Chat</span>
