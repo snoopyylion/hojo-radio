@@ -749,7 +749,7 @@ export default function PostClient({ id }: PostClientProps) {
           </div>
 
           {/* Engagement Actions - Sticky */}
-          <div className="sticky bottom-8 z-40 mb-16">
+          <div className="sticky bottom-14 z-40 mb-16">
             <div className="flex justify-center">
               <div className="flex items-center gap-4 bg-white/90 dark:bg-black/90 backdrop-blur-md border border-gray-200 dark:border-gray-800 rounded-full px-6 py-3 shadow-lg">
                 <button
