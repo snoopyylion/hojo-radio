@@ -430,7 +430,7 @@ export default function NewConversationPage() {
                 <div className="mt-8 text-center">
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                         {conversationType === 'direct' ? (
-                            <>Select a contact to start chatting. If a conversation already exists, you'll be redirected to it.</>
+                            <>Select a contact to start chatting. If a conversation already exists, you&apos;ll be redirected to it.</>
                         ) : (
                             <>Create a group chat by selecting multiple participants and giving your group a name.</>
                         )}

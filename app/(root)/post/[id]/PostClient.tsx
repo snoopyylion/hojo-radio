@@ -317,7 +317,6 @@ export default function PostClient({ id }: PostClientProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
-  const [saved, setSaved] = useState(false);
   const [estimatedReadTime, setEstimatedReadTime] = useState(0);
   const [bookmarkState, setBookmarkState] = useState<BookmarkState>({
     isBookmarked: false,
