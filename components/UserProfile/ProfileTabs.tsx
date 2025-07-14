@@ -57,9 +57,9 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
   ];
 
   return (
-    <div ref={tabsRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 opacity-0">
-      <div className="border-b border-gray-200 dark:border-gray-700 transition-colors">
-        <nav className="-mb-px flex space-x-2 sm:space-x-8 overflow-x-auto scrollbar-hide">
+    <div ref={tabsRef} className="opacity-0">
+      <div className="bg-white/80 dark:bg-black/80 backdrop-blur-lg rounded-2xl border border-gray-200/50 dark:border-gray-800/50 p-2 shadow-sm">
+        <nav className="flex space-x-2 overflow-x-auto scrollbar-hide">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -68,10 +68,10 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
               <button
                 key={tab.id}
                 onClick={() => handleTabClick(tab.id)}
-                className={`flex items-center space-x-2 py-4 px-1 sm:px-3 border-b-2 font-medium text-sm transition-colors font-sora whitespace-nowrap ${
+                className={`flex items-center space-x-2 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-300 font-sora whitespace-nowrap min-w-fit ${
                   isActive
-                    ? 'border-[#EF3866] text-[#EF3866]'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                    ? 'bg-[#EF3866] text-white shadow-lg shadow-[#EF3866]/20'
+                    : 'bg-gray-50/50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 hover:bg-gray-100/70 dark:hover:bg-gray-700/70 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -83,8 +83,8 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
                   <span
                     className={`ml-1 px-2 py-0.5 rounded-full text-xs font-semibold transition-all duration-300 ${
                       isActive
-                        ? 'bg-[#EF3866]/10 text-[#EF3866]'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                        ? 'bg-white/20 text-white backdrop-blur-sm'
+                        : 'bg-[#EF3866]/10 text-[#EF3866] dark:bg-[#EF3866]/20'
                     }`}
                   >
                     {tab.count}

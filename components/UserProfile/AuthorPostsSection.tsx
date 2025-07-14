@@ -10,7 +10,8 @@ import {
   MessageCircle, 
   BookOpen,
   Clock,
-  ExternalLink
+  ExternalLink,
+  Eye
 } from 'lucide-react';
 import { UserPost } from '@/types/user';
 
@@ -29,6 +30,7 @@ interface AuthorPostsSectionProps {
   userId: string;
   isAuthor: boolean;
   userName: string;
+  onPostsCountUpdate?: (count: number) => void;
 }
 
 interface SanityPost {
@@ -43,7 +45,7 @@ interface SanityPost {
     };
   };
   likes?: Like[];
-comments?: Comment[];
+  comments?: Comment[];
   publishedAt?: string;
   _createdAt: string;
   _updatedAt: string;
@@ -72,7 +74,8 @@ interface PortableTextChild {
 export const AuthorPostsSection: React.FC<AuthorPostsSectionProps> = ({
   userId,
   isAuthor,
-  userName
+  userName,
+  onPostsCountUpdate
 }) => {
   const [posts, setPosts] = useState<UserPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,22 +135,30 @@ export const AuthorPostsSection: React.FC<AuthorPostsSectionProps> = ({
       }));
 
       setPosts(transformedPosts);
+      
+      // Update the posts count in the parent component
+      if (onPostsCountUpdate) {
+        onPostsCountUpdate(transformedPosts.length);
+      }
     } catch (error) {
       console.error('Error fetching author posts:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch posts');
       setPosts([]);
+      if (onPostsCountUpdate) {
+        onPostsCountUpdate(0);
+      }
     } finally {
       setLoading(false);
     }
-  }, [userId, userName]);
+  }, [userId, userName, onPostsCountUpdate]);
 
   useEffect(() => {
-  if (isAuthor) {
-    fetchAuthorPosts();
-  } else {
-    setLoading(false);
-  }
-}, [isAuthor, fetchAuthorPosts]);
+    if (isAuthor) {
+      fetchAuthorPosts();
+    } else {
+      setLoading(false);
+    }
+  }, [isAuthor, fetchAuthorPosts]);
 
   // Helper function to extract text from Portable Text
   const extractTextFromPortableText = (body?: PortableTextBlock[]): string => {

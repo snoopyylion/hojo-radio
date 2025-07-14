@@ -2,18 +2,36 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
+import Image from 'next/image';
 import { useAppContext } from '@/context/AppContext';
-import { UserProfile, UserPost } from '@/types/user';
-// Import your components
-import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
+import { UserProfile } from '@/types/user';
+import { Button } from '@/components/ui/button';
 import { ProfileTabs } from '@/components/UserProfile/ProfileTabs';
 import { AboutSection } from '@/components/UserProfile/AboutSection';
 import { UserActivity } from '@/components/UserProfile/UserActivity';
 import { VerifiedNewsList } from '@/components/UserProfile/VerifiedNewsList';
-import  { AuthorPostsSection }  from '@/components/UserProfile/AuthorPostsSection';
+import { AuthorPostsSection } from '@/components/UserProfile/AuthorPostsSection';
 import { FollowersFollowingSection } from '@/components/UserProfile/FollowModal';
+import { BookOpen, MessageCircle } from 'lucide-react';
 
-// Add VerifiedNews interface
+// Color constants for consistent theming
+const COLORS = {
+  primary: '#EF3866',
+  primaryLight: '#FF6B8B',
+  primaryDark: '#D12A56',
+  secondary: '#6C63FF',
+  accent: '#00C4CC',
+  lightBg: '#F9FAFB',
+  darkBg: '#0F172A',
+  lightText: '#F8FAFC',
+  darkText: '#1E293B',
+  grayLight: '#E2E8F0',
+  grayDark: '#475569',
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444'
+};
+
 interface VerifiedNews {
   id: string;
   title: string;
@@ -27,35 +45,6 @@ interface VerifiedNews {
   credibility_score: number;
 }
 
-interface SanityPost {
-  _id: string;
-  title?: string;
-  body?: PortableTextBlock[];
-  description?: string;
-  excerpt?: string;
-  mainImage?: {
-    asset?: {
-      url: string;
-    };
-  };
-  likes?: unknown[];
-  comments?: unknown[];
-  publishedAt?: string;
-  _createdAt: string;
-  _updatedAt: string;
-  slug?: {
-    current: string;
-  };
-}
-
-interface PortableTextBlock {
-  children?: PortableTextChild[];
-}
-
-interface PortableTextChild {
-  text?: string;
-}
-
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -63,7 +52,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Extended UserProfile interface to include cover_image_url
 interface ExtendedUserProfile extends UserProfile {
   cover_image_url?: string;
   role: 'user' | 'author';
@@ -90,27 +78,63 @@ const UserProfilePage = () => {
   // Profile state
   const [profile, setProfile] = useState<ExtendedUserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [messageLoading, setMessageLoading] = useState(false);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'posts' | 'about' | 'verified' | 'custom'>('about');
 
   // Content state
-  const [, setPosts] = useState<UserPost[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [verifiedNews, setVerifiedNews] = useState<VerifiedNews[]>([]);
-  const [, setPostsLoading] = useState(false);
   const [verifiedNewsLoading, setVerifiedNewsLoading] = useState(false);
 
   // Modal state
   const [followModalOpen, setFollowModalOpen] = useState(false);
-const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>('followers');
+  const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>('followers');
 
-  // Check if the profile user is an author
+  const currentUserId = user?.id;
   const isAuthor = profile?.role === 'author';
 
-   const fetchUserProfile = useCallback(async () => {
+  const styles = {
+    container: "min-h-screen bg-gray-50/50 dark:bg-gray-900/20 pt-[100px]",
+    profileContainer: "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-8",
+    profileCard: "bg-white/80 dark:bg-black/80 backdrop-blur-lg rounded-2xl border border-gray-200/50 dark:border-gray-800/50 p-6 w-full lg:max-w-md h-fit shadow-sm",
+    profileTitle: "text-2xl font-black uppercase text-center truncate dark:text-white",
+    profileImage: "rounded-full object-cover mx-auto border-4 border-[#EF3866] my-6",
+    username: "text-3xl font-extrabold mt-7 text-center dark:text-white",
+    bio: "mt-1 text-center text-sm font-normal dark:text-gray-300",
+    location: "mt-2 text-center text-sm flex items-center justify-center gap-1 dark:text-gray-400",
+    actionButton: "flex-1 transition-colors",
+    statsContainer: "flex justify-center gap-8 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700",
+    statItem: "text-center hover:opacity-75 transition-opacity cursor-pointer",
+    statValue: "text-xl font-medium text-[#EF3866]",
+    statLabel: "text-sm font-normal dark:text-gray-400",
+    contentArea: "flex-1 flex flex-col gap-6",
+    tabContainer: "bg-white/80 dark:bg-black/80 backdrop-blur-lg rounded-2xl border border-gray-200/50 dark:border-gray-800/50 p-2 shadow-sm",
+    tabContent: "min-h-[60vh]",
+    sectionTitle: "text-3xl font-bold dark:text-white",
+    aboutCard: "bg-white/70 dark:bg-black/70 backdrop-blur-md rounded-2xl border border-gray-200/50 dark:border-gray-800/50 p-8",
+    cardGrid: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6",
+    emptyStateContainer: "flex flex-col items-center justify-center py-20 px-4",
+    emptyStateIcon: "w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-full flex items-center justify-center mb-8",
+    emptyStateDivider: "w-16 h-0.5 bg-[#EF3866] mx-auto mb-6",
+    emptyStateTitle: "text-2xl font-light text-gray-900 dark:text-white mb-4 tracking-tight",
+    emptyStateText: "text-gray-600 dark:text-gray-400 text-center max-w-md leading-relaxed font-light",
+    loadingContainer: "min-h-screen bg-gray-50/50 dark:bg-gray-900/20 flex items-center justify-center px-4",
+    loadingCircle: "w-32 h-32 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-full mx-auto animate-pulse relative",
+    loadingAccent: "absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-white/20 dark:via-gray-700/20 to-transparent animate-pulse",
+    loadingDivider: "w-16 h-0.5 bg-[#EF3866] mx-auto mb-6 animate-pulse",
+    loadingText: "w-48 h-6 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-full mx-auto animate-pulse",
+    errorContainer: "min-h-screen bg-gray-50/50 dark:bg-gray-900/20 flex items-center justify-center px-4",
+    errorIcon: "w-24 h-24 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-full flex items-center justify-center mx-auto mb-8",
+    errorTitle: "text-3xl font-light text-gray-900 dark:text-white mb-4 tracking-tight",
+    errorText: "text-gray-600 dark:text-gray-400 leading-relaxed font-light"
+  };
+
+  const fetchUserProfile = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -174,10 +198,10 @@ const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>(
   }, [id, router]);
 
 
-  const handlePostsCountUpdate = (count: number) => {
+  const handlePostsCountUpdate = useCallback((count: number) => {
     // Update the profile with the new posts count
     setProfile(prev => prev ? { ...prev, posts_count: count } : null);
-  };
+  }, []);
 
   const checkFollowStatus = useCallback(async () => {
     if (!user?.id || !id || user.id === id) return;
@@ -200,90 +224,6 @@ const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>(
       setIsFollowing(false);
     }
   }, [id, user?.id]);
-
-  // Updated fetchUserPosts function for UserProfilePage component
-const fetchUserPosts = useCallback(async () => {
-  if (!profile?.sanity_author_id || profile.role !== 'author') {
-    console.log('No Sanity author ID found or user is not an author', {
-      sanity_author_id: profile?.sanity_author_id,
-      role: profile?.role
-    });
-    setPosts([]);
-    return;
-  }
-
-  try {
-    setPostsLoading(true);
-
-    console.log('Fetching posts for user ID:', profile.id);
-
-    // Use the API endpoint instead of direct Sanity client calls
-    const response = await fetch('/api/post/by-author', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ authorId: profile.id }), // Use Supabase user ID
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to fetch posts');
-    }
-
-    const sanityPosts = await response.json();
-    console.log('Sanity posts fetched:', sanityPosts);
-
-    // Transform Sanity posts to match your UserPost interface
-    const postsData: UserPost[] = sanityPosts.map((post: SanityPost) => ({
-  id: post._id,
-  title: post.title || '',
-  content: post.body
-    ? post.body
-      .map((block: PortableTextBlock) =>
-        block.children?.map((child: PortableTextChild) => child.text).join('') || ''
-      )
-      .join('\n')
-    : '',
-      excerpt: post.description || post.excerpt || '',
-      image_url: post.mainImage?.asset?.url || null,
-      media_urls: post.mainImage?.asset?.url ? [post.mainImage.asset.url] : [],
-      author_id: profile.id,
-      author: {
-        id: profile.id,
-        first_name: profile.first_name,
-        last_name: profile.last_name,
-        username: profile.username,
-        image_url: profile.image_url,
-        is_verified: profile.role === 'author',
-      },
-      likes_count: post.likes?.length || 0,
-      comments_count: post.comments?.length || 0,
-      bookmarks_count: 0,
-      shares_count: 0,
-      published_at: post.publishedAt || post._createdAt,
-      created_at: post._createdAt,
-      updated_at: post._updatedAt,
-      is_liked: false,
-      is_bookmarked: false,
-      visibility: 'public',
-      slug: post.slug?.current || post._id,
-    }));
-
-    console.log('Transformed posts:', postsData);
-    setPosts(postsData);
-
-    // Update profile with posts count
-    if (profile) {
-      setProfile(prev => prev ? { ...prev, posts_count: postsData.length } : null);
-    }
-  } catch (error) {
-    console.error('Error fetching user posts:', error);
-    setPosts([]);
-  } finally {
-    setPostsLoading(false);
-  }
-}, [profile]);
 
   // New function to fetch verified news for the profile user
   const fetchUserVerifiedNews = useCallback(async () => {
@@ -311,7 +251,7 @@ const fetchUserPosts = useCallback(async () => {
     } finally {
       setVerifiedNewsLoading(false);
     }
-  }, [profile]);
+  }, [profile?.id]);
 
   const fetchUserActivity = useCallback(async () => {
     if (!profile?.id) return;
@@ -324,7 +264,7 @@ const fetchUserPosts = useCallback(async () => {
       console.error('Error fetching user activity:', error);
       setActivities([]);
     }
-  }, [profile]);
+  }, [profile?.id]);
 
   const handleFollow = async () => {
     if (!user?.id || !profile?.id || followLoading || user.id === profile.id) {
@@ -369,137 +309,224 @@ const fetchUserPosts = useCallback(async () => {
     }
   };
 
-const handleFollowersClick = () => {
-  setFollowModalTab('followers');
-  setFollowModalOpen(true);
-};
+  const handleFollowersClick = () => {
+    setFollowModalTab('followers');
+    setFollowModalOpen(true);
+  };
 
-const handleFollowingClick = () => {
-  setFollowModalTab('following');
-  setFollowModalOpen(true);
-};
+  const handleFollowingClick = () => {
+    setFollowModalTab('following');
+    setFollowModalOpen(true);
+  };
 
- useEffect(() => {
-  if (id) {
-    fetchUserProfile();
-    if (user?.id) {
-      checkFollowStatus();
+  const handleMessageClick = async () => {
+    if (!currentUserId || !profile || currentUserId === profile.id || messageLoading) return;
+
+    // Check if users follow each other before allowing messaging
+    if (!isFollowing) {
+      alert('You must follow each other to start a conversation');
+      return;
     }
-  }
-}, [id, user?.id, fetchUserProfile, checkFollowStatus]);
 
-  useEffect(() => {
-  if (profile?.id) {
-    if (activeTab === 'posts' && profile.role === 'author') {
-      fetchUserPosts();
-    } else if (activeTab === 'verified') {
-      fetchUserVerifiedNews();
-    } else if (activeTab === 'custom') {
-      fetchUserActivity();
-    }
-  }
-}, [activeTab, profile?.id, profile?.role, fetchUserPosts, fetchUserVerifiedNews, fetchUserActivity]);
+    setMessageLoading(true);
 
-  
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'posts':
-        if (!isAuthor) {
-          return (
-            <div className="flex flex-col items-center justify-center py-20 px-4">
-              <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-full flex items-center justify-center mb-8">
-                <svg className="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              
-              {/* Accent line */}
-              <div className="w-16 h-0.5 bg-[#EF3866] mx-auto mb-6"></div>
-              
-              <h3 className="text-2xl font-light text-gray-900 dark:text-white mb-4 tracking-tight">
-                No Posts Yet
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 text-center max-w-md leading-relaxed font-light">
-                This user hasn&apos;t shared any posts yet. Check back later to discover their content and insights.
-              </p>
-            </div>
-          );
-        }
-        // For authors, use the AuthorPostsSection component
-        return (
-          <div className="">
-            <AuthorPostsSection 
-              userId={profile.id}
-              isAuthor={isAuthor}
-              userName={`${profile.first_name} ${profile.last_name}`}
-            />
-          </div>
-        );
-      case 'about':
-        return profile ? (
-          <div className="">
-            <AboutSection profile={profile} />
-          </div>
-        ) : null;
-      case 'verified':
-        return (
-          <div className="">
-            <VerifiedNewsList 
-              news={verifiedNews} 
-              loading={verifiedNewsLoading}
-            />
-          </div>
-        );
-      case 'custom':
-        return (
-          <div className="">
-            <UserActivity activities={activities} />
-          </div>
-        );
-      default:
-        return null;
+    try {
+      // First, check if conversation already exists
+      const checkResponse = await fetch(`/api/conversations?with_user_id=${profile.id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const checkData = await checkResponse.json();
+
+      if (checkResponse.ok && checkData.conversation) {
+        // Existing conversation found, navigate to it
+        router.push(`/messages/${checkData.conversation.conversation_id}`);
+        return;
+      }
+
+      // No existing conversation, create a new one
+      const response = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          participant_ids: [profile.id],
+          type: 'direct'
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create conversation');
+      }
+
+      // Navigate to the conversation (existing or new)
+      router.push(`/messages/${data.conversation_id}`);
+
+    } catch (error) {
+      console.error('Error handling conversation:', error);
+      alert('Failed to start conversation. Please try again.');
+    } finally {
+      setMessageLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (id) {
+      fetchUserProfile();
+      if (user?.id) {
+        checkFollowStatus();
+      }
+    }
+  }, [id, user?.id, fetchUserProfile, checkFollowStatus]);
+
+  useEffect(() => {
+    if (profile?.id) {
+      if (activeTab === 'verified') {
+        fetchUserVerifiedNews();
+      } else if (activeTab === 'custom') {
+        fetchUserActivity();
+      }
+    }
+  }, [activeTab, profile?.id, fetchUserVerifiedNews, fetchUserActivity]);
+
+  // Fixed renderTabContent function for UserProfilePage
+const renderTabContent = () => {
+  if (!profile) return null;
+
+  switch (activeTab) {
+    case 'posts':
+      return (
+        <div className="space-y-6">
+          <h2 className={styles.sectionTitle}>
+            {user?.id === profile.id ? 'Your' : `${profile.first_name}'s`} Posts
+          </h2>
+          {!isAuthor ? (
+            <div className={styles.emptyStateContainer}>
+              <div className={styles.emptyStateIcon}>
+                <BookOpen className="w-8 h-8 text-black dark:text-white" />
+              </div>
+              <div className={styles.emptyStateDivider}></div>
+              <h3 className={styles.emptyStateTitle}>No Posts Available</h3>
+              <p className={styles.emptyStateText}>
+                This user is not an author and doesn&apos;t have any posts to display.
+              </p>
+            </div>
+          ) : (
+            <AuthorPostsSection
+              userId={profile.id}
+              isAuthor={isAuthor}
+              userName={`${profile.first_name} ${profile.last_name}`}
+              onPostsCountUpdate={handlePostsCountUpdate}
+            />
+          )}
+        </div>
+      );
+
+    case 'about':
+      return (
+        <div className="space-y-6">
+          <h2 className={styles.sectionTitle}>About {profile.first_name}</h2>
+          <div className={styles.aboutCard}>
+            <AboutSection profile={profile} />
+          </div>
+        </div>
+      );
+
+    case 'verified':
+      return (
+        <div className="space-y-6">
+          <h2 className={styles.sectionTitle}>
+            {user?.id === profile.id ? 'Your' : `${profile.first_name}'s`} Verified News
+          </h2>
+          {/* Removed cardGrid wrapper to allow full width */}
+          <VerifiedNewsList
+            news={verifiedNews}
+            loading={verifiedNewsLoading}
+          />
+        </div>
+      );
+
+    case 'custom':
+      return (
+        <div className="space-y-6">
+          <h2 className={styles.sectionTitle}>
+            {user?.id === profile.id ? 'Your' : `${profile.first_name}'s`} Activity
+          </h2>
+          <div className={styles.aboutCard}>
+            <UserActivity activities={activities} />
+          </div>
+        </div>
+      );
+
+    default:
+      return null;
+  }
+};
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900/20 flex items-center justify-center px-4">
+      <div className={styles.loadingContainer}>
         <div className="text-center">
           <div className="relative mb-8">
-            <div className="w-32 h-32 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-full mx-auto animate-pulse"></div>
-            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-white/20 dark:via-gray-700/20 to-transparent animate-pulse"></div>
+            <div className={styles.loadingCircle}></div>
+            <div className={styles.loadingAccent}></div>
           </div>
-          
-          {/* Animated accent line */}
-          <div className="w-16 h-0.5 bg-[#EF3866] mx-auto mb-6 animate-pulse"></div>
-          
+          <div className={styles.loadingDivider}></div>
           <div className="space-y-4">
-            <div className="w-48 h-6 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-full mx-auto animate-pulse"></div>
-            <div className="w-32 h-4 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-full mx-auto animate-pulse"></div>
-            <div className="w-40 h-4 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-full mx-auto animate-pulse"></div>
+            <div className={styles.loadingText}></div>
+            <div className="w-32 h-4 bg-black/20 dark:bg-white/20 rounded-full mx-auto animate-pulse"></div>
+            <div className="w-40 h-4 bg-black/20 dark:bg-white/20 rounded-full mx-auto animate-pulse"></div>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!profile) {
+  // Handle error state
+  if (error) {
     return (
-      <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900/20 flex items-center justify-center px-4">
+      <div className={styles.errorContainer}>
         <div className="text-center max-w-md">
-          <div className="w-24 h-24 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-full flex items-center justify-center mx-auto mb-8">
-            <svg className="w-10 h-10 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className={styles.errorIcon}>
+            <svg className="w-10 h-10 text-black dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.664-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
           </div>
-          
-          {/* Accent line */}
-          <div className="w-16 h-0.5 bg-[#EF3866] mx-auto mb-6"></div>
-          
-          <h1 className="text-3xl font-light text-gray-900 dark:text-white mb-4 tracking-tight">
+          <div className={styles.loadingDivider}></div>
+          <h1 className={styles.errorTitle}>
+            {error === 'User not found' ? 'User Not Found' : 'Error Loading Profile'}
+          </h1>
+          <p className={styles.errorText}>
+            {error === 'User not found' 
+              ? "The user you're looking for doesn't exist or may have been removed from our platform."
+              : "We encountered an error loading this profile. Please try again later."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (!profile) {
+    return (
+      <div className={styles.errorContainer}>
+        <div className="text-center max-w-md">
+          <div className={styles.errorIcon}>
+            <svg className="w-10 h-10 text-black dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.664-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+
+          <div className={styles.loadingDivider}></div>
+
+          <h1 className={styles.errorTitle}>
             User Not Found
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 leading-relaxed font-light">
+          <p className={styles.errorText}>
             The user you&apos;re looking for doesn&apos;t exist or may have been removed from our platform.
           </p>
         </div>
@@ -508,91 +535,110 @@ const handleFollowingClick = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900/20">
-      {/* Header Section */}
-      <section className="pt-20 sm:pt-24 lg:pt-28 pb-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            {profile.bio && (
-              <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto font-light leading-relaxed">
-                {profile.bio}
-              </p>
+    <div className={styles.container}>
+      {/* Profile Section */}
+      <section className={styles.profileContainer}>
+        <div className={styles.profileCard}>
+          <div className="mb-4">
+            <h3 className={styles.profileTitle}>
+              {`${profile.first_name} ${profile.last_name}`}
+            </h3>
+          </div>
+
+          {profile.image_url && (
+            <Image
+              src={profile.image_url}
+              alt={`${profile.first_name} ${profile.last_name}`}
+              width={220}
+              height={220}
+              className={styles.profileImage}
+              priority
+            />
+          )}
+
+          <p className={styles.username}>@{profile.username}</p>
+
+          {profile.bio && (
+            <p className={styles.bio}>{profile.bio}</p>
+          )}
+
+          {profile.location && (
+            <p className={styles.location}>
+              <span>📍</span> {profile.location}
+            </p>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-4 mt-6">
+            {user?.id && user.id !== profile.id && (
+              <>
+                <Button
+                  onClick={handleFollow}
+                  disabled={followLoading}
+                  className={`${styles.actionButton} ${isFollowing
+                      ? 'bg-white text-[#EF3866] border-2 border-[#EF3866] hover:bg-[#EF3866] hover:text-white dark:bg-black dark:text-[#EF3866] dark:border-[#EF3866] dark:hover:bg-[#EF3866] dark:hover:text-white'
+                      : 'bg-[#EF3866] text-white border-2 border-[#EF3866] hover:bg-white hover:text-[#EF3866] dark:bg-[#EF3866] dark:text-white dark:hover:bg-white dark:hover:text-[#EF3866]'
+                    }`}
+                >
+                  {followLoading ? 'Loading...' : isFollowing ? 'Following' : 'Follow'}
+                </Button>
+
+                <Button
+                  onClick={handleMessageClick}
+                  disabled={messageLoading}
+                  className="bg-white text-[#EF3866] border-2 border-[#EF3866] hover:bg-[#EF3866]  dark:text-white hover:text-white  dark:bg-[#EF3866] dark:border-[#EF3866] dark:hover:bg-[#EF3866] dark:hover:text-white"
+                >
+                  {messageLoading ? 'Loading...' : <MessageCircle className="w-4 h-4" />}
+                </Button>
+              </>
             )}
           </div>
 
-          <ProfileHeader
-            profile={profile}
-            currentUserId={user?.id}
-            isFollowing={isFollowing}
-            followLoading={followLoading}
-            onFollow={handleFollow}
-            onOpenFollowers={handleFollowersClick}
-            onOpenFollowing={handleFollowingClick}
-            onPostsCountUpdate={handlePostsCountUpdate}
-          />
-        </div>
-      </section>
-
-      {/* Navigation Tabs */}
-      <div className=" bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-800/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <ProfileTabs
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            postsCount={profile.posts_count}
-            userRole={profile.role || 'user'}
-          />
-        </div>
-      </div>
-
-      {/* Content Section */}
-      <section className="py-16 px-4 md:px-2 lg:px-2 max-w-7xl mx-auto">
-        <div className="min-h-[60vh]">
-          {renderTabContent()}
-        </div>
-
-        {/* Profile Stats */}
-        {profile && (
-          <div className="border-t border-gray-200 dark:border-gray-800 pt-12 mt-16">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-              <div className="space-y-3">
-                <p className="text-3xl md:text-4xl font-light text-[#EF3866] tracking-tight">
-                  {profile.posts_count || 0}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium uppercase tracking-wide">
-                  Posts
-                </p>
-              </div>
-              <div className="space-y-3">
-                <p className="text-3xl md:text-4xl font-light text-[#EF3866] tracking-tight">
-                  {profile.followers_count || 0}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium uppercase tracking-wide">
-                  Followers
-                </p>
-              </div>
-              <div className="space-y-3">
-                <p className="text-3xl md:text-4xl font-light text-[#EF3866] tracking-tight">
-                  {profile.following_count || 0}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium uppercase tracking-wide">
-                  Following
-                </p>
-              </div>
+          {/* Stats */}
+          <div className={styles.statsContainer}>
+            <button onClick={handleFollowersClick} className={styles.statItem}>
+              <p className={styles.statValue}>{profile.followers_count || 0}</p>
+              <p className={styles.statLabel}>Followers</p>
+            </button>
+            <button onClick={handleFollowingClick} className={styles.statItem}>
+              <p className={styles.statValue}>{profile.following_count || 0}</p>
+              <p className={styles.statLabel}>Following</p>
+            </button>
+            <div className={styles.statItem}>
+              <p className={styles.statValue}>{profile.posts_count || 0}</p>
+              <p className={styles.statLabel}>Posts</p>
             </div>
           </div>
-        )}
+        </div>
+
+        {/* Content Area */}
+        <div className={styles.contentArea}>
+          {/* Tab Navigation */}
+          <div>
+            <ProfileTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              postsCount={profile.posts_count || 0}
+              userRole={profile.role || 'user'}
+            />
+          </div>
+
+          {/* Tab Content */}
+          <div className={styles.tabContent}>
+            {renderTabContent()}
+          </div>
+        </div>
       </section>
 
       {/* Modals */}
       {followModalOpen && profile && (
-  <FollowersFollowingSection
-    userId={profile.id} // Pass the profile user's ID, not the current user's ID
-    isModal={true}
-    onClose={() => setFollowModalOpen(false)}
-    initialTab={followModalTab}
-  />
-)}
+        <FollowersFollowingSection
+          userId={profile.id}
+          isModal={true}
+          onClose={() => setFollowModalOpen(false)}
+          initialTab={followModalTab}
+        />
+      )}
     </div>
   );
 };

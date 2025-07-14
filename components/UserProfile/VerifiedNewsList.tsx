@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import Image from 'next/image';
-import { Shield, ExternalLink, Calendar, Eye, ChevronDown, X, AlertTriangle } from 'lucide-react';
+import { Shield, ExternalLink, Calendar, Eye, ChevronDown, X, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface NewsSource {
   name: string;
@@ -21,27 +21,35 @@ interface VerifiedNews {
   verified_at: string;
   image_url?: string;
   external_url: string;
-  sources?: NewsSource[]; // Parsed from matched_sources
+  sources?: NewsSource[];
   views_count: number;
   credibility_score: number;
-  is_fake?: boolean; // Based on verdict and credibility_score
-  has_matching_source?: boolean; // Based on matched_sources availability
-  verdict?: string; // From database
-  confidence_level?: string; // From database
+  is_fake?: boolean;
+  has_matching_source?: boolean;
+  verdict?: string;
+  confidence_level?: string;
 }
 
 interface VerifiedNewsListProps {
   news: VerifiedNews[];
   loading?: boolean;
+  itemsPerPage?: number;
 }
 
 export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({ 
   news, 
-  loading = false 
+  loading = false,
+  itemsPerPage = 10
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedArticle, setSelectedArticle] = useState<string | null>(null);
   const [showSourceModal, setShowSourceModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.ceil(news.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentNews = news.slice(startIndex, endIndex);
 
   useEffect(() => {
     if (containerRef.current && !loading) {
@@ -57,7 +65,7 @@ export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({
         }
       );
     }
-  }, [news, loading]);
+  }, [currentNews, loading]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -69,7 +77,7 @@ export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({
 
   const getCredibilityColor = (score: number) => {
     if (score >= 80) return 'text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-950/50';
-    if (score >= 60) return 'text-blue-700 bg-blue-50 dark:text-blue-300 dark:bg-blue-950/50';
+    if (score >= 60) return 'text-slate-700 bg-slate-50 dark:text-slate-300 dark:bg-slate-950/50';
     if (score >= 40) return 'text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-950/50';
     return 'text-red-700 bg-red-50 dark:text-red-300 dark:bg-red-950/50';
   };
@@ -91,18 +99,15 @@ export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({
   };
 
   const handleReadFullArticle = (article: VerifiedNews) => {
-    // Check if article has sources from matched_sources
     if (article.sources && article.sources.length > 1) {
       setSelectedArticle(article.id);
       setShowSourceModal(true);
     } else if (article.sources && article.sources.length === 1) {
-      // Single source, navigate directly
       const url = article.sources[0].url;
       if (url && url !== '#' && url.startsWith('http')) {
         window.open(url, '_blank', 'noopener,noreferrer');
       }
     } else if (article.external_url && article.external_url !== '#' && article.external_url.startsWith('http')) {
-      // Fallback to external_url
       window.open(article.external_url, '_blank', 'noopener,noreferrer');
     }
   };
@@ -120,15 +125,10 @@ export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({
     setSelectedArticle(null);
   };
 
-  // Check if article should show "Read Full Article" link
   const shouldShowReadLink = (article: VerifiedNews) => {
-    // Hide for fake news
     if (article.is_fake) return false;
-    
-    // Hide if explicitly marked as having no matching source
     if (article.has_matching_source === false) return false;
     
-    // Show if has valid sources from matched_sources
     if (article.sources && article.sources.length > 0) {
       const hasValidSources = article.sources.some(source => 
         source.url && source.url !== '#' && source.url.startsWith('http')
@@ -136,7 +136,6 @@ export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({
       if (hasValidSources) return true;
     }
     
-    // Show if has valid external_url
     if (article.external_url && article.external_url !== '#' && article.external_url.startsWith('http')) {
       return true;
     }
@@ -146,6 +145,46 @@ export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({
 
   const getSelectedArticle = () => {
     return news.find(article => article.id === selectedArticle);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
   };
 
   if (loading) {
@@ -184,7 +223,7 @@ export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({
   return (
     <>
       <div ref={containerRef} className="space-y-6">
-        {news.map((article) => (
+        {currentNews.map((article) => (
           <div
             key={article.id}
             className="news-item group bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl p-6 hover:shadow-lg hover:border-slate-400/30 dark:hover:border-slate-500/30 transition-all duration-300"
@@ -251,7 +290,7 @@ export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({
                     </div>
                     <span className="font-medium text-slate-700 dark:text-slate-300">{article.source}</span>
                     {article.sources && article.sources.length > 1 && (
-                      <span className="text-blue-600 dark:text-blue-400 text-xs">
+                      <span className="text-slate-600 dark:text-slate-400 text-xs">
                         {article.sources.length} sources available
                       </span>
                     )}
@@ -272,7 +311,6 @@ export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({
                   )}
                 </div>
                 
-                {/* Show message for fake news or no sources */}
                 {(article.is_fake || (!article.sources?.length && !article.external_url)) && (
                   <div className="mt-3 p-2 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800/50">
                     <p className="text-xs text-orange-700 dark:text-orange-300">
@@ -288,11 +326,63 @@ export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({
         ))}
       </div>
 
+      {/* Modern Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-12 px-4">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronLeft size={16} />
+            <span className="hidden sm:inline">Previous</span>
+          </button>
+          
+          <div className="flex gap-1">
+            {generatePageNumbers().map((page, index) => (
+              <button
+                key={index}
+                onClick={() => typeof page === 'number' && handlePageChange(page)}
+                disabled={page === '...'}
+                className={`
+                  px-3 py-2 text-sm font-medium rounded-lg transition-colors
+                  ${page === currentPage
+                    ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-800'
+                    : page === '...'
+                    ? 'text-gray-400 cursor-default'
+                    : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }
+                `}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+          
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* Page Info */}
+      {totalPages > 1 && (
+        <div className="text-center mt-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Showing {startIndex + 1} to {Math.min(endIndex, news.length)} of {news.length} articles
+          </p>
+        </div>
+      )}
+
       {/* Responsive Source Selection Modal */}
       {showSourceModal && selectedArticle && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
           <div className="bg-white dark:bg-black rounded-xl w-full max-w-[95vw] sm:max-w-lg md:max-w-xl lg:max-w-2xl max-h-[90vh] sm:max-h-[85vh] overflow-hidden border border-gray-200 dark:border-gray-800 shadow-2xl">
-            {/* Header */}
             <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-800">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
@@ -314,7 +404,6 @@ export const VerifiedNewsList: React.FC<VerifiedNewsListProps> = ({
               </div>
             </div>
             
-            {/* Sources List */}
             <div className="p-3 sm:p-6 space-y-2 sm:space-y-3 max-h-[60vh] sm:max-h-96 overflow-y-auto">
               {getSelectedArticle()?.sources
                 ?.filter(source => source.url && source.url !== '#' && source.url.startsWith('http'))
