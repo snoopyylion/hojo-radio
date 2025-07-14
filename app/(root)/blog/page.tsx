@@ -25,6 +25,7 @@ interface Post {
   publishedAt: string;
   author: {
     name: string;
+    supabaseUserId: string;
     image?: {
       asset: {
         _ref: string;
@@ -346,7 +347,7 @@ const NewsPage = () => {
           mainImage,
           publishedAt,
           _createdAt,
-          author->{ name, image },
+          author->{ name, image, supabaseUserId },
           categories[]->{ title }
         }`;
 
@@ -376,7 +377,7 @@ const NewsPage = () => {
           mainImage,
           publishedAt,
           _createdAt,
-          author->{ name, image },
+          author->{ name, image, supabaseUserId },
           categories[]->{ title }
         }`
       )

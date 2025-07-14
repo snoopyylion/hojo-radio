@@ -436,7 +436,7 @@ export default function PostClient({ id }: PostClientProps) {
               bio, 
               image{asset->{url}}, 
               "imageUrl": image.asset->url,
-              supabaseUserId
+              "supabaseUserId": userId
             },
             categories[]->{title},
             "nextPost": *[_type == "post" && publishedAt > ^.publishedAt] | order(publishedAt asc)[0]{ _id, title, slug },
@@ -582,6 +582,8 @@ export default function PostClient({ id }: PostClientProps) {
   }
 
   if (!post) return notFound();
+  
+  console.log(post.author)
 
   return (
     <div className="min-h-screen bg-white dark:bg-black transition-colors duration-300">
@@ -635,13 +637,13 @@ export default function PostClient({ id }: PostClientProps) {
             </span>
           </div>
 
-          {/* Author - UPDATED WITH CLICKABLE NAVIGATION */}
+          {/* Author - UPDATED WITH CLICKABLE NAVIGATION  */}
+
           {post.author && (
             <div className="pb-8 border-b border-gray-100 dark:border-gray-800">
               {post.author.supabaseUserId ? (
-                // If we have a supabaseUserId, make it clickable
                 <Link
-                  href={`/user/${post.author.supabaseUserId || post.author._id || ''}`}
+                  href={`/user/${post.author.supabaseUserId}`}
                   className="flex items-center gap-4 group hover:bg-gray-50 dark:hover:bg-gray-900/30 p-2 -m-2 rounded-lg transition-colors"
                 >
                   {post.author.imageUrl || post.author.image?.asset?.url ? (
@@ -669,8 +671,7 @@ export default function PostClient({ id }: PostClientProps) {
                   </div>
                 </Link>
               ) : (
-                // If no supabaseUserId, display as non-clickable
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 group">
                   {post.author.imageUrl || post.author.image?.asset?.url ? (
                     <Image
                       src={post.author.imageUrl || post.author.image?.asset?.url || '/placeholder-avatar.png'}
@@ -774,8 +775,8 @@ export default function PostClient({ id }: PostClientProps) {
                   onClick={handleBookmark}
                   disabled={bookmarkState.isBookmarkLoading}
                   className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 ${bookmarkState.isBookmarked
-                      ? 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100'
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    ? 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                     } ${bookmarkState.isBookmarkLoading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
                   title={bookmarkState.isBookmarked ? 'Remove from saved' : 'Save for later'}
                 >
