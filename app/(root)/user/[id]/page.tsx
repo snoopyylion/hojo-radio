@@ -14,23 +14,6 @@ import { AuthorPostsSection } from '@/components/UserProfile/AuthorPostsSection'
 import { FollowersFollowingSection } from '@/components/UserProfile/FollowModal';
 import { BookOpen, MessageCircle } from 'lucide-react';
 
-// Color constants for consistent theming
-const COLORS = {
-  primary: '#EF3866',
-  primaryLight: '#FF6B8B',
-  primaryDark: '#D12A56',
-  secondary: '#6C63FF',
-  accent: '#00C4CC',
-  lightBg: '#F9FAFB',
-  darkBg: '#0F172A',
-  lightText: '#F8FAFC',
-  darkText: '#1E293B',
-  grayLight: '#E2E8F0',
-  grayDark: '#475569',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444'
-};
 
 interface VerifiedNews {
   id: string;
@@ -78,7 +61,7 @@ const UserProfilePage = () => {
   // Profile state
   const [profile, setProfile] = useState<ExtendedUserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, ] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [messageLoading, setMessageLoading] = useState(false);
