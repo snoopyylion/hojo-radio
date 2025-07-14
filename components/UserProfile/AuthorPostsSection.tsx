@@ -10,8 +10,7 @@ import {
   MessageCircle, 
   BookOpen,
   Clock,
-  ExternalLink,
-  Eye
+  ExternalLink
 } from 'lucide-react';
 import { UserPost } from '@/types/user';
 
