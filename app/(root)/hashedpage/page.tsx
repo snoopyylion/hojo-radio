@@ -107,7 +107,7 @@ interface LoadingState {
 export default function UserDashboard() {
   const { user, isLoaded } = useUser();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [topPosts, setTopPosts] = useState<TopPost[]>([]);
+  const [, setTopPosts] = useState<TopPost[]>([]);
   const { getToken } = useAuth();
   const [verifiedNewsCount, setVerifiedNewsCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -117,7 +117,7 @@ export default function UserDashboard() {
     progress: 0
   });
   const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'comments' | 'verified' | 'my-posts' | 'author' | 'bookmarks'>('overview');
-  const [tabLoading, setTabLoading] = useState(false);
+  const [, setTabLoading] = useState(false);
   const { totalLikes: userLikedPosts } = useUserLikes();
   const {
     totalComments,

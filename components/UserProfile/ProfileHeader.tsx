@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { gsap } from 'gsap';
 import {
   BookOpen,
   MessageCircle,
@@ -11,7 +10,6 @@ import {
   UserMinus,
   MapPin,
   Calendar,
-  Users,
   Shield,
   Verified
 } from 'lucide-react';

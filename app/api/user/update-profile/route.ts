@@ -1,6 +1,6 @@
 // app/api/user/update-profile/route.ts
 import { NextResponse } from 'next/server';
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { auth } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function POST(req: Request) {
