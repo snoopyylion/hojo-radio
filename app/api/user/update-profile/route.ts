@@ -6,7 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 export async function POST(req: Request) {
   try {
     const { userId } = await auth();
-    
+        
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized', code: 'NO_USER_ID' }, 
@@ -15,9 +15,9 @@ export async function POST(req: Request) {
     }
 
     const { firstName, lastName, username, bio, location } = await req.json();
-    
-    // Validate input
-    if (!firstName || !lastName || !username) {
+        
+    // Validate required fields
+    if (!firstName?.trim() || !lastName?.trim() || !username?.trim()) {
       return NextResponse.json(
         { error: 'First name, last name, and username are required' },
         { status: 400 }
@@ -28,10 +28,10 @@ export async function POST(req: Request) {
     const { data: existingUser } = await supabaseAdmin
       .from('users')
       .select('id, username')
-      .eq('username', username.toLowerCase())
+      .eq('username', username.toLowerCase().trim())
       .neq('id', userId)
       .maybeSingle();
-    
+        
     if (existingUser) {
       return NextResponse.json(
         { error: 'Username is already taken' },
@@ -39,18 +39,29 @@ export async function POST(req: Request) {
       );
     }
 
+    // Build update object with only fields that have values
+    const updateData: any = {
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      username: username.toLowerCase().trim(),
+      profile_completed: true,
+      updated_at: new Date().toISOString()
+    };
+
+    // Only include bio if it has a value
+    if (bio && bio.trim()) {
+      updateData.bio = bio.trim();
+    }
+
+    // Only include location if it has a value
+    if (location && location.trim()) {
+      updateData.location = location.trim();
+    }
+
     // Update the user profile while preserving the role and author status
     const { data: updatedUser, error } = await supabaseAdmin
       .from('users')
-      .update({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        username: username.toLowerCase(),
-        bio: bio || null,
-        location: location || null,
-        profile_completed: true,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', userId)
       .select()
       .single();
