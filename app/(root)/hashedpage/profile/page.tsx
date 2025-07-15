@@ -80,9 +80,9 @@ export default function UpdateProfilePage() {
   if (!isLoaded || loading) return <PageLoader message="Loading your profile..." />;
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-white dark:bg-black transition-colors duration-300">
       {/* Background gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-black via-black to-gray-950"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50 to-gray-100 dark:from-black dark:via-black dark:to-gray-950 transition-all duration-300"></div>
       
       {/* Subtle accent elements */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#EF3866] to-transparent opacity-60"></div>
@@ -92,21 +92,21 @@ export default function UpdateProfilePage() {
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 pt-[120px]">
         {/* Header Section */}
         <div className="mb-12 text-center">
-          <h1 className="text-5xl font-bold font-sora mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+          <h1 className="text-5xl font-bold font-sora mb-4 bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent transition-all duration-300">
             Update Profile
           </h1>
-          <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed transition-colors duration-300">
             Keep your personal information up to date and make your profile shine
           </p>
         </div>
 
         {/* Form Container */}
-        <div className="bg-gradient-to-br from-gray-900/50 to-black/50 backdrop-blur-sm border border-gray-800/50 rounded-3xl p-8 md:p-12 shadow-2xl shadow-black/20 transition-all duration-300 hover:shadow-[#EF3866]/5">
+        <div className="bg-white/80 dark:bg-gray-900/50 backdrop-blur-sm border border-gray-200 dark:border-gray-800/50 rounded-3xl p-8 md:p-12 shadow-xl shadow-gray-200/50 dark:shadow-black/20 transition-all duration-300 hover:shadow-2xl hover:shadow-gray-300/50 dark:hover:shadow-[#EF3866]/5">
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Name Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <label htmlFor="firstName" className="block text-sm font-semibold text-gray-300 tracking-wide uppercase">
+                <label htmlFor="firstName" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 tracking-wide uppercase transition-colors duration-300">
                   First Name
                 </label>
                 <div className="relative">
@@ -116,14 +116,14 @@ export default function UpdateProfilePage() {
                     value={formData.firstName}
                     onChange={handleChange}
                     required
-                    className="bg-black/60 border-gray-700 text-white placeholder-gray-500 h-12 rounded-xl focus:border-[#EF3866] focus:ring-[#EF3866] focus:ring-1 transition-all duration-200 hover:border-gray-600"
+                    className="bg-gray-50 dark:bg-black/60 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 h-12 rounded-xl focus:border-[#EF3866] focus:ring-[#EF3866] focus:ring-1 transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-600"
                     placeholder="Enter your first name"
                   />
                   <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#EF3866] to-transparent opacity-0 transition-opacity duration-200 focus-within:opacity-100"></div>
                 </div>
               </div>
               <div className="space-y-3">
-                <label htmlFor="lastName" className="block text-sm font-semibold text-gray-300 tracking-wide uppercase">
+                <label htmlFor="lastName" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 tracking-wide uppercase transition-colors duration-300">
                   Last Name
                 </label>
                 <div className="relative">
@@ -133,7 +133,7 @@ export default function UpdateProfilePage() {
                     value={formData.lastName}
                     onChange={handleChange}
                     required
-                    className="bg-black/60 border-gray-700 text-white placeholder-gray-500 h-12 rounded-xl focus:border-[#EF3866] focus:ring-[#EF3866] focus:ring-1 transition-all duration-200 hover:border-gray-600"
+                    className="bg-gray-50 dark:bg-black/60 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 h-12 rounded-xl focus:border-[#EF3866] focus:ring-[#EF3866] focus:ring-1 transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-600"
                     placeholder="Enter your last name"
                   />
                   <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#EF3866] to-transparent opacity-0 transition-opacity duration-200 focus-within:opacity-100"></div>
@@ -143,7 +143,7 @@ export default function UpdateProfilePage() {
 
             {/* Username Field */}
             <div className="space-y-3">
-              <label htmlFor="username" className="block text-sm font-semibold text-gray-300 tracking-wide uppercase">
+              <label htmlFor="username" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 tracking-wide uppercase transition-colors duration-300">
                 Username
               </label>
               <div className="relative">
@@ -153,7 +153,7 @@ export default function UpdateProfilePage() {
                   value={formData.username}
                   onChange={handleChange}
                   required
-                  className="bg-black/60 border-gray-700 text-white placeholder-gray-500 h-12 rounded-xl focus:border-[#EF3866] focus:ring-[#EF3866] focus:ring-1 transition-all duration-200 hover:border-gray-600"
+                  className="bg-gray-50 dark:bg-black/60 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 h-12 rounded-xl focus:border-[#EF3866] focus:ring-[#EF3866] focus:ring-1 transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-600"
                   placeholder="Choose a unique username"
                 />
                 <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#EF3866] to-transparent opacity-0 transition-opacity duration-200 focus-within:opacity-100"></div>
@@ -162,7 +162,7 @@ export default function UpdateProfilePage() {
 
             {/* Bio Field */}
             <div className="space-y-3">
-              <label htmlFor="bio" className="block text-sm font-semibold text-gray-300 tracking-wide uppercase">
+              <label htmlFor="bio" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 tracking-wide uppercase transition-colors duration-300">
                 Bio
               </label>
               <div className="relative">
@@ -172,7 +172,7 @@ export default function UpdateProfilePage() {
                   value={formData.bio}
                   onChange={handleChange}
                   rows={5}
-                  className="bg-black/60 border-gray-700 text-white placeholder-gray-500 rounded-xl focus:border-[#EF3866] focus:ring-[#EF3866] focus:ring-1 transition-all duration-200 hover:border-gray-600 resize-none"
+                  className="bg-gray-50 dark:bg-black/60 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 rounded-xl focus:border-[#EF3866] focus:ring-[#EF3866] focus:ring-1 transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-600 resize-none"
                   placeholder="Tell us about yourself..."
                 />
                 <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#EF3866] to-transparent opacity-0 transition-opacity duration-200 focus-within:opacity-100"></div>
@@ -181,7 +181,7 @@ export default function UpdateProfilePage() {
 
             {/* Location Field */}
             <div className="space-y-3">
-              <label htmlFor="location" className="block text-sm font-semibold text-gray-300 tracking-wide uppercase">
+              <label htmlFor="location" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 tracking-wide uppercase transition-colors duration-300">
                 Location
               </label>
               <div className="relative">
@@ -190,7 +190,7 @@ export default function UpdateProfilePage() {
                   name="location"
                   value={formData.location}
                   onChange={handleChange}
-                  className="bg-black/60 border-gray-700 text-white placeholder-gray-500 h-12 rounded-xl focus:border-[#EF3866] focus:ring-[#EF3866] focus:ring-1 transition-all duration-200 hover:border-gray-600"
+                  className="bg-gray-50 dark:bg-black/60 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 h-12 rounded-xl focus:border-[#EF3866] focus:ring-[#EF3866] focus:ring-1 transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-600"
                   placeholder="Where are you based?"
                 />
                 <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#EF3866] to-transparent opacity-0 transition-opacity duration-200 focus-within:opacity-100"></div>
@@ -204,7 +204,7 @@ export default function UpdateProfilePage() {
                 variant="outline"
                 onClick={() => router.push('/dashboard')}
                 disabled={submitting}
-                className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white hover:border-gray-500 bg-transparent h-12 px-8 rounded-xl font-semibold transition-all duration-200 order-2 sm:order-1"
+                className="border-gray-400 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white hover:border-gray-500 dark:hover:border-gray-500 bg-transparent h-12 px-8 rounded-xl font-semibold transition-all duration-200 order-2 sm:order-1"
               >
                 Cancel
               </Button>
