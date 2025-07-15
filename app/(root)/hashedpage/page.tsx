@@ -1,11 +1,12 @@
-// Updated UserDashboard Component with Bookmarks Tab
+// Updated UserDashboard Component with Merged Layout
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useRouter } from 'next/navigation';
 import { useAuth, useUser } from "@clerk/nextjs";
 import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
 import { gsap } from "gsap";
-import {TrendingUp,CheckCircle,Crown,BarChart3,Edit3,MessageCircle,Bookmark} from "lucide-react";
+import { TrendingUp, CheckCircle, Crown, BarChart3, Edit3, MessageCircle, Bookmark } from "lucide-react";
 import VerifiedList from '@/components/VerifiedList';
 import { FollowersFollowingSection } from '@/components/Dashboard/FollowersFollowingSection';
 import PageLoader from '@/components/PageLoader';
@@ -17,7 +18,50 @@ import { AuthorPostsSection } from '@/components/UserProfile/AuthorPostsSection'
 import WeeklyTopPosts from "@/components/WeeklyTopPosts";
 import AuthorAccessSection from "@/components/Dashboard/AuthorAccessSection";
 import CommentsSection from "@/components/Dashboard/CommentsSection";
-import BookmarksSection from "@/components/Dashboard/Bookmarks"; // Import the new component
+import BookmarksSection from "@/components/Dashboard/Bookmarks";
+import { Button } from "@/components/ui/button";
+
+// ProfileTabs Component
+interface ProfileTabsProps {
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+  postsCount: number;
+  userRole: string;
+  dashboardTabs: Array<{
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }>;
+}
+
+const ProfileTabs: React.FC<ProfileTabsProps> = ({
+  activeTab,
+  onTabChange,
+  dashboardTabs
+}) => {
+  return (
+    <div className="flex space-x-1 overflow-x-auto scrollbar-hide">
+      {dashboardTabs.map((tab) => {
+        const Icon = tab.icon;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onTabChange(tab.id)}
+            className={`flex items-center space-x-2 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'bg-[#EF3866] text-white shadow-md'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            <span className="hidden sm:inline">{tab.label}</span>
+            <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 // Fixed UserProfile interface
 interface UserProfile {
@@ -31,6 +75,9 @@ interface UserProfile {
   profile_completed?: boolean;
   bio?: string;
   location?: string;
+  website?: string;
+  phone?: string;
+  date_of_birth?: string;
   created_at: string;
   updated_at: string;
   followers_count?: number;
@@ -60,7 +107,7 @@ interface LoadingState {
 export default function UserDashboard() {
   const { user, isLoaded } = useUser();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [, setTopPosts] = useState<TopPost[]>([]);
+  const [topPosts, setTopPosts] = useState<TopPost[]>([]);
   const { getToken } = useAuth();
   const [verifiedNewsCount, setVerifiedNewsCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -69,9 +116,8 @@ export default function UserDashboard() {
     message: 'Initializing your dashboard...',
     progress: 0
   });
-  // Updated activeTab type to include 'bookmarks'
   const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'comments' | 'verified' | 'my-posts' | 'author' | 'bookmarks'>('overview');
-  const [, setTabLoading] = useState(false);
+  const [tabLoading, setTabLoading] = useState(false);
   const { totalLikes: userLikedPosts } = useUserLikes();
   const {
     totalComments,
@@ -92,6 +138,8 @@ export default function UserDashboard() {
   const tabsRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  const router = useRouter();
+
   // Updated fetchProfileStats function
   const fetchProfileStats = useCallback(async () => {
     if (!user?.id) {
@@ -108,17 +156,14 @@ export default function UserDashboard() {
 
       // Fetch all stats concurrently
       const [followersPromise, followingPromise, postsPromise] = await Promise.allSettled([
-        // Followers
         fetch(`/api/follow?type=followers&userId=${user.id}`, {
           headers: { Authorization: `Bearer ${token}` }
         }).then(res => res.ok ? res.json() : null),
 
-        // Following  
         fetch(`/api/follow?type=following&userId=${user.id}`, {
           headers: { Authorization: `Bearer ${token}` }
         }).then(res => res.ok ? res.json() : null),
 
-        // Posts (only if user is author)
         userProfile?.role === 'author'
           ? fetch(`/api/users/${user.id}/posts`, {
             headers: { Authorization: `Bearer ${token}` }
@@ -126,7 +171,7 @@ export default function UserDashboard() {
           : Promise.resolve(null)
       ]);
 
-      // Process results (same as before)
+      // Process results
       if (followersPromise.status === 'fulfilled' && followersPromise.value) {
         const followersData = followersPromise.value;
         if (Array.isArray(followersData)) {
@@ -198,7 +243,7 @@ export default function UserDashboard() {
   };
 
   // Function to fetch top posts
-const fetchTopPosts = useCallback(async () => {
+  const fetchTopPosts = useCallback(async () => {
     try {
       setLoadingState({
         stage: 'syncing',
@@ -208,7 +253,7 @@ const fetchTopPosts = useCallback(async () => {
 
       const token = await getToken();
       console.log('🔄 Fetching top posts...');
-      
+
       const response = await fetch('/api/post/top-weekly?limit=5', {
         method: 'GET',
         headers: {
@@ -223,7 +268,7 @@ const fetchTopPosts = useCallback(async () => {
 
       const data = await response.json();
       setTopPosts(data.posts || []);
-      
+
     } catch (error) {
       console.error('❌ Error in fetchTopPosts:', error);
       setTopPosts([]);
@@ -281,7 +326,7 @@ const fetchTopPosts = useCallback(async () => {
       });
 
       const token = await getToken();
-      
+
       // First sync user data
       setLoadingState({
         stage: 'loading',
@@ -325,7 +370,7 @@ const fetchTopPosts = useCallback(async () => {
 
         if (profileResponse.ok) {
           const profileData = await profileResponse.json();
-          
+
           // Create the profile object with the ACTUAL data from the database
           const newProfile: UserProfile = {
             id: user.id,
@@ -333,16 +378,19 @@ const fetchTopPosts = useCallback(async () => {
             last_name: profileData.last_name || user.lastName || '',
             username: profileData.username || user.username || user.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'user',
             email: profileData.email || user.emailAddresses?.[0]?.emailAddress || '',
-            role: profileData.role || 'user' as const, // Use DATABASE role, not Clerk role
+            role: profileData.role || 'user' as const,
             image_url: profileData.image_url || user.imageUrl,
             profile_completed: profileData.profile_completed || false,
             bio: profileData.bio || '',
             location: profileData.location || '',
+            website: profileData.website || '',
+            phone: profileData.phone || '',
+            date_of_birth: profileData.date_of_birth || '',
             created_at: profileData.created_at || user.createdAt?.toISOString() || new Date().toISOString(),
             updated_at: profileData.updated_at || user.updatedAt?.toISOString() || new Date().toISOString(),
-            followers_count: 0, // Will be updated by fetchProfileStats
-            following_count: 0, // Will be updated by fetchProfileStats
-            posts_count: 0 // Will be updated by fetchProfileStats
+            followers_count: 0,
+            following_count: 0,
+            posts_count: 0
           };
 
           setUserProfile(newProfile);
@@ -398,7 +446,7 @@ const fetchTopPosts = useCallback(async () => {
         console.error('Cannot create fallback profile: user is null or undefined');
         return;
       }
-      
+
       console.log('Creating fallback profile...');
       setUserProfile({
         id: user.id,
@@ -406,7 +454,7 @@ const fetchTopPosts = useCallback(async () => {
         last_name: user.lastName || '',
         username: user.username || user.emailAddresses?.[0]?.emailAddress?.split('@')[0] || '',
         email: user.emailAddresses?.[0]?.emailAddress || '',
-        role: 'user' as const, // Default to user role
+        role: 'user' as const,
         image_url: user.imageUrl,
         created_at: user.createdAt?.toISOString() || new Date().toISOString(),
         updated_at: user.updatedAt?.toISOString() || new Date().toISOString(),
@@ -417,12 +465,39 @@ const fetchTopPosts = useCallback(async () => {
     }
   }, [user?.id, user, getToken, fetchTopPosts, fetchVerifiedNewsCount]);
 
+  const refreshProfileData = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      const token = await getToken();
+      const response = await fetch('/api/user/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const profileData = await response.json();
+        setUserProfile(prev => ({
+          ...prev!,
+          ...profileData,
+          followers_count: followersCount,
+          following_count: followingCount,
+          posts_count: postsCount
+        }));
+      }
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+    }
+  }, [user?.id, getToken, followersCount, followingCount, postsCount]);
+
   // Add useEffect to refetch stats when userProfile.role changes
   useEffect(() => {
-  if (userProfile && !loading && isLoaded) {
-    fetchProfileStats();
-  }
-}, [userProfile, loading, isLoaded, fetchProfileStats]);
+    if (userProfile && !loading && isLoaded) {
+      fetchProfileStats();
+    }
+  }, [userProfile, loading, isLoaded, fetchProfileStats]);
 
   useEffect(() => {
     if (isLoaded && user && !userProfile) {
@@ -470,8 +545,9 @@ const fetchTopPosts = useCallback(async () => {
       }
     }
   }, [loading]);
+  
 
-  const handleTabClick = async (tab: typeof activeTab, event: React.MouseEvent) => {
+  const handleTabClick = async (tab: typeof activeTab, event?: React.MouseEvent) => {
     if (tab === activeTab) return;
 
     if (tab === 'verified' || tab === 'posts' || tab === 'bookmarks') {
@@ -482,7 +558,7 @@ const fetchTopPosts = useCallback(async () => {
 
     setActiveTab(tab);
 
-    if (event.currentTarget) {
+    if (event?.currentTarget) {
       gsap.to(event.currentTarget, {
         scale: 0.95,
         duration: 0.1,
@@ -499,6 +575,23 @@ const fetchTopPosts = useCallback(async () => {
       );
     }
   };
+
+  useEffect(() => {
+    const handleFocus = () => {
+      // Refresh profile data when user returns to dashboard
+      if (document.visibilityState === 'visible') {
+        refreshProfileData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleFocus);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleFocus);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [refreshProfileData]);
 
   // Show PageLoader during initial loading
   if (!isLoaded || loading) {
@@ -526,14 +619,29 @@ const fetchTopPosts = useCallback(async () => {
     );
   }
 
+  // Define styles
+  const styles = {
+    container: "min-h-screen bg-gray-50/50 dark:bg-gray-900/20 pt-[100px] pb-[100px]",
+    profileContainer: "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-8",
+    contentArea: "flex-1 flex flex-col gap-6",
+    tabContent: "min-h-[60vh]",
+    sectionTitle: "text-3xl font-bold dark:text-white",
+    aboutCard: "bg-white/70 dark:bg-black/70 backdrop-blur-md rounded-2xl border border-gray-200/50 dark:border-gray-800/50 p-8",
+    cardGrid: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6",
+    emptyStateContainer: "flex flex-col items-center justify-center py-20 px-4",
+    emptyStateTitle: "text-2xl font-light text-gray-900 dark:text-white mb-4 tracking-tight",
+    emptyStateText: "text-gray-600 dark:text-gray-400 text-center max-w-md leading-relaxed font-light"
+  };
+
   return (
-    <div ref={containerRef} className="min-h-screen bg-white dark:bg-black pt-[80px] transition-colors duration-300 pb-[100px]">
-      {/* Header Section - Pass the actual userProfile with updated stats */}
-      <div ref={headerRef} className="bg-white dark:bg-black opacity-0 transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className={styles.container} ref={containerRef}>
+      {/* Profile Section */}
+      <section className={styles.profileContainer}>
+        {/* Profile Card (Left Side) */}
+        <div className="" ref={headerRef}>
           <ProfileHeader
             profile={{
-              ...userProfile, // Use the actual userProfile object
+              ...userProfile,
               followers_count: followersCount,
               following_count: followingCount,
               posts_count: userProfile.role === 'author' ? postsCount : 0
@@ -541,172 +649,164 @@ const fetchTopPosts = useCallback(async () => {
             currentUserId={user.id}
             isFollowing={false}
             followLoading={false}
-            onFollow={() => { }}
+            onFollow={() => {}}
             onOpenFollowers={handleFollowersClick}
             onOpenFollowing={handleFollowingClick}
           />
         </div>
-      </div>
 
-      {/* Navigation Tabs */}
-      <div ref={tabsRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 opacity-0">
-        <div className="border-b border-gray-200 dark:border-gray-700 transition-colors">
-          <nav className="-mb-px flex space-x-2 sm:space-x-8 overflow-x-auto scrollbar-hide">
-            {[
-              { id: 'overview', label: 'Overview', icon: BarChart3 },
-              { id: 'posts', label: 'Top Posts', icon: TrendingUp },
-              { id: 'bookmarks', label: 'Bookmarks', icon: Bookmark }, // Added bookmarks tab
-              { id: 'verified', label: 'Verified News', icon: CheckCircle },
-              ...(userProfile?.role === 'author' ? [{ id: 'my-posts', label: 'My Posts', icon: Edit3 }] : []),
-              { id: 'comments', label: 'My Comments', icon: MessageCircle },
-              { id: 'author', label: 'Author Access', icon: Crown }
-            ].map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={(e) => handleTabClick(tab.id as typeof activeTab, e)}
-                  className={`flex items-center space-x-2 py-4 px-1 sm:px-3 border-b-2 font-medium text-sm transition-colors font-sora whitespace-nowrap ${activeTab === tab.id
-                    ? 'border-[#EF3866] text-[#EF3866]'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-      </div>
-
-      {/* Content Section */}
-      <div
-        ref={contentRef}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 opacity-0 overflow-y-auto max-h-[calc(100vh-200px)] scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
-      >
-        {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Quick Stats */}
-            <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 font-sora transition-colors">Account Overview</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Role</span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium font-sora ${userProfile.role === 'author'
-                    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
-                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'
-                    } transition-colors`}>
-                    {userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Username</span>
-                  <span className="text-gray-900 dark:text-white font-sora transition-colors">@{userProfile.username}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Comments Made</span>
-                  <span className="text-gray-900 dark:text-white font-sora transition-colors">
-                    {commentsLoading ? (
-                      <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-4 w-8 inline-block"></span>
-                    ) : (
-                      totalComments
-                    )}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">Member Since</span>
-                  <span className="text-gray-900 dark:text-white font-sora transition-colors">
-                    {createdAtLoading ? (
-                      <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-4 w-20 inline-block"></span>
-                    ) : (
-                      memberSince || new Date(userProfile.created_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long'
-                      })
-                    )}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 font-sora transition-colors">Recent Activity</h3>
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">Viewed 5 verified articles today</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">Dashboard accessed</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">Profile updated</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400 font-sora transition-colors">
-                    {createdAtLoading ? (
-                      <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-4 w-12 inline-block"></span>
-                    ) : (
-                      `${daysSinceJoining} days active`
-                    )}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'posts' && (
-          <div>
-            <WeeklyTopPosts/>
-          </div>
-        )}
-
-        {activeTab === 'bookmarks' && (
-          <div>
-            <BookmarksSection />
-          </div>
-        )}
-
-        {activeTab === 'my-posts' && (
-          <div>
-            <AuthorPostsSection
-              userId={userProfile.id}
-              isAuthor={userProfile.role === 'author'}
-              userName={`${userProfile.first_name} ${userProfile.last_name}`}
+        {/* Content Area (Right Side) */}
+        <div className={styles.contentArea}>
+          {/* Tab Navigation */}
+          <div className="bg-white/80 dark:bg-black/80 backdrop-blur-lg rounded-2xl border border-gray-200/50 dark:border-gray-800/50 p-2 shadow-sm" ref={tabsRef}>
+            <ProfileTabs
+              activeTab={activeTab}
+              onTabChange={(tab) => handleTabClick(tab as typeof activeTab)}
+              postsCount={postsCount}
+              userRole={userProfile.role || 'user'}
+              dashboardTabs={[
+                { id: 'overview', label: 'Overview', icon: BarChart3 },
+                { id: 'posts', label: 'Top Posts', icon: TrendingUp },
+                { id: 'bookmarks', label: 'Bookmarks', icon: Bookmark },
+                { id: 'verified', label: 'Verified News', icon: CheckCircle },
+                ...(userProfile?.role === 'author' ? [{ id: 'my-posts', label: 'My Posts', icon: Edit3 }] : []),
+                { id: 'comments', label: 'My Comments', icon: MessageCircle },
+                { id: 'author', label: 'Author Access', icon: Crown }
+              ]}
             />
           </div>
-        )}
 
-        {activeTab === 'comments' && (
-          <div><CommentsSection /></div>
-        )}
+          {/* Tab Content */}
+          <div className={styles.tabContent} ref={contentRef}>
+            {activeTab === 'overview' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                {/* Account Overview */}
+                <div className="rounded-2xl p-6 border bg-white/70 dark:bg-black/70 backdrop-blur-md border-gray-200/50 dark:border-gray-800/50 shadow-sm">
+                  <div className="flex justify-between items-center mb-5">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white font-sora">Account Overview</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push('/hashedpage/profile')}
+                      className="flex items-center gap-2 border-gray-300 dark:border-zinc-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      Edit Profile
+                    </Button>
+                  </div>
+                  <div className="space-y-5 text-sm font-sora">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-zinc-400">Role</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${userProfile.role === 'author' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'}`}>
+                        {userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-zinc-400">Username</span>
+                      <span className="text-gray-900 dark:text-white">@{userProfile.username}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-zinc-400">Comments Made</span>
+                      <span className="text-gray-900 dark:text-white">
+                        {commentsLoading ? (
+                          <span className="animate-pulse bg-gray-200 dark:bg-zinc-700 rounded h-4 w-8 inline-block"></span>
+                        ) : (
+                          totalComments
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-zinc-400">Member Since</span>
+                      <span className="text-gray-900 dark:text-white">
+                        {createdAtLoading ? (
+                          <span className="animate-pulse bg-gray-200 dark:bg-zinc-700 rounded h-4 w-20 inline-block"></span>
+                        ) : (
+                          memberSince || new Date(userProfile.created_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long'
+                          })
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-        {activeTab === 'verified' && (
-          <div>
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">HOJO AI Verified News</h2>
-              <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">AI-powered fact-checking and verification results</p>
-            </div>
-            <VerifiedList />
+                {/* Recent Activity */}
+                <div className="rounded-2xl p-6 border bg-white/70 dark:bg-black/70 backdrop-blur-md border-gray-200/50 dark:border-gray-800/50 shadow-sm">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-5 font-sora">Recent Activity</h3>
+                  <div className="space-y-3 text-sm font-sora">
+                    {[
+                      { color: 'bg-green-500', text: 'Viewed 5 verified articles today' },
+                      { color: 'bg-blue-500', text: 'Dashboard accessed' },
+                      { color: 'bg-purple-500', text: 'Profile updated' },
+                    ].map(({ color, text }, idx) => (
+                      <div key={idx} className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${color}`}></div>
+                        <span className="text-gray-600 dark:text-zinc-400">{text}</span>
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                      <span className="text-gray-600 dark:text-zinc-400">
+                        {createdAtLoading ? (
+                          <span className="animate-pulse bg-gray-200 dark:bg-zinc-700 rounded h-4 w-12 inline-block"></span>
+                        ) : (
+                          `${daysSinceJoining} days active`
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'posts' && (
+              <div>
+                <WeeklyTopPosts />
+              </div>
+            )}
+
+            {activeTab === 'bookmarks' && (
+              <div>
+                <BookmarksSection />
+              </div>
+            )}
+
+            {activeTab === 'my-posts' && (
+              <div>
+                <AuthorPostsSection
+                  userId={userProfile.id}
+                  isAuthor={userProfile.role === 'author'}
+                  userName={`${userProfile.first_name} ${userProfile.last_name}`}
+                />
+              </div>
+            )}
+
+            {activeTab === 'comments' && (
+              <div><CommentsSection /></div>
+            )}
+
+            {activeTab === 'verified' && (
+              <div>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">HOJO AI Verified News</h2>
+                  <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">AI-powered fact-checking and verification results</p>
+                </div>
+                <VerifiedList />
+              </div>
+            )}
+
+            {activeTab === 'author' && (
+              <div>
+                <AuthorAccessSection userProfile={userProfile} user={user} />
+              </div>
+            )}
           </div>
-        )}
-
-        {activeTab === 'author' && (
-          <div>
-            <AuthorAccessSection userProfile={userProfile} user={user}/>
-          </div>
-        )}
-      </div>
+        </div>
+      </section>
 
       {/* Stats Section */}
-      <div ref={statsRef} className="bg-white dark:bg-black rounded-2xl overflow-hidden transition-all duration-300 opacity-0">
+      <div ref={statsRef} className="">
         <UserStatsSection
           userLikedPosts={userLikedPosts}
           totalComments={totalComments}
