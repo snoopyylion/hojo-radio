@@ -3,16 +3,13 @@
 
 import Image from "next/image";
 import React, { useEffect, useState, useCallback } from "react";
-import { Menu, X, Home, Shield, Mic, BookOpen, Users, User, MessageCircle, LucideIcon } from "lucide-react";
+import { Menu, X, Home, Shield, Mic, BookOpen, Users, User, MessageCircle, LucideIcon, Bell } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useAppContext } from "@/context/AppContext";
 import Link from "next/link";
-import SignOutBtn from "@/components/SignOutBtn";
-import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import MobileSidebar from '@/components/MobileSidebar';
 import SearchComponent from '@/components/SearchComponent';
-import { NotificationBell } from "./NotificationBell";
 import { useInstantNotifications } from '@/hooks/useInstantNotifications';
 import { NotificationDot } from './NotificationDot';
 
@@ -44,7 +41,6 @@ const NewNavbar = () => {
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const [showSignOut, setShowSignOut] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Conditionally include Messages button only if user exists
@@ -68,15 +64,10 @@ const NewNavbar = () => {
     router.push('/messages');
   }, [markAsViewed, router]);
 
-  // Get user display data with fallbacks
-  const getUserDisplayData = (currentUser: typeof user) => {
-    if (!currentUser) return { name: 'User', role: 'Member' };
-
-    const name = currentUser.supabaseProfile?.first_name || currentUser.firstName || 'User';
-    const role = currentUser.supabaseProfile?.role || currentUser.role || 'Member';
-
-    return { name, role };
-  };
+  // Handle notification icon click
+  const handleNotificationClick = useCallback(() => {
+    router.push('/notifications');
+  }, [router]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -126,7 +117,7 @@ const NewNavbar = () => {
             </Link>
           </div>
 
-          {/* Desktop Nav Links with Search */}
+          {/* Desktop Nav Links */}
           <div className="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-700 font-sora">
             {/* Navigation Links */}
             <div className="flex items-center space-x-14">
@@ -161,7 +152,7 @@ const NewNavbar = () => {
           </div>
 
           {/* Auth Section */}
-          <div className="hidden md:flex items-center">
+          <div className="hidden md:flex items-center gap-6">
             {/* Desktop Search Component */}
             <SearchComponent />
 
@@ -169,82 +160,47 @@ const NewNavbar = () => {
             {!isLoaded ? (
               <div className="flex items-center gap-4">
                 <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>
-                <div className="flex flex-col gap-1">
-                  <div className="w-16 h-3 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="w-20 h-4 bg-gray-200 rounded animate-pulse"></div>
-                </div>
+                <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>
+                <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>
               </div>
             ) : user ? (
-              (() => {
-                const { name: displayName, role: displayRole } = getUserDisplayData(user);
-
-                return (
-                  <div className="flex items-center gap-4">
-                    {/* Notification Bell */}
-                    <Link href="/notifications">
-                      <NotificationBell />
-                    </Link>
-
-                    <div
-                      className="relative flex items-center"
-                      onMouseEnter={() => setShowSignOut(true)}
-                      onMouseLeave={() => setShowSignOut(false)}
-                    >
-                      {/* User Info Section */}
-                      <div className="flex items-center gap-[2px] w-[212px] h-[50px]">
-                        <div className="flex w-[161.5px] h-[50px] gap-[5px] items-center">
-                          {/* User Button with notification dot */}
-                          <div className="w-[50px] h-[50px] flex items-center justify-center relative">
-                            <UserButton afterSignOutUrl="/">
-                              <UserButton.MenuItems>
-                                <UserButton.Action
-                                  label="Dashboard"
-                                  labelIcon={<User size={16} />}
-                                  onClick={() => router.push("/hashedpage")}
-                                />
-                              </UserButton.MenuItems>
-                            </UserButton>
-                            {/* Enhanced notification dot on user avatar */}
-                            <div className="absolute -top-1 -right-1">
-                              <NotificationDot
-                                show={hasNewMessages && unreadCount > 0}
-                                count={unreadCount > 0 ? unreadCount : undefined}
-                                size="small"
-                                position="top-right"
-                                className="border-2 border-white"
-                              />
-                            </div>
-                          </div>
-
-                          {/* User Profile Info */}
-                          <Link href="/hashedpage" className="flex flex-col justify-center h-8 text-sm">
-                            <span className="text-[#656565] text-[18px] leading-[100%] font-sora font-semibold capitalize">
-                              {displayRole}
-                            </span>
-                            <span className="text-[#111827] text-[20px] leading-[100%] font-semibold capitalize">
-                              {displayName}
-                            </span>
-                          </Link>
-                        </div>
-                      </div>
-
-                      <AnimatePresence>
-                        {showSignOut && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                            className="absolute w-[120px] right-14 top-10 mt-5 bg-gray-50 border border-gray-200 shadow-lg rounded-lg p-2 z-50 m-auto"
-                          >
-                            <SignOutBtn />
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+              <div className="flex items-center gap-4">
+                {/* Notification Icon */}
+                <div className="relative">
+                  <button
+                    onClick={handleNotificationClick}
+                    className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <Bell size={20} className="text-gray-600" />
+                    {/* Notification dot on bell icon */}
+                    <div className="absolute -top-1 -right-1">
+                      <NotificationDot
+                        show={hasNewMessages && unreadCount > 0}
+                        count={unreadCount > 0 ? unreadCount : undefined}
+                        size="small"
+                        position="top-right"
+                        className="border-2 border-white"
+                      />
                     </div>
-                  </div>
-                );
-              })()
+                  </button>
+                </div>
+
+                {/* User Button with Custom Menu Items */}
+                <UserButton afterSignOutUrl="/">
+                  <UserButton.MenuItems>
+                    <UserButton.Action
+                      label="Dashboard"
+                      labelIcon={<User size={16} />}
+                      onClick={() => router.push("/hashedpage")}
+                    />
+                    <UserButton.Action
+                      label="Notifications"
+                      labelIcon={<Bell size={16} />}
+                      onClick={() => router.push("/notifications")}
+                    />
+                  </UserButton.MenuItems>
+                </UserButton>
+              </div>
             ) : (
               <Link href="/authentication/sign-up">
                 <button className="flex items-center gap-4 bg-[#EF3866] hover:bg-[#d7325a] text-white px-6 py-4 rounded-full transition-all text-xl font-sora">

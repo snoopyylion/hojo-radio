@@ -1,7 +1,9 @@
-// hooks/useInstantNotifications.ts - Fixed version with proper conversation loading
+// hooks/useInstantNotifications.ts - Enhanced version with follow events
 import { useState, useEffect, useCallback, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { useGlobalNotifications } from '@/context/GlobalNotificationsContext';
 import { useAppContext } from '@/context/AppContext';
+import { useUsers } from '@/context/UserContext';
 
 export interface NotificationState {
     hasNewMessages: boolean;
@@ -16,8 +18,10 @@ export interface NotificationState {
 }
 
 export const useInstantNotifications = () => {
-    const { state } = useGlobalNotifications();
+    const { state, addNotification } = useGlobalNotifications();
     const { user } = useAppContext();
+    const { getUser, refreshUser } = useUsers();
+    
     const [notificationState, setNotificationState] = useState<NotificationState>({
         hasNewMessages: false,
         unreadCount: 0,
@@ -37,49 +41,162 @@ export const useInstantNotifications = () => {
         return Date.now() - 24 * 60 * 60 * 1000;
     });
 
+    // WebSocket event handler for "follow"
+    const handleFollowEvent = useCallback(async (data: { 
+        followerId: string, 
+        followedId: string, 
+        timestamp: number 
+    }) => {
+        if (!user || user.id !== data.followedId) return;
+
+        try {
+            // Ensure we have the follower's info
+            await refreshUser(data.followerId);
+            const follower = getUser(data.followerId);
+
+            const followerName = follower?.username || follower?.firstName || 'Someone';
+
+            // Show toast
+            toast.success(`${followerName} just followed you!`, {
+                duration: 4000,
+                position: 'top-right',
+                style: {
+                    background: '#10B981',
+                    color: '#fff',
+                },
+            });
+
+            // Save notification for offline/notification list
+            addNotification({
+                id: `follow-${data.followerId}-${data.timestamp}`,
+                userId: data.followedId,
+                type: 'follow',
+                title: 'New Follower',
+                message: `${followerName} just followed you!`,
+                timestamp: data.timestamp,
+                read: false,
+            });
+
+            console.log('🔔 Follow notification processed:', {
+                followerId: data.followerId,
+                followerName,
+                timestamp: new Date(data.timestamp).toISOString()
+            });
+
+        } catch (error) {
+            console.error('🔔 Error processing follow event:', error);
+            
+            // Fallback notification without follower details
+            toast.success('Someone just followed you!');
+            addNotification({
+                id: `follow-${data.followerId}-${data.timestamp}`,
+                userId: data.followedId,
+                type: 'follow',
+                title: 'New Follower',
+                message: 'Someone just followed you!',
+                timestamp: data.timestamp,
+                read: false,
+            });
+        }
+    }, [user, refreshUser, getUser, addNotification]);
+
+    // Generic WebSocket event handler
+    const handleWebSocketEvent = useCallback((event: any) => {
+        if (!mountedRef.current) return;
+
+        console.log('🔔 Received WebSocket event:', event);
+
+        switch (event.type) {
+            case 'follow':
+                handleFollowEvent(event.data);
+                break;
+            
+            case 'message':
+                // Handle message events (existing logic)
+                console.log('🔔 Message event received');
+                break;
+            
+            case 'like':
+                // Handle like events
+                console.log('🔔 Like event received');
+                break;
+            
+            case 'comment':
+                // Handle comment events
+                console.log('🔔 Comment event received');
+                break;
+            
+            default:
+                console.log('🔔 Unknown event type:', event.type);
+        }
+    }, [handleFollowEvent]);
+
     // Load conversations when user is available
     useEffect(() => {
         const loadConversations = async () => {
-  if (!user || !user.id) {
-    console.log('🔔 No user available, skipping conversation load');
-    return;
-  }
+            if (!user || !user.id) {
+                console.log('🔔 No user available, skipping conversation load');
+                return;
+            }
 
-  try {
-    // Get the auth token from your auth provider (Clerk in this case)
-    const token = await window.Clerk.session?.getToken(); // For Clerk.js
-    // OR if using another auth system:
-    // const token = localStorage.getItem('authToken');
-    
-    if (!token) {
-      throw new Error('No authentication token available');
-    }
+            try {
+                // Get the auth token from your auth provider (Clerk in this case)
+                const token = await window.Clerk.session?.getToken(); // For Clerk.js
+                // OR if using another auth system:
+                // const token = localStorage.getItem('authToken');
+                
+                if (!token) {
+                    throw new Error('No authentication token available');
+                }
 
-    console.log('🔔 Loading conversations with token:', token);
-    
-    const response = await fetch(`/api/conversations?userId=${user.id}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+                console.log('🔔 Loading conversations with token:', token);
+                
+                const response = await fetch(`/api/conversations?userId=${user.id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch conversations: ${response.status}`);
-    }
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch conversations: ${response.status}`);
+                }
 
-    const data = await response.json();
-    console.log('🔔 Loaded conversations:', data);
-    
-    // Process the data here
-  } catch (error) {
-    console.error('🔔 Error loading conversations:', error);
-    // Consider setting an error state that you can display to the user
-  }
-};
+                const data = await response.json();
+                console.log('🔔 Loaded conversations:', data);
+                
+                // Process the data here
+            } catch (error) {
+                console.error('🔔 Error loading conversations:', error);
+                // Consider setting an error state that you can display to the user
+            }
+        };
 
         loadConversations();
     }, [user?.id]);
+
+    // WebSocket connection setup (if you have a WebSocket context or setup)
+    useEffect(() => {
+        if (!user?.id) return;
+
+        // Example WebSocket setup - adjust based on your WebSocket implementation
+        // const ws = new WebSocket(`ws://your-websocket-url/${user.id}`);
+        
+        // ws.onmessage = (event) => {
+        //     const data = JSON.parse(event.data);
+        //     handleWebSocketEvent(data);
+        // };
+
+        // return () => {
+        //     ws.close();
+        // };
+
+        // If you're using a WebSocket context, you might do something like:
+        // const unsubscribe = websocketContext.subscribe(handleWebSocketEvent);
+        // return unsubscribe;
+
+        console.log('🔔 WebSocket connection would be setup here for user:', user.id);
+    }, [user?.id, handleWebSocketEvent]);
 
     // Update notification state when conversations change
     useEffect(() => {
@@ -245,6 +362,18 @@ export const useInstantNotifications = () => {
         });
     }, []);
 
+    // Debug function to simulate follow event (for testing)
+    const simulateFollowEvent = useCallback(() => {
+        if (!user) return;
+        
+        console.log('🔔 Simulating follow event for testing');
+        handleFollowEvent({
+            followerId: 'test-follower-id',
+            followedId: user.id,
+            timestamp: Date.now()
+        });
+    }, [user, handleFollowEvent]);
+
     // Cleanup on unmount
     useEffect(() => {
         return () => {
@@ -269,6 +398,8 @@ export const useInstantNotifications = () => {
         getUnreadCountForConversation,
         lastViewedTime,
         resetViewedTime, // Added for debugging
-        simulateUnreadMessages // Added for debugging
+        simulateUnreadMessages, // Added for debugging
+        simulateFollowEvent, // Added for debugging follow events
+        handleWebSocketEvent // Expose for external WebSocket connections
     };
 };

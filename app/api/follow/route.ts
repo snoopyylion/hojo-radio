@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { auth } from '@clerk/nextjs/server'
+import { auth } from '@clerk/nextjs/server';
+import WebSocket from 'ws';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -11,6 +12,64 @@ if (!supabaseUrl || !supabaseServiceKey) {
 
 // Create Supabase client with service role key to bypass RLS
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// WebSocket client for sending notifications
+let wsClient: WebSocket | null = null;
+
+// Initialize WebSocket client connection to your WebSocket server
+function initializeWSClient() {
+    if (!process.env.WS_SERVER_URL) {
+        console.warn('WS_SERVER_URL not configured for follow notifications');
+        return;
+    }
+
+    try {
+        wsClient = new WebSocket(process.env.WS_SERVER_URL);
+        
+        wsClient.onopen = () => {
+            console.log('✅ Follow API WebSocket client connected');
+        };
+        
+        wsClient.onclose = () => {
+            console.log('❌ Follow API WebSocket client disconnected');
+            wsClient = null;
+            // Attempt reconnection after 5 seconds
+            setTimeout(initializeWSClient, 5000);
+        };
+        
+        wsClient.onerror = (error) => {
+            console.error('Follow API WebSocket error:', error);
+        };
+    } catch (error) {
+        console.error('Failed to initialize WebSocket client:', error);
+    }
+}
+
+// Initialize WebSocket client on module load
+initializeWSClient();
+
+// Function to send follow notification via WebSocket
+function sendFollowNotification(followerId: string, followedId: string, action: 'follow' | 'unfollow') {
+    if (!wsClient || wsClient.readyState !== WebSocket.OPEN) {
+        console.warn('WebSocket client not available for follow notification');
+        return;
+    }
+
+    try {
+        const notification = {
+            type: 'follow',
+            followerId,
+            followedId,
+            action,
+            timestamp: Date.now()
+        };
+
+        wsClient.send(JSON.stringify(notification));
+        console.log('📤 Sent follow notification:', notification);
+    } catch (error) {
+        console.error('Error sending follow notification:', error);
+    }
+}
 
 export async function POST(request: NextRequest) {
     try {
@@ -125,6 +184,9 @@ export async function POST(request: NextRequest) {
                 );
             }
 
+            // Send WebSocket notification for new follow
+            sendFollowNotification(followerId, followingId, 'follow');
+
             return NextResponse.json({
                 success: true,
                 message: 'Successfully followed user',
@@ -146,6 +208,9 @@ export async function POST(request: NextRequest) {
                     { status: 500 }
                 );
             }
+
+            // Send WebSocket notification for unfollow
+            sendFollowNotification(followerId, followingId, 'unfollow');
 
             return NextResponse.json({
                 success: true,

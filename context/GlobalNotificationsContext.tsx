@@ -58,18 +58,35 @@ interface GlobalNotificationsContextType {
   removeNotification: (id: string) => void;
   clearAllNotifications: () => void;
 
+  addNotification: (notification: {
+    id: string;
+    type: string;
+    title: string;
+    message: string;
+    timestamp: number;
+    read: boolean;
+    userId?: string;
+    userImage?: string;
+  }) => void;
+
+  showBrowserNotification: (
+    title: string,
+    body: string,
+    options?: NotificationOptions
+  ) => void;
+
   // WebSocket management
   connectGlobalWebSocket: () => void;
 
   // Utility functions
   getCurrentConversationId: () => string | null;
-  
+
   // Connection status
   isGlobalConnected: boolean;
-  
+
   // Typing users getter for specific conversation
   getTypingUsersForConversation: (conversationId: string) => TypingUser[];
-  
+
   // Additional state setters for compatibility
   setTypingUsers: (typingUsers: Record<string, TypingUser[]> | ((prev: Record<string, TypingUser[]>) => Record<string, TypingUser[]>)) => void;
   setOnlineUsers: (users: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
@@ -219,7 +236,7 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
 
   // Custom notifications hook - pass stable dependencies
   const conversationsForNotifications = useMemo(() => state.conversations, [state.conversations]);
-  
+
   const {
     permissionState,
     requestNotificationPermission,
@@ -273,6 +290,40 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
         return followingRef.current.tags.has(id);
       default:
         return false;
+    }
+  }, []);
+
+  const addNotification = useCallback((notification: {
+    id: string;
+    type: string;
+    title: string;
+    message: string;
+    timestamp: number;
+    read: boolean;
+    userId?: string;
+    userImage?: string;
+  }) => {
+    // Convert the generic notification to InAppNotification format
+    const inAppNotification: InAppNotification = {
+      id: notification.id,
+      type: 'message', // or determine based on notification.type
+      conversationId: 'system', // or extract from notification
+      createdAt: notification.timestamp,
+    };
+    
+    dispatch({ type: 'ADD_NOTIFICATION', payload: inAppNotification });
+  }, []);
+  
+  const showBrowserNotification = useCallback((
+    title: string,
+    body: string,
+    options?: NotificationOptions
+  ) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, {
+        body,
+        ...options
+      });
     }
   }, []);
 
@@ -414,7 +465,7 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
 
     // Check if user is viewing this conversation
     const isViewingConv = window.location.pathname.includes(`/messages/${message.conversation_id}`);
-    
+
     // Only notify if not viewing the conversation
     if (!isViewingConv) {
       const conversationName = conversation?.name ||
@@ -438,7 +489,7 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
 
       // Send to notification system
       dispatch({ type: 'ADD_NOTIFICATION', payload: notificationData });
-      
+
       // Optionally show browser notification using the existing notifyNewMessage function
       if (state.notificationSettings.browserNotificationsEnabled) {
         notifyNewMessage(message, users, () => {
@@ -554,7 +605,7 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
       const notificationsToRemove = state.inAppNotifications
         .filter(n => n.conversationId === currentConversationId)
         .map(n => n.id);
-      
+
       if (notificationsToRemove.length > 0) {
         dispatch({
           type: 'REMOVE_NOTIFICATIONS',
@@ -713,6 +764,8 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
     setOnlineUsers,
     setTypingInConversation,
     sendGlobalTypingUpdate,
+    addNotification,
+    showBrowserNotification,
   }), [
     followUser,
     unfollowUser,
@@ -733,10 +786,12 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
     setOnlineUsers,
     setTypingInConversation,
     sendGlobalTypingUpdate,
+    addNotification,
+    showBrowserNotification,
   ]);
 
   // Determine when to show the global notification container
-  const shouldShowGlobalNotifications = useMemo(() => 
+  const shouldShowGlobalNotifications = useMemo(() =>
     !isInMessagesApp || (isInMessagesApp && !currentConversationId),
     [isInMessagesApp, currentConversationId]
   );

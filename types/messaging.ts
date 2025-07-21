@@ -41,7 +41,7 @@ export interface Message {
   conversation_id: string;
   sender_id: string;
   content: string;
-  message_type: 'text' | 'image' | 'file';
+  message_type: "text" | "image" | "file" | "system";
   reply_to_id?: string;
   metadata?: Record<string, any>;
   created_at: string;

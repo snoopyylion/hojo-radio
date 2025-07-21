@@ -6,11 +6,21 @@ import { useGlobalTyping } from '@/context/GlobalTypingContext';
 interface UseWebSocketConnectionProps {
   conversationId: string;
   userId: string;
-  isViewingConversation?: boolean; // Add this
+  isViewingConversation?: boolean;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   setConversations: React.Dispatch<React.SetStateAction<any[]>>;
   setTypingUsers: React.Dispatch<React.SetStateAction<Record<string, TypingUser[]>>>;
   setOnlineUsers: React.Dispatch<React.SetStateAction<Set<string>>>;
+}
+
+interface FollowNotification {
+  type: 'follow';
+  followerId: string;
+  followedId: string;
+  action: 'follow' | 'unfollow';
+  timestamp: number;
+  followerName?: string;
+  followerImage?: string;
 }
 
 export const useWebSocketConnection = ({
@@ -30,7 +40,13 @@ export const useWebSocketConnection = ({
   const typingTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
   const reconnectDelay = useRef(1000); // Start with 1 second
 
-  const { state: globalState, isGlobalConnected, sendGlobalTypingUpdate, setTypingInConversation } = useGlobalNotifications();
+  const { 
+    state: globalState, 
+    isGlobalConnected, 
+    sendGlobalTypingUpdate, 
+    setTypingInConversation,
+    addMessageNotification,
+  } = useGlobalNotifications();
 
   // Add connection state tracking
   const [isConnecting, setIsConnecting] = useState(false);
@@ -125,6 +141,46 @@ export const useWebSocketConnection = ({
     }
   }, [userId, setTypingUsers, setTypingInConversation]);
 
+  // Handle follow notifications
+  const handleFollowNotification = useCallback((data: FollowNotification) => {
+    if (!mountedRef.current || !userId) return;
+  
+    // Only show notification if the current user is being followed
+    if (data.followedId !== userId) return;
+  
+    const isFollow = data.action === 'follow';
+    
+    if (isFollow) {
+      // Create a mock message for the follow notification
+      const mockMessage: Message = {
+        id: `follow-${data.followerId}-${data.timestamp}`,
+        content: `${data.followerName || 'Someone'} started following you!`,
+        sender_id: data.followerId,
+        conversation_id: 'system-follow', // Use a special system conversation ID
+        created_at: new Date(data.timestamp).toISOString(),
+        message_type: 'system', // If your Message type supports this
+        // Add other required Message properties with default values
+        updated_at: new Date(data.timestamp).toISOString(),
+        read_by: [],
+        reactions: [],
+        // ... add any other required properties
+      };
+  
+      // Use the existing addMessageNotification function
+      addMessageNotification(mockMessage);
+  
+      // Handle browser notification directly
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('New Follower', {
+          body: `${data.followerName || 'Someone'} started following you!`,
+          icon: data.followerImage || '/default-avatar.png',
+          tag: `follow-${data.followerId}`,
+        });
+      }
+  
+      console.log('🔔 New follower notification:', data);
+    }
+  }, [userId, addMessageNotification]);
 
   // Process any pending read operations when connection is established
   const processPendingReadOperations = useCallback(() => {
@@ -289,6 +345,11 @@ export const useWebSocketConnection = ({
               );
               break;
 
+            // Handle follow notifications
+            case 'follow':
+              handleFollowNotification(data as FollowNotification);
+              break;
+
             // Handle global typing updates
             case 'global_typing_update':
               if (data.conversationId !== conversationId) {
@@ -345,6 +406,7 @@ export const useWebSocketConnection = ({
     userId,
     cleanup,
     handleTypingUpdate,
+    handleFollowNotification,
     parseMessageData,
     handleWebSocketError,
     processPendingReadOperations
@@ -357,12 +419,40 @@ export const useWebSocketConnection = ({
   }, [isGlobalConnected, globalState.globalWs]);
 
   const markConversationAsRead = useCallback((conversationId: string) => {
-  setConversations(prev => prev.map(conv => 
-    conv.id === conversationId 
-      ? { ...conv, unread_count: 0 }
-      : conv
-  ));
-}, []);
+    setConversations(prev => prev.map(conv => 
+      conv.id === conversationId 
+        ? { ...conv, unread_count: 0 }
+        : conv
+    ));
+  }, []);
+
+  // Send follow event via WebSocket
+  const sendFollowEvent = useCallback((followedId: string, action: 'follow' | 'unfollow') => {
+    if (!mountedRef.current || !userId) return false;
+
+    if (!canSendMessages()) {
+      console.error('Cannot send follow event - no active WebSocket connection');
+      return false;
+    }
+
+    try {
+      const ws = wsRef.current || globalState.globalWs;
+      const message = {
+        type: 'follow',
+        followerId: userId,
+        followedId,
+        action,
+        timestamp: Date.now()
+      };
+
+      ws?.send(JSON.stringify(message));
+      console.log('📤 Sent follow event:', message);
+      return true;
+    } catch (error) {
+      console.error('Error sending follow event:', error);
+      return false;
+    }
+  }, [userId, globalState.globalWs, canSendMessages]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -489,6 +579,7 @@ export const useWebSocketConnection = ({
     sendTypingUpdate,
     sendMessage,
     markMessageAsRead,
+    sendFollowEvent, // New function to send follow events
     isGlobalConnected,
     isConnecting
   };

@@ -84,6 +84,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({
       onClose();
     }
   }, [pathname]); // Removed isOpen and onClose from dependencies
+  
 
   // FIX 2: Stable navigation click handler
   const handleNavClick = useCallback((href: string, showNotification?: boolean) => {
