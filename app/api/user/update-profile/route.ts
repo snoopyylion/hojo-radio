@@ -3,6 +3,17 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
+// Define the type for the update data
+interface UserUpdateData {
+  first_name: string;
+  last_name: string;
+  username: string;
+  profile_completed: boolean;
+  updated_at: string;
+  bio?: string;
+  location?: string;
+}
+
 export async function POST(req: Request) {
   try {
     const { userId } = await auth();
@@ -40,7 +51,7 @@ export async function POST(req: Request) {
     }
 
     // Build update object with only fields that have values
-    const updateData: any = {
+    const updateData: UserUpdateData = {
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       username: username.toLowerCase().trim(),
