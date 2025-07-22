@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import React, { useEffect, useState, useCallback } from "react";
-import { Menu, X, Home, Shield, Mic, BookOpen, Users, User, MessageCircle, LucideIcon, Bell, Search } from "lucide-react";
+import { Menu, X, Home, Shield, Mic, BookOpen, Users, User, MessageCircle, LucideIcon, Bell } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useAppContext } from "@/context/AppContext";
 import Link from "next/link";
@@ -42,7 +42,6 @@ const NewNavbar = () => {
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
 
   // Conditionally include Messages button only if user exists
   const navItems = user ? [...baseNavItems, messagesNavItem] : baseNavItems;
@@ -65,10 +64,6 @@ const NewNavbar = () => {
     router.push('/messages');
   }, [markAsViewed, router]);
 
-  // Handle notification icon click
-  const handleNotificationClick = useCallback(() => {
-    router.push('/notifications');
-  }, [router]);
 
   useEffect(() => {
     const handleScroll = () => {
