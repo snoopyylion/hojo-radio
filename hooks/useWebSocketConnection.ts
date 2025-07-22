@@ -1,7 +1,9 @@
+//hojo/hooks/useWebSocketConnection.ts
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Message, TypingUser } from '@/types/messaging';
 import { useGlobalNotifications } from '@/context/GlobalNotificationsContext';
 import { useGlobalTyping } from '@/context/GlobalTypingContext';
+import toast from 'react-hot-toast';
 
 interface UseWebSocketConnectionProps {
   conversationId: string;
@@ -38,7 +40,8 @@ export const useWebSocketConnection = ({
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
   const typingTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
-  const reconnectDelay = useRef(1000); // Start with 1 second
+  const reconnectDelay = useRef(1000);
+  const processedFollowNotifications = useRef<Set<string>>(new Set());
 
   const { 
     state: globalState, 
@@ -46,9 +49,11 @@ export const useWebSocketConnection = ({
     sendGlobalTypingUpdate, 
     setTypingInConversation,
     addMessageNotification,
+    showBrowserNotification,
+    addNotification,
+    fetchNotifications,
   } = useGlobalNotifications();
 
-  // Add connection state tracking
   const [isConnecting, setIsConnecting] = useState(false);
   const pendingReadOperations = useRef<{ messageId: string, timestamp: number }[]>([]);
 
@@ -101,7 +106,6 @@ export const useWebSocketConnection = ({
       const existingUserIndex = conversationTyping.findIndex(u => u.userId === data.userId);
 
       if (data.isTyping) {
-        // Add or update typing user
         if (existingUserIndex >= 0) {
           const updated = [...conversationTyping];
           updated[existingUserIndex] = {
@@ -124,7 +128,6 @@ export const useWebSocketConnection = ({
           };
         }
       } else {
-        // Remove typing user
         return {
           ...prev,
           [data.conversationId]: conversationTyping.filter(u => u.userId !== data.userId)
@@ -141,48 +144,74 @@ export const useWebSocketConnection = ({
     }
   }, [userId, setTypingUsers, setTypingInConversation]);
 
-  // Handle follow notifications
+  // Enhanced follow notification handler
   const handleFollowNotification = useCallback((data: FollowNotification) => {
     if (!mountedRef.current || !userId) return;
-  
-    // Only show notification if the current user is being followed
-    if (data.followedId !== userId) return;
-  
-    const isFollow = data.action === 'follow';
-    
-    if (isFollow) {
-      // Create a mock message for the follow notification
-      const mockMessage: Message = {
-        id: `follow-${data.followerId}-${data.timestamp}`,
-        content: `${data.followerName || 'Someone'} started following you!`,
-        sender_id: data.followerId,
-        conversation_id: 'system-follow', // Use a special system conversation ID
-        created_at: new Date(data.timestamp).toISOString(),
-        message_type: 'system', // If your Message type supports this
-        // Add other required Message properties with default values
-        updated_at: new Date(data.timestamp).toISOString(),
-        read_by: [],
-        reactions: [],
-        // ... add any other required properties
-      };
-  
-      // Use the existing addMessageNotification function
-      addMessageNotification(mockMessage);
-  
-      // Handle browser notification directly
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('New Follower', {
-          body: `${data.followerName || 'Someone'} started following you!`,
-          icon: data.followerImage || '/default-avatar.png',
-          tag: `follow-${data.followerId}`,
-        });
-      }
-  
-      console.log('🔔 New follower notification:', data);
-    }
-  }, [userId, addMessageNotification]);
 
-  // Process any pending read operations when connection is established
+    // Create unique ID for this notification to prevent duplicates
+    const notificationId = `follow-${data.followerId}-${data.followedId}-${data.action}-${data.timestamp}`;
+    
+    // Check if we've already processed this exact notification
+    if (processedFollowNotifications.current.has(notificationId)) {
+      console.log('⚠️ Duplicate follow notification ignored:', notificationId);
+      return;
+    }
+    
+    // Mark as processed
+    processedFollowNotifications.current.add(notificationId);
+
+    // Clean up old processed notifications (keep last 100)
+    if (processedFollowNotifications.current.size > 100) {
+      const oldEntries = Array.from(processedFollowNotifications.current).slice(0, -50);
+      oldEntries.forEach(entry => processedFollowNotifications.current.delete(entry));
+    }
+
+    // Only show notification if the current user is being followed/unfollowed
+    if (data.followedId !== userId) {
+      console.log('📤 Follow notification not for current user, ignoring');
+      return;
+    }
+
+    const isFollow = data.action === 'follow';
+    const notificationTitle = isFollow ? 'New Follower' : 'Unfollowed';
+    const notificationMessage = isFollow 
+      ? `${data.followerName || 'Someone'} started following you!`
+      : `${data.followerName || 'Someone'} unfollowed you`;
+
+    console.log('🔔 Processing follow notification:', {
+      action: data.action,
+      followerId: data.followerId,
+      followedId: data.followedId,
+      timestamp: data.timestamp
+    });
+
+    // Add to global notifications using the existing system
+    if (addNotification) {
+      addNotification({
+        id: notificationId,
+        type: 'follow',
+        title: notificationTitle,
+        message: notificationMessage,
+        timestamp: data.timestamp,
+        read: false,
+        userId: data.followerId,
+        userImage: data.followerImage
+      });
+    }
+
+    // Show browser notification if enabled and permission granted
+    if ('Notification' in window && Notification.permission === 'granted') {
+      showBrowserNotification(notificationTitle, notificationMessage, {
+        icon: data.followerImage || '/default-avatar.png',
+        tag: notificationId,
+        requireInteraction: false,
+        silent: false
+      });
+    }
+
+    console.log('✅ Follow notification processed successfully:', notificationTitle);
+  }, [userId, addNotification, showBrowserNotification]);
+
   const processPendingReadOperations = useCallback(() => {
     if (!mountedRef.current) return;
 
@@ -223,7 +252,6 @@ export const useWebSocketConnection = ({
     setIsConnected(false);
     setWsConnection(null);
 
-    // Attempt reconnect only if this isn't the global connection
     if (wsRef.current !== globalState.globalWs) {
       reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000);
       reconnectTimeoutRef.current = setTimeout(() => {
@@ -240,8 +268,9 @@ export const useWebSocketConnection = ({
 
     setIsConnecting(true);
 
+    // Prefer global connection for better follow notification handling
     if (isGlobalConnected && globalState.globalWs) {
-      console.log('🌐 Using global WebSocket connection');
+      console.log('🌐 Using global WebSocket connection for follow notifications');
       setIsConnected(true);
       setIsConnecting(false);
       setWsConnection(globalState.globalWs);
@@ -257,15 +286,19 @@ export const useWebSocketConnection = ({
       return;
     }
 
-    if (!conversationId || !userId) {
-      console.warn('Missing conversationId or userId for WebSocket connection');
+    if (!userId) {
+      console.warn('Missing userId for WebSocket connection');
       setIsConnecting(false);
       return;
     }
 
     try {
-      const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}/conversations/${conversationId}?userId=${userId}`;
-      console.log('🔌 Connecting to Conversation WebSocket:', wsUrl);
+      // Use global connection endpoint if no specific conversation
+      const wsUrl = conversationId 
+        ? `${process.env.NEXT_PUBLIC_WS_URL}/conversations/${conversationId}?userId=${userId}`
+        : `${process.env.NEXT_PUBLIC_WS_URL}/global?userId=${userId}`;
+        
+      console.log('🔌 Connecting to WebSocket:', wsUrl);
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -275,7 +308,7 @@ export const useWebSocketConnection = ({
           ws.close();
           return;
         }
-        console.log('🔌 Conversation WebSocket connected successfully');
+        console.log('🔌 WebSocket connected successfully');
         setIsConnected(true);
         setIsConnecting(false);
         setWsConnection(ws);
@@ -290,6 +323,8 @@ export const useWebSocketConnection = ({
           const messageData = await parseMessageData(event.data);
           const data = JSON.parse(messageData);
 
+          console.log('📨 WebSocket message received:', data.type, data);
+
           switch (data.type) {
             case 'new_message':
               setMessages(prev => {
@@ -303,8 +338,6 @@ export const useWebSocketConnection = ({
                     ...conv,
                     last_message: data.message,
                     last_message_at: data.message.created_at,
-                    // Only increment unread count if message is not from current user
-                    // and we're not currently viewing this conversation
                     unread_count: data.message.sender_id !== userId && !isViewingConversation
                       ? (conv.unread_count || 0) + 1
                       : conv.unread_count || 0
@@ -345,30 +378,37 @@ export const useWebSocketConnection = ({
               );
               break;
 
-            // Handle follow notifications
             case 'follow':
+              console.log('📩 Received follow notification:', data);
               handleFollowNotification(data as FollowNotification);
               break;
 
-            // Handle global typing updates
             case 'global_typing_update':
               if (data.conversationId !== conversationId) {
                 handleTypingUpdate(data);
               }
               break;
 
+            case 'follow_notification':
+              toast.success(`${data.followerName || 'Someone'} just followed you!`);
+              break;
+
+            case 'new_message':
+              toast(`New message from ${data.senderName}: ${data.content}`, { icon: '💬' });
+              break;
+
             default:
-              console.log('Received unknown message type:', data.type);
+              console.log('❓ Unknown message type:', data.type);
           }
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+          console.error('❌ Error parsing WebSocket message:', error);
         }
       };
 
       ws.onclose = (event) => {
         if (!mountedRef.current) return;
 
-        console.log('WebSocket closed:', event.code, event.reason);
+        console.log('🔌 WebSocket closed:', event.code, event.reason);
         setIsConnected(false);
         setIsConnecting(false);
         setWsConnection(null);
@@ -378,7 +418,7 @@ export const useWebSocketConnection = ({
           reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000);
           reconnectTimeoutRef.current = setTimeout(() => {
             if (mountedRef.current) {
-              console.log(`Attempting reconnect in ${reconnectDelay.current}ms`);
+              console.log(`🔄 Attempting reconnect in ${reconnectDelay.current}ms`);
               connectWebSocket();
             }
           }, reconnectDelay.current);
@@ -388,13 +428,13 @@ export const useWebSocketConnection = ({
       ws.onerror = handleWebSocketError;
 
     } catch (error) {
-      console.error('Error creating WebSocket connection:', error);
+      console.error('❌ Error creating WebSocket connection:', error);
       setIsConnected(false);
       setIsConnecting(false);
       reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000);
       reconnectTimeoutRef.current = setTimeout(() => {
         if (mountedRef.current) {
-          console.log(`Attempting reconnect in ${reconnectDelay.current}ms`);
+          console.log(`🔄 Attempting reconnect in ${reconnectDelay.current}ms`);
           connectWebSocket();
         }
       }, reconnectDelay.current);
@@ -409,7 +449,11 @@ export const useWebSocketConnection = ({
     handleFollowNotification,
     parseMessageData,
     handleWebSocketError,
-    processPendingReadOperations
+    processPendingReadOperations,
+    isViewingConversation,
+    setMessages,
+    setConversations,
+    setOnlineUsers
   ]);
 
   const canSendMessages = useCallback(() => {
@@ -426,17 +470,25 @@ export const useWebSocketConnection = ({
     ));
   }, []);
 
-  // Send follow event via WebSocket
+  // Enhanced follow event sender with better error handling
   const sendFollowEvent = useCallback((followedId: string, action: 'follow' | 'unfollow') => {
-    if (!mountedRef.current || !userId) return false;
+    if (!mountedRef.current || !userId) {
+      console.error('❌ Cannot send follow event - missing userId or component unmounted');
+      return false;
+    }
 
     if (!canSendMessages()) {
-      console.error('Cannot send follow event - no active WebSocket connection');
+      console.error('❌ Cannot send follow event - no active WebSocket connection');
       return false;
     }
 
     try {
       const ws = wsRef.current || globalState.globalWs;
+      if (!ws) {
+        console.error('❌ No WebSocket connection available');
+        return false;
+      }
+
       const message = {
         type: 'follow',
         followerId: userId,
@@ -445,19 +497,21 @@ export const useWebSocketConnection = ({
         timestamp: Date.now()
       };
 
-      ws?.send(JSON.stringify(message));
-      console.log('📤 Sent follow event:', message);
+      ws.send(JSON.stringify(message));
+      console.log('📤 Follow event sent successfully:', message);
       return true;
     } catch (error) {
-      console.error('Error sending follow event:', error);
+      console.error('❌ Error sending follow event:', error);
       return false;
     }
   }, [userId, globalState.globalWs, canSendMessages]);
 
+  // Initialize connection
   useEffect(() => {
     mountedRef.current = true;
+    
     const connect = () => {
-      if (mountedRef.current && conversationId && userId) {
+      if (mountedRef.current && userId) {
         connectWebSocket();
       }
     };
@@ -469,8 +523,9 @@ export const useWebSocketConnection = ({
       clearTimeout(timeoutId);
       cleanup();
       Object.values(typingTimeoutsRef.current).forEach(clearTimeout);
+      processedFollowNotifications.current.clear();
     };
-  }, [conversationId, userId, connectWebSocket, cleanup]);
+  }, [userId, connectWebSocket, cleanup]);
 
   // Clean up pending operations on unmount
   useEffect(() => {
@@ -479,13 +534,17 @@ export const useWebSocketConnection = ({
     };
   }, []);
 
+  // Debug connection state
   useEffect(() => {
-    console.log('WebSocket connection state changed:', {
+    console.log('🔍 WebSocket connection state:', {
       isConnected,
-      readyState: wsRef.current?.readyState,
-      globalReadyState: globalState.globalWs?.readyState
+      isConnecting,
+      wsReadyState: wsRef.current?.readyState,
+      globalReadyState: globalState.globalWs?.readyState,
+      conversationId,
+      userId
     });
-  }, [isConnected, globalState.globalWs]);
+  }, [isConnected, isConnecting, globalState.globalWs, conversationId, userId]);
 
   const sendTypingUpdate = useCallback((isTyping: boolean) => {
     if (!mountedRef.current || !userId) return false;
@@ -501,7 +560,7 @@ export const useWebSocketConnection = ({
         type: 'typing_update',
         conversationId,
         userId,
-        username: 'Current User', // Replace with actual username
+        username: 'Current User',
         isTyping,
         timestamp: Date.now()
       };
@@ -573,14 +632,19 @@ export const useWebSocketConnection = ({
     }
   }, [userId, conversationId, globalState.globalWs, canSendMessages, isConnecting, connectWebSocket]);
 
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
   return {
     isConnected,
     wsConnection,
     sendTypingUpdate,
     sendMessage,
     markMessageAsRead,
-    sendFollowEvent, // New function to send follow events
+    sendFollowEvent,
     isGlobalConnected,
-    isConnecting
+    isConnecting,
+    markConversationAsRead
   };
 };

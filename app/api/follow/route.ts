@@ -25,18 +25,18 @@ function initializeWSClient() {
 
     try {
         wsClient = new WebSocket(process.env.WS_SERVER_URL);
-        
+
         wsClient.onopen = () => {
             console.log('✅ Follow API WebSocket client connected');
         };
-        
+
         wsClient.onclose = () => {
             console.log('❌ Follow API WebSocket client disconnected');
             wsClient = null;
             // Attempt reconnection after 5 seconds
             setTimeout(initializeWSClient, 5000);
         };
-        
+
         wsClient.onerror = (error) => {
             console.error('Follow API WebSocket error:', error);
         };
@@ -49,7 +49,7 @@ function initializeWSClient() {
 initializeWSClient();
 
 // Function to send follow notification via WebSocket
-function sendFollowNotification(followerId: string, followedId: string, action: 'follow' | 'unfollow') {
+function sendFollowNotification(followerId: string, followedId: string, action: 'follow' | 'unfollow', followerName: string) {
     if (!wsClient || wsClient.readyState !== WebSocket.OPEN) {
         console.warn('WebSocket client not available for follow notification');
         return;
@@ -58,9 +58,10 @@ function sendFollowNotification(followerId: string, followedId: string, action: 
     try {
         const notification = {
             type: 'follow',
-            followerId,
-            followedId,
-            action,
+            followerId: followerId,
+            followedId: followedId,
+            followerName: followerName,
+            action: action,
             timestamp: Date.now()
         };
 
@@ -184,8 +185,16 @@ export async function POST(request: NextRequest) {
                 );
             }
 
+            // Fetch the follower's profile to get their name
+            const { data: followerProfile } = await supabase
+                .from('users')
+                .select('username, first_name')
+                .eq('id', followerId)
+                .single();
+
             // Send WebSocket notification for new follow
-            sendFollowNotification(followerId, followingId, 'follow');
+            const followerName = followerProfile?.username || followerProfile?.first_name || 'Someone';
+            sendFollowNotification(followerId, followingId, 'follow', followerName);
 
             return NextResponse.json({
                 success: true,
@@ -210,7 +219,7 @@ export async function POST(request: NextRequest) {
             }
 
             // Send WebSocket notification for unfollow
-            sendFollowNotification(followerId, followingId, 'unfollow');
+            sendFollowNotification(followerId, followingId, 'unfollow', 'Someone'); // Assuming a default name for unfollow
 
             return NextResponse.json({
                 success: true,

@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { Message, TypingUser, Conversation, User } from '@/types/messaging';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationContainer } from '@/components/messaging/InAppNotification';
+import { BaseNotification } from '@/types/notifications';
 
 // Types
 type State = {
@@ -90,6 +91,12 @@ interface GlobalNotificationsContextType {
   // Additional state setters for compatibility
   setTypingUsers: (typingUsers: Record<string, TypingUser[]> | ((prev: Record<string, TypingUser[]>) => Record<string, TypingUser[]>)) => void;
   setOnlineUsers: (users: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+
+  notifications: BaseNotification[];
+  isLoading: boolean;
+  markAsRead: (notificationId: string) => void;
+  markAllAsRead: () => void;
+  fetchNotifications: () => Promise<void>;
 }
 
 interface NotificationSettings {
@@ -766,6 +773,11 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
     sendGlobalTypingUpdate,
     addNotification,
     showBrowserNotification,
+    notifications: [],
+    isLoading: false,
+    markAsRead: () => {},
+    markAllAsRead: () => {},
+    fetchNotifications: async () => {}
   }), [
     followUser,
     unfollowUser,

@@ -127,7 +127,7 @@ const UserStatsSection: React.FC<UserStatsProps> = ({
 
       {/* Stats Container */}
       <div className="px-4 sm:px-8 lg:px-12 py-8 sm:py-10">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
+        <div className="grid grid-cols-3 gap-6 sm:gap-8">
           {statItems.map((item, index) => (
             <StatItem
               key={index}

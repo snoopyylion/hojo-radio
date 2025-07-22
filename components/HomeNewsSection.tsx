@@ -97,7 +97,7 @@ const HomeNewsSection = () => {
             Explore All News <ArrowRight className="w-4 h-4" />
           </Link>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-gray-200 dark:border-zinc-800">
+          <div className="grid grid-cols-3 sm:grid-cols-3 gap-6 pt-8 border-t border-gray-200 dark:border-zinc-800">
             <Stat label="Total Articles" value={posts.length} />
             <Stat label="Categories" value={categories.length} />
             <Stat
@@ -119,7 +119,7 @@ const HomeNewsSection = () => {
 };
 
 const Stat = ({ label, value }: { label: string; value: string | number }) => (
-  <div className="text-center">
+  <div className="text-center ">
     <p className="text-2xl font-bold text-[#EF3866]">{value}</p>
     <p className="text-sm text-gray-600 dark:text-gray-400">{label}</p>
   </div>

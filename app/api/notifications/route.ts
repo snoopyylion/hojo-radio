@@ -31,7 +31,7 @@ async function sendWebSocketNotification(userId: string, data: NotificationData)
   // This is where you'd send to your WebSocket server
   // For now, we'll just log it
   console.log(`Sending WebSocket notification to ${userId}:`, data);
-  
+
   // Example implementation with your WebSocket server:
   /*
   try {
@@ -50,7 +50,7 @@ async function sendWebSocketNotification(userId: string, data: NotificationData)
 export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth();
-    
+
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -104,14 +104,32 @@ export async function GET(request: NextRequest) {
 
 // POST /api/notifications - Create new notification
 export async function POST(request: NextRequest) {
-  try {
-    const { userId } = await auth();
-    
+
+  // Add this at the top of the POST function, before the auth check:
+  const isServerCall = request.headers.get('x-server-call') === 'true';
+
+  let userId: string | undefined;
+
+  if (!isServerCall) {
+    const authResult = await auth();
+    userId = authResult.userId ?? undefined;
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+  }
 
+  try {
+    // If not a server call, userId is set above. If server call, get user_id from the request body.
     const notification: NotificationPayload = await request.json();
+
+    // For server calls, use notification.user_id
+    if (isServerCall) {
+      userId = notification.user_id;
+    }
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     // Validate required fields
     if (!notification.user_id || !notification.type || !notification.title || !notification.message) {
@@ -120,10 +138,10 @@ export async function POST(request: NextRequest) {
 
     // Validate notification type
     const validTypes = [
-      'message', 'typing', 'follow', 'like', 'comment', 
+      'message', 'typing', 'follow', 'like', 'comment',
       'post_published', 'mention', 'application_approved', 'application_rejected'
     ];
-    
+
     if (!validTypes.includes(notification.type)) {
       return NextResponse.json({ error: 'Invalid notification type' }, { status: 400 });
     }

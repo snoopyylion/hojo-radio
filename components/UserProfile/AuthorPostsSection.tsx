@@ -294,13 +294,6 @@ export const AuthorPostsSection: React.FC<AuthorPostsSectionProps> = ({
 
   return (
     <div className="space-y-8">
-      <div className="text-center mb-12">
-        <p className="text-gray-600 dark:text-gray-400 mt-4 font-light">
-          {posts.length} {posts.length === 1 ? 'post' : 'posts'} published
-        </p>
-        <div className="w-16 h-0.5 bg-[#EF3866] mx-auto"></div>
-      </div>
-
       <div className="grid gap-8">
         {posts.map((post) => (
           <article
@@ -370,6 +363,12 @@ export const AuthorPostsSection: React.FC<AuthorPostsSectionProps> = ({
             </div>
           </article>
         ))}
+      </div>
+      <div className="text-center mb-12">
+        <p className="text-gray-600 dark:text-gray-400 mt-4 font-light">
+          {posts.length} {posts.length === 1 ? 'post' : 'posts'} published
+        </p>
+        <div className="w-16 h-0.5 bg-[#EF3866] mx-auto"></div>
       </div>
     </div>
   );
