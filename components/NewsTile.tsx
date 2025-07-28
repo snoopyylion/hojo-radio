@@ -239,7 +239,7 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
             data: { post_id: post._id, post_title: post.title }
           });
           // Notify post owner if not self
-          if (userId !== post.author.supabaseUserId) {
+          if (userId && post.author.supabaseUserId && userId !== post.author.supabaseUserId) {
             await notificationService.createLikeNotification(userId, post.author.supabaseUserId, 'Someone', post._id, post.title);
           }
         } else {
