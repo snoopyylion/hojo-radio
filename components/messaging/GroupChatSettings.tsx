@@ -48,8 +48,7 @@ export const GroupChatSettings: React.FC<GroupChatSettingsProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imagePreview, ] = useState<string | null>(null);
 
   const currentUser = conversation.participants.find(p => p.user_id === userId);
   const isAdmin = currentUser?.role === 'admin';

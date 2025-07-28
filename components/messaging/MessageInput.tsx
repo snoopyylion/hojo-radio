@@ -13,10 +13,9 @@ import {
   X
 } from 'lucide-react';
 import { Message } from '@/types/messaging';
-import { useAuth } from '@clerk/nextjs';
 
 interface MessageInputProps {
-  onSendMessage: (content: string, type?: string, replyToId?: string, metadata?: Record<string, any>) => Promise<void>;
+  onSendMessage: (content: string, type?: string, replyToId?: string, metadata?: Record<string, unknown>) => Promise<void>;
   onTypingChange: (isTyping: boolean) => void;
   disabled?: boolean;
   placeholder?: string;

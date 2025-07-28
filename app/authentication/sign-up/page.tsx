@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import LoadingSpinner from "@/components/auth/LoadingSpinner";
 import SignUpContent from "./SignUpContent";
 

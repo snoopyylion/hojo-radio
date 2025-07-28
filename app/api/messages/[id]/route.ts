@@ -42,7 +42,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
             return NextResponse.json({ error: 'Failed to delete message' }, { status: 500 });
         }
         return NextResponse.json({ success: true });
-    } catch (error) {
+    } catch {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 } 
