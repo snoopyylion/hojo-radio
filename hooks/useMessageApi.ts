@@ -8,7 +8,8 @@ export const useMessageApi = () => {
 
   const getToken = useCallback(async () => {
     try {
-      return await getClerkToken();
+      const token = await getClerkToken();
+      return token || '';
     } catch (error) {
       console.error('Failed to get token:', error);
       return '';
@@ -17,11 +18,13 @@ export const useMessageApi = () => {
 
   const loadConversationsFromAPI = useCallback(async () => {
     try {
-      const response = await fetch('/api/conversations', {
-        headers: {
-          'Authorization': `Bearer ${await getToken()}`
-        }
-      });
+      const token = await getToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch('/api/conversations', { headers });
       const data = await response.json();
       return data.conversations || [];
     } catch (error) {
@@ -42,11 +45,13 @@ export const useMessageApi = () => {
         ...(before && { before })
       });
 
-      const response = await fetch(`/api/messages?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${await getToken()}`
-        }
-      });
+      const token = await getToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/messages?${params}`, { headers });
       const data = await response.json();
       return data.messages || [];
     } catch (error) {
@@ -143,15 +148,20 @@ export const useMessageApi = () => {
 
   const reactToMessage = useCallback(async (messageId: string, emoji: string, currentUserReactions: string[] = []) => {
     try {
+      const token = await getToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       // If the user already reacted with a different emoji, remove it first
       if (currentUserReactions.length > 0 && !currentUserReactions.includes(emoji)) {
         for (const oldEmoji of currentUserReactions) {
           await fetch('/api/message-reactions', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${await getToken()}`
-            },
+            headers,
             body: JSON.stringify({ message_id: messageId, emoji: oldEmoji })
           });
         }
@@ -159,10 +169,7 @@ export const useMessageApi = () => {
       // Now add/toggle the new reaction
       const response = await fetch('/api/message-reactions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await getToken()}`
-        },
+        headers,
         body: JSON.stringify({ message_id: messageId, emoji })
       });
       const data = await response.json();
