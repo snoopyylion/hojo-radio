@@ -302,7 +302,7 @@ const UserProfilePage = () => {
           });
           // Send notification to the receiver if it's a follow
           if (!isFollowing && userId !== profile.id) {
-            await notificationService.createFollowNotification(userId, profile.id, user?.first_name || 'Someone');
+            await notificationService.createFollowNotification(userId, profile.id, user?.firstName || 'Someone');
           }
         }
         toast.success(isFollowing ? 'Unfollowed!' : 'Followed!');
