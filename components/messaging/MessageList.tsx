@@ -160,7 +160,6 @@ export function MessagesList({
                                 onReply={onReply}
                                 onReact={onReactToMessage}
                                 onImageClick={() => {}}
-                                replyingTo={replyingTo}
                                 onDelete={onDeleteMessage}
                             />
                         ))}
