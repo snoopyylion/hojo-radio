@@ -16,7 +16,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 // GET - Get conversation details
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { userId } = await auth();
@@ -25,7 +25,7 @@ export async function GET(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const conversationId = params.id;
+        const conversationId = (await params).id;
 
         // Get conversation with participants
         const { data: conversation, error } = await supabase
@@ -79,7 +79,7 @@ export async function GET(
 // PATCH - Update conversation settings
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { userId } = await auth();
@@ -88,7 +88,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const conversationId = params.id;
+        const conversationId = (await params).id;
         const body = await request.json();
         const { name, description, image_url } = body;
 
@@ -147,7 +147,7 @@ export async function PATCH(
 // DELETE - Delete conversation (creator only)
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { userId } = await auth();
@@ -156,7 +156,7 @@ export async function DELETE(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const conversationId = params.id;
+        const conversationId = (await params).id;
 
         // Check if user is the creator
         const { data: conversation, error: conversationError } = await supabase
