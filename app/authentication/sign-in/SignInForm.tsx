@@ -80,6 +80,8 @@ export function SignInForm() {
       if (result.status === "complete") {
         // Use setActive from useClerk hook
         await setActive({ session: result.createdSessionId });
+        
+        // For email/password sign-ins, redirect directly instead of going through OAuth callback
         router.push(redirectUrl || '/blog');
       } else {
         console.log('Sign-in not complete, status:', result.status);
@@ -91,7 +93,38 @@ export function SignInForm() {
       }
     } catch (err) {
       console.error("Sign in error:", err);
-      setErrors({ message: "Sign in failed. Please check your credentials." });
+      
+      // Check if this is a new user trying to sign in
+      if (err && typeof err === "object" && "errors" in err) {
+        const clerkError = err as { errors: Array<{ message?: string; code?: string }> };
+        if (clerkError.errors?.length) {
+          const error = clerkError.errors[0];
+          
+          // Check if this is a new user trying to sign in
+          if (error.code === 'form_identifier_not_found' || 
+              error.message?.toLowerCase().includes('not found') ||
+              error.message?.toLowerCase().includes('doesn\'t exist') ||
+              error.message?.toLowerCase().includes('no account')) {
+            setErrors({
+              message: "No account found with this email. Please sign up instead.",
+              code: "USER_NOT_FOUND",
+            });
+            
+            // Redirect to sign-up after a short delay
+            setTimeout(() => {
+              const signUpUrl = `/authentication/sign-up${redirectUrl && redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+              window.location.href = signUpUrl;
+            }, 3000);
+            return;
+          }
+          
+          setErrors({ message: "Sign in failed. Please check your credentials." });
+        } else {
+          setErrors({ message: "Sign in failed. Please check your credentials." });
+        }
+      } else {
+        setErrors({ message: "Sign in failed. Please check your credentials." });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -189,6 +222,7 @@ export function SignInForm() {
           onAppleSignIn={signInWithApple}
           disabled={isProcessingSignIn || oauthLoading}
           isLoading={oauthLoading}
+          action="signin"
         />
       </div>
 
@@ -208,7 +242,7 @@ export function SignInForm() {
         <p className="text-gray-600">
           Don&apos;t have an account?{" "}
           <Link
-            href={`/authentication/sign-up${redirectUrl && redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`}
+            href="/authentication/sign-up"
             className="text-[#EF3866] hover:underline"
           >
             Sign up

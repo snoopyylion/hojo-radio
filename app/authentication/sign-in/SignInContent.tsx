@@ -7,12 +7,14 @@ import { SignInForm } from "./SignInForm";
 import AuthError from "../../../components/auth/AuthError";
 import Image from "next/image";
 import { gsap } from "gsap";
+import { useRouter } from "next/navigation";
 
 export function SignInContent() {
   const { isSignedIn } = useUser();
   const searchParams = useSearchParams();
-  const { redirectUrl, redirectToDestination } = useAuthRedirect();
+  const { redirectUrl, redirectToDestination, clearPendingAuthState } = useAuthRedirect();
   const processedRef = useRef(false);
+  const router = useRouter();
   
   const logoRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -45,15 +47,21 @@ export function SignInContent() {
       window.history.replaceState({}, '', newUrl.toString());
     }
   }, [errorParam]);
+
+  // Clear any pending authentication state when page loads
+  useEffect(() => {
+    clearPendingAuthState();
+  }, [clearPendingAuthState]);
   
   // Handle existing signed-in users
   useEffect(() => {
     if (isSignedIn && !processedRef.current) {
       processedRef.current = true;
-      console.log('User already signed in, redirecting through oauth-callback to:', redirectUrl);
-      redirectToDestination();
+      console.log('User already signed in, redirecting to:', redirectUrl);
+      // Redirect directly instead of going through oauth-callback
+      router.replace(redirectUrl);
     }
-  }, [isSignedIn, redirectUrl, redirectToDestination]);
+  }, [isSignedIn, redirectUrl, router]);
   
   // Logo and text animation effect
   useEffect(() => {

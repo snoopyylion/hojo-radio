@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import { useAuth } from '@clerk/nextjs';
+import { notificationService } from '@/lib/notificationService';
 import { formatDistanceToNow } from "date-fns";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,7 @@ type Props = {
 
 export default function CommentSection({ postId, onCommentCountChange }: Props) {
   const { user } = useUser();
+  const { userId } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(false);
@@ -84,6 +87,18 @@ export default function CommentSection({ postId, onCommentCountChange }: Props) 
       }
 
       toast.success("Comment posted!");
+      // Log user activity
+      if (userId && postId && newComment) {
+        await notificationService.createUserActivity({
+          user_id: userId,
+          type: 'post_commented',
+          title: 'Comment Added',
+          description: `You commented on a post`,
+          category: 'content',
+          visibility: 'public',
+          data: { post_id: postId, comment_preview: newComment.substring(0, 100) }
+        });
+      }
       setNewComment("");
       await fetchComments();
 

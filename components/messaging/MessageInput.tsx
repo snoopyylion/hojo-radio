@@ -1,100 +1,75 @@
-// components/messaging/MessageInput.tsx
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Send, Paperclip, Smile, X, Reply } from 'lucide-react';
-import { Message } from '@/types/messaging';
-import { EmojiPicker } from './EmojiPicker';
-import FileUpload from './FileUpload';
-import Image from 'next/image';
-import { useTypingIndicator } from '../../hooks/useTypingIndicator';
+'use client';
 
-interface MessageMetadata {
-  filename?: string;
-  filesize?: string;
-  filetype?: string;
-  caption?: string;
-}
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { 
+  Send, 
+  Paperclip, 
+  Image as ImageIcon, 
+  Smile, 
+  X, 
+  Reply,
+  FileText,
+  Video,
+  Music
+} from 'lucide-react';
+import { Message } from '@/types/messaging';
+import { useAuth } from '@clerk/nextjs';
 
 interface MessageInputProps {
-  onSendMessage: (
-    content: string,
-    type?: 'text' | 'image' | 'file',
-    replyToId?: string,
-    metadata?: MessageMetadata
-  ) => void;
-  onTyping: (isTyping: boolean) => void;
+  onSendMessage: (content: string, type?: string, replyToId?: string, metadata?: any) => Promise<void>;
+  onTypingChange: (isTyping: boolean) => void;
   disabled?: boolean;
-  replyingTo?: Message;
-  onCancelReply?: () => void;
   placeholder?: string;
-  conversationId: string;
+  replyingTo?: Message | null;
+  onCancelReply?: () => void;
 }
 
 const MessageInput: React.FC<MessageInputProps> = ({
   onSendMessage,
-  onTyping,
+  onTypingChange,
   disabled = false,
-  replyingTo,
-  onCancelReply,
   placeholder = "Type a message...",
-  conversationId
+  replyingTo,
+  onCancelReply
 }) => {
+  const { userId } = useAuth();
   const [message, setMessage] = useState('');
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showFileUpload, setShowFileUpload] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showFilePicker, setShowFilePicker] = useState(false);
+  
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const emojiPickerRef = useRef<HTMLDivElement>(null);
-  const fileUploadRef = useRef<HTMLDivElement>(null);
 
-  const { startTyping, stopTyping } = useTypingIndicator({
-    conversationId,
-    isEnabled: !disabled
-  });
-
-  // Handle click outside emoji picker
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
-        setShowEmojiPicker(false);
-      }
-      if (fileUploadRef.current && !fileUploadRef.current.contains(event.target as Node)) {
-        setShowFileUpload(false);
-      }
-    };
-
-    if (showEmojiPicker || showFileUpload) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+  // Auto-resize textarea
+  const adjustTextareaHeight = useCallback(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
     }
-  }, [showEmojiPicker, showFileUpload]);
+  }, []);
 
-  // Handle typing indicator
-  const handleTyping = useCallback(() => {
+  // Handle typing indicators
+  const startTyping = useCallback(() => {
     if (!isTyping) {
       setIsTyping(true);
-      onTyping(true);
+      onTypingChange(true);
     }
+  }, [isTyping, onTypingChange]);
 
+  const stopTyping = useCallback(() => {
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      onTyping(false);
+      onTypingChange(false);
     }, 1000);
-  }, [isTyping, onTyping]);
-
-  // Handle blur event
-  const handleBlur = useCallback(() => {
-    stopTyping();
-    setIsTyping(false);
-    onTyping(false);
-  }, [stopTyping, onTyping]);
+  }, [onTypingChange]);
 
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -104,117 +79,66 @@ const MessageInput: React.FC<MessageInputProps> = ({
     // Handle typing indicators
     if (value.trim() && !disabled) {
       startTyping();
-      handleTyping();
     } else {
       stopTyping();
     }
 
-    // Auto-resize textarea
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
-    }
+    adjustTextareaHeight();
   };
 
-  // Handle send message
-  const handleSendMessage = async () => {
-    if ((!message.trim() && attachedFiles.length === 0) || disabled) return;
-
-    setIsLoading(true);
-    stopTyping();
-
-    try {
-      if (message.trim()) {
-        await onSendMessage(
-          message.trim(),
-          'text',
-          replyingTo?.id,
-          {}
-        );
-      }
-
-      for (const file of attachedFiles) {
-        const fileUrl = await uploadFile(file);
-        if (fileUrl) {
-          const messageType = file.type.startsWith('image/') ? 'image' : 'file';
-          await onSendMessage(
-            fileUrl,
-            messageType,
-            replyingTo?.id,
-            {
-              filename: file.name,
-              filesize: formatFileSize(file.size),
-              filetype: file.type
-            }
-          );
-        }
-      }
-
-      setMessage('');
-      setAttachedFiles([]);
-      if (onCancelReply) onCancelReply();
-
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
-
-      setIsTyping(false);
-      onTyping(false);
-    } catch (error) {
-      console.error('Error sending message:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle key press
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  // Handle key events
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
 
-  // Handle emoji selection
-  const handleEmojiSelect = (emoji: string) => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newMessage = message.slice(0, start) + emoji + message.slice(end);
-      setMessage(newMessage);
+  // Handle file selection
+  const handleFileSelect = useCallback((files: FileList | null) => {
+    if (!files) return;
 
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
-        textarea.focus();
-      }, 0);
-    } else {
-      setMessage(prev => prev + emoji);
-    }
-    
-    // Auto-resize after emoji
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+    const newFiles = Array.from(files);
+    const validFiles = newFiles.filter(file => {
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        alert(`File ${file.name} is too large. Maximum size is 10MB.`);
+        return false;
       }
-    }, 0);
-  };
+      return true;
+    });
 
-  // Handle file attachment
-  const handleFileSelect = (files: File[]) => {
-    setAttachedFiles(prev => [...prev, ...files]);
-    setShowFileUpload(false);
-  };
+    setAttachedFiles(prev => [...prev, ...validFiles]);
+  }, []);
 
-  // Remove attached file
-  const removeAttachedFile = (index: number) => {
-    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
-  };
+  // Handle image selection
+  const handleImageSelect = useCallback((files: FileList | null) => {
+    if (!files) return;
 
-  // Upload file (placeholder)
-  const uploadFile = async (file: File): Promise<string | null> => {
-    return URL.createObjectURL(file);
+    const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+    const validFiles = imageFiles.filter(file => {
+      const maxSize = 5 * 1024 * 1024; // 5MB for images
+      if (file.size > maxSize) {
+        alert(`Image ${file.name} is too large. Maximum size is 5MB.`);
+        return false;
+      }
+      return true;
+    });
+
+    setAttachedFiles(prev => [...prev, ...validFiles]);
+  }, []);
+
+  // Upload file to storage
+  const uploadFile = async (file: File): Promise<string> => {
+    // This is a placeholder - implement your file upload logic here
+    // You might want to use Supabase Storage, AWS S3, or another service
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   // Format file size
@@ -226,166 +150,242 @@ const MessageInput: React.FC<MessageInputProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const canSend = (message.trim().length > 0 || attachedFiles.length > 0) && !disabled;
+  // Get file type icon
+  const getFileIcon = (file: File) => {
+    if (file.type.startsWith('image/')) return <ImageIcon className="w-4 h-4" />;
+    if (file.type.startsWith('video/')) return <Video className="w-4 h-4" />;
+    if (file.type.startsWith('audio/')) return <Music className="w-4 h-4" />;
+    return <FileText className="w-4 h-4" />;
+  };
+
+  // Remove attached file
+  const removeFile = (index: number) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Handle send message
+  const handleSendMessage = async () => {
+    if ((!message.trim() && attachedFiles.length === 0) || disabled || isLoading) return;
+
+    setIsLoading(true);
+    stopTyping();
+
+    try {
+      // Send text message if any
+      if (message.trim()) {
+        await onSendMessage(
+          message.trim(),
+          'text',
+          replyingTo?.id,
+          {}
+        );
+      }
+
+      // Send attached files
+      for (const file of attachedFiles) {
+        const fileUrl = await uploadFile(file);
+        const messageType = file.type.startsWith('image/') ? 'image' : 'file';
+        await onSendMessage(
+          fileUrl,
+          messageType,
+          replyingTo?.id,
+          {
+            filename: file.name,
+            filesize: file.size,
+            filetype: file.type,
+            caption: message.trim() || undefined
+          }
+        );
+      }
+
+      // Reset state
+      setMessage('');
+      setAttachedFiles([]);
+      if (onCancelReply) onCancelReply();
+      
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+
+      setIsTyping(false);
+      onTypingChange(false);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
-    <div className="bg-white dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 p-4 relative z-10">
-      {/* Reply context */}
+    <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+      {/* Reply preview */}
       {replyingTo && (
-        <div className="mb-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-2xl flex items-start justify-between border border-gray-200 dark:border-gray-600 shadow-sm">
-          <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-2">
+        <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border-l-4 border-[#EF3866]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
               <Reply className="w-4 h-4 text-[#EF3866]" />
-              <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                Replying to {replyingTo.sender?.firstName || 'Unknown'}
+              <span className="text-sm font-medium text-[#EF3866]">
+                Replying to {replyingTo.sender?.firstName || replyingTo.sender?.username || 'Unknown'}
               </span>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-              {replyingTo.content}
-            </p>
-          </div>
-          {onCancelReply && (
             <button
               onClick={onCancelReply}
-              className="ml-3 p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full transition-all duration-200 hover:scale-110"
+              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
             >
-              <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              <X className="w-4 h-4 text-[#EF3866]" />
             </button>
-          )}
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
+            {replyingTo.content}
+          </p>
         </div>
       )}
 
       {/* Attached files preview */}
       {attachedFiles.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-3">
+        <div className="mb-3 space-y-2">
           {attachedFiles.map((file, index) => (
             <div
               key={index}
-              className="flex items-center space-x-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-3 border border-blue-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow duration-200"
+              className="flex items-center space-x-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg"
             >
-              {file.type.startsWith('image/') ? (
-                <div className="flex-shrink-0">
-                  <Image
-                    src={URL.createObjectURL(file)}
-                    alt={file.name}
-                    width={40}
-                    height={40}
-                    className="rounded-xl object-cover shadow-sm"
-                  />
-                </div>
-              ) : (
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center shadow-sm">
-                  <span className="text-white text-lg">📄</span>
-                </div>
-              )}
+              {getFileIcon(file)}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{file.name}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{formatFileSize(file.size)}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  {file.name}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {formatFileSize(file.size)}
+                </p>
               </div>
               <button
-                onClick={() => removeAttachedFile(index)}
-                className="flex-shrink-0 p-1.5 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-full transition-all duration-200 hover:scale-110"
+                onClick={() => removeFile(index)}
+                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
               >
-                <X className="w-4 h-4 text-red-500" />
+                <X className="w-4 h-4 text-gray-500" />
               </button>
             </div>
           ))}
         </div>
       )}
 
-      {/* Main input container - */}
-      <div className="flex items-end space-x-3 relative">
+      {/* Input area */}
+      <div className="flex items-end space-x-2">
         {/* File attachment button */}
-        <div className="relative flex-shrink-0" ref={fileUploadRef}>
+        <div className="relative">
           <button
-            onClick={() => setShowFileUpload(!showFileUpload)}
-            className={`
-              w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 transform hover:scale-105 shadow-sm
-              ${showFileUpload 
-                ? 'bg-[#EF3866] text-white shadow-lg' 
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-[#EF3866]'
-              }
-            `}
+            onClick={() => setShowFilePicker(!showFilePicker)}
             disabled={disabled}
+            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
           >
             <Paperclip className="w-5 h-5" />
           </button>
 
-          {showFileUpload && (
-            <div className="absolute bottom-full left-0 mb-3 z-50">
-              <FileUpload
-                onFileSelect={handleFileSelect}
-                maxFiles={5}
-                maxSize={10 * 1024 * 1024}
-                accept="image/*,.pdf,.doc,.docx,.txt"
-                onClose={() => setShowFileUpload(false)}
-              />
+          {showFilePicker && (
+            <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-2 z-10">
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                className="flex items-center space-x-2 w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+              >
+                <ImageIcon className="w-4 h-4" />
+                <span>Photo</span>
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center space-x-2 w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Document</span>
+              </button>
             </div>
           )}
         </div>
 
-        {/* Text input container */}
+        {/* Emoji button */}
+        <button
+          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+          disabled={disabled}
+          className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
+        >
+          <Smile className="w-5 h-5" />
+        </button>
+
+        {/* Text input */}
         <div className="flex-1 relative">
-          <div className="relative bg-gray-100 dark:bg-gray-800 rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200 focus-within:ring-2 focus-within:ring-[#EF3866]/20 focus-within:border-[#EF3866] overflow-hidden">
-            <textarea
-              ref={textareaRef}
-              value={message}
-              onChange={handleInputChange}
-              onKeyPress={handleKeyPress}          
-              onBlur={handleBlur}
-              placeholder={placeholder}
-              disabled={disabled || isLoading}
-              rows={1}
-              className="w-full px-6 py-4 pr-14 bg-transparent resize-none text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
-              style={{ minHeight: '52px', lineHeight: '1.5' }}
-            />
-            
-            {/* Emoji button inside input */}
-            <button
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className={`
-                absolute right-3 top-1/2 transform -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110
-                ${showEmojiPicker 
-                  ? 'bg-[#EF3866] text-white shadow-sm' 
-                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-[#EF3866]'
-                }
-              `}
-              disabled={disabled}
-            >
-              <Smile className="w-5 h-5" />
-            </button>
-          </div>
+          <textarea
+            ref={textareaRef}
+            value={message}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onFocus={startTyping}
+            onBlur={stopTyping}
+            placeholder={placeholder}
+            disabled={disabled}
+            className="w-full resize-none border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 disabled:opacity-50"
+            rows={1}
+            maxLength={1000}
+          />
         </div>
 
         {/* Send button */}
-        <div className="flex-shrink-0">
-          <button
-            onClick={handleSendMessage}
-            disabled={!canSend || isLoading}
-            className={`
-              w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 transform shadow-sm
-              ${canSend && !isLoading
-                ? 'bg-gradient-to-r from-[#EF3866] to-[#d8325b] text-white hover:scale-105 hover:shadow-lg active:scale-95' 
-                : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed'
-              }
-            `}
-          >
-            {isLoading ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-            ) : (
-              <Send className="w-5 h-5 ml-0.5" />
-            )}
-          </button>
-        </div>
+        <button
+          onClick={handleSendMessage}
+          disabled={disabled || isLoading || (!message.trim() && attachedFiles.length === 0)}
+          className="p-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? (
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Send className="w-5 h-5" />
+          )}
+        </button>
       </div>
 
-      {/* Emoji picker */}
+      {/* Hidden file inputs */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        onChange={(e) => handleFileSelect(e.target.files)}
+        className="hidden"
+        accept="*/*"
+      />
+      <input
+        ref={imageInputRef}
+        type="file"
+        multiple
+        onChange={(e) => handleImageSelect(e.target.files)}
+        className="hidden"
+        accept="image/*"
+      />
+
+      {/* Emoji picker (placeholder) */}
       {showEmojiPicker && (
-        <div className="absolute bottom-full right-4 mb-3 z-50" ref={emojiPickerRef}>
-          <EmojiPicker
-            onEmojiSelect={handleEmojiSelect}
-            onClose={() => setShowEmojiPicker(false)}
-          />
+        <div className="absolute bottom-full right-0 mb-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-2 z-10">
+          <div className="grid grid-cols-8 gap-1">
+            {['😀', '😂', '❤️', '👍', '🎉', '🔥', '😎', '🤔', '😢', '😡', '👏', '🙏', '💯', '✨', '🌟', '💪'].map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => {
+                  setMessage(prev => prev + emoji);
+                  setShowEmojiPicker(false);
+                }}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-lg transition-colors"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

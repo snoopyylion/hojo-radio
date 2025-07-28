@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth, useUser } from "@clerk/nextjs";
 import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
 import { gsap } from "gsap";
-import { TrendingUp, CheckCircle, Crown, BarChart3, Edit3, MessageCircle, Bookmark } from "lucide-react";
+import { TrendingUp, CheckCircle, Crown, BarChart3, Edit3, MessageCircle, Bookmark, User, Download } from "lucide-react";
 import VerifiedList from '@/components/VerifiedList';
 import { FollowersFollowingSection } from '@/components/Dashboard/FollowersFollowingSection';
 import PageLoader from '@/components/PageLoader';
@@ -19,6 +19,7 @@ import WeeklyTopPosts from "@/components/WeeklyTopPosts";
 import AuthorAccessSection from "@/components/Dashboard/AuthorAccessSection";
 import CommentsSection from "@/components/Dashboard/CommentsSection";
 import BookmarksSection from "@/components/Dashboard/Bookmarks";
+import { UserActivityFeed } from '@/components/Dashboard/UserActivityFeed';
 import { Button } from "@/components/ui/button";
 
 // ProfileTabs Component
@@ -116,7 +117,7 @@ export default function UserDashboard() {
     message: 'Initializing your dashboard...',
     progress: 0
   });
-  const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'comments' | 'verified' | 'my-posts' | 'author' | 'bookmarks'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'profile-details' | 'posts' | 'comments' | 'verified' | 'my-posts' | 'author' | 'bookmarks'>('overview');
   const [, setTabLoading] = useState(false);
   const { totalLikes: userLikedPosts } = useUserLikes();
   const {
@@ -681,14 +682,14 @@ export default function UserDashboard() {
             {activeTab === 'overview' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                 {/* Account Overview */}
-                <div className="rounded-2xl p-6 border bg-white/70 dark:bg-black/70 backdrop-blur-md border-gray-200/50 dark:border-gray-800/50 shadow-sm">
+                <div className="rounded-2xl p-6 border bg-white dark:bg-black backdrop-blur-md border-gray-200 dark:border-gray-800 shadow-sm">
                   <div className="flex justify-between items-center mb-5">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white font-sora">Account Overview</h3>
+                    <h3 className="text-xl font-bold text-black dark:text-white font-sora">Account Overview</h3>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => router.push('/hashedpage/profile')}
-                      className="flex items-center gap-2 border-gray-300 dark:border-zinc-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
+                      className="flex items-center gap-2 border-gray-200 dark:border-gray-800 text-black dark:text-white hover:bg-gray-100 dark:hover:bg-zinc-900 transition"
                     >
                       <Edit3 className="w-4 h-4" />
                       Edit Profile
@@ -696,64 +697,370 @@ export default function UserDashboard() {
                   </div>
                   <div className="space-y-5 text-sm font-sora">
                     <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-zinc-400">Role</span>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${userProfile.role === 'author' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'}`}>
+                      <span className="text-black/70 dark:text-white/70">Role</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${userProfile.role === 'author' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700' : 'bg-yellow-900/20 dark:bg-yellow-900/40 text-yellow-900 dark:text-yellow-400 border-yellow-900 dark:border-yellow-900'}`}>
                         {userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-zinc-400">Username</span>
-                      <span className="text-gray-900 dark:text-white">@{userProfile.username}</span>
+                      <span className="text-black/70 dark:text-white/70">Username</span>
+                      <span className="text-black dark:text-white">@{userProfile.username}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-zinc-400">Comments Made</span>
-                      <span className="text-gray-900 dark:text-white">
-                        {commentsLoading ? (
-                          <span className="animate-pulse bg-gray-200 dark:bg-zinc-700 rounded h-4 w-8 inline-block"></span>
-                        ) : (
-                          totalComments
-                        )}
+                      <span className="text-black/70 dark:text-white/70">Email</span>
+                      <span className="text-black dark:text-white">{userProfile.email}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-black/70 dark:text-white/70">Profile Status</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${userProfile.profile_completed ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700' : 'bg-yellow-900/20 dark:bg-yellow-900/40 text-yellow-900 dark:text-yellow-400 border-yellow-900 dark:border-yellow-900'}`}>
+                        {userProfile.profile_completed ? 'Complete' : 'Incomplete'}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-zinc-400">Member Since</span>
-                      <span className="text-gray-900 dark:text-white">
+                    {userProfile.bio && (
+                      <div>
+                        <span className="text-black/70 dark:text-white/70">Bio</span>
+                        <p className="text-black dark:text-white bg-gray-100 dark:bg-zinc-900 p-3 rounded-lg mt-1">{userProfile.bio}</p>
+                      </div>
+                    )}
+                    {userProfile.location && (
+                      <div className="flex justify-between">
+                        <span className="text-black/70 dark:text-white/70">Location</span>
+                        <span className="text-black dark:text-white">{userProfile.location}</span>
+                      </div>
+                    )}
+                    {userProfile.website && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-black/70 dark:text-white/70">Website</span>
+                        <a 
+                          href={userProfile.website.startsWith('http') ? userProfile.website : `https://${userProfile.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-black dark:text-white underline"
+                        >
+                          {userProfile.website}
+                        </a>
+                      </div>
+                    )}
+                    {userProfile.phone && (
+                      <div className="flex justify-between">
+                        <span className="text-black/70 dark:text-white/70">Phone</span>
+                        <span className="text-black dark:text-white">{userProfile.phone}</span>
+                      </div>
+                    )}
+                    {userProfile.date_of_birth && (
+                      <div className="flex justify-between">
+                        <span className="text-black/70 dark:text-white/70">Date of Birth</span>
+                        <span className="text-black dark:text-white">
+                          {new Date(userProfile.date_of_birth).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Account Timeline */}
+                <div className="rounded-2xl p-6 border bg-white dark:bg-black backdrop-blur-md border-gray-200 dark:border-gray-800 shadow-sm">
+                  <h3 className="text-xl font-bold text-black dark:text-white mb-6 font-sora">Account Timeline</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-800 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 bg-black dark:bg-white rounded-full"></div>
+                        <span className="text-black dark:text-white">Account Created</span>
+                      </div>
+                      <span className="text-sm text-black/70 dark:text-white/70">
                         {createdAtLoading ? (
-                          <span className="animate-pulse bg-gray-200 dark:bg-zinc-700 rounded h-4 w-20 inline-block"></span>
+                          <span className="animate-pulse bg-gray-200 dark:bg-zinc-900 rounded h-4 w-20 inline-block"></span>
                         ) : (
                           memberSince || new Date(userProfile.created_at).toLocaleDateString('en-US', {
                             year: 'numeric',
-                            month: 'long'
+                            month: 'long',
+                            day: 'numeric'
                           })
                         )}
                       </span>
                     </div>
+                    <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-800 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 bg-black dark:bg-white rounded-full"></div>
+                        <span className="text-black dark:text-white">Last Profile Update</span>
+                      </div>
+                      <span className="text-sm text-black/70 dark:text-white/70">
+                        {new Date(userProfile.updated_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-800 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 bg-black dark:bg-white rounded-full"></div>
+                        <span className="text-black dark:text-white">Days Active</span>
+                      </div>
+                      <span className="text-sm text-black/70 dark:text-white/70">
+                        {createdAtLoading ? (
+                          <span className="animate-pulse bg-gray-200 dark:bg-zinc-900 rounded h-4 w-12 inline-block"></span>
+                        ) : (
+                          `${daysSinceJoining} days`
+                        )}
+                      </span>
+                    </div>
+                    {userProfile.role === 'author' && (
+                      <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-800 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-3 h-3 bg-black dark:bg-white rounded-full"></div>
+                          <span className="text-black dark:text-white">Author Status</span>
+                        </div>
+                        <span className="text-sm text-black dark:text-white font-medium">Active Author</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
+                {/* Profile Image */}
+                {userProfile.image_url && (
+                  <div className="rounded-2xl p-6 border bg-white dark:bg-black backdrop-blur-md border-gray-200 dark:border-gray-800 shadow-sm flex flex-col items-center lg:hidden">
+                    <h3 className="text-xl font-bold text-black dark:text-white mb-4 font-sora">Profile Image</h3>
+                    <img 
+                      src={userProfile.image_url} 
+                      alt={`${userProfile.first_name} ${userProfile.last_name}`}
+                      className="w-24 h-24 rounded-full object-cover border-2 border-gray-200 dark:border-gray-800 mb-2"
+                    />
+                    <p className="text-sm text-black/70 dark:text-white/70">Current profile picture</p>
+                  </div>
+                )}
+
                 {/* Recent Activity */}
-                <div className="rounded-2xl p-6 border bg-white/70 dark:bg-black/70 backdrop-blur-md border-gray-200/50 dark:border-gray-800/50 shadow-sm">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-5 font-sora">Recent Activity</h3>
+                <div className="rounded-2xl p-6 border bg-white dark:bg-black backdrop-blur-md border-gray-200 dark:border-gray-800 shadow-sm">
+                  <h3 className="text-xl font-bold text-black dark:text-white mb-5 font-sora">Recent Activity</h3>
                   <div className="space-y-3 text-sm font-sora">
                     {[
-                      { color: 'bg-green-500', text: 'Viewed 5 verified articles today' },
-                      { color: 'bg-blue-500', text: 'Dashboard accessed' },
-                      { color: 'bg-purple-500', text: 'Profile updated' },
+                      { color: 'bg-black dark:bg-white', text: 'Viewed 5 verified articles today' },
+                      { color: 'bg-black dark:bg-white', text: 'Dashboard accessed' },
+                      { color: 'bg-black dark:bg-white', text: 'Profile updated' },
                     ].map(({ color, text }, idx) => (
                       <div key={idx} className="flex items-center gap-3">
                         <div className={`w-2 h-2 rounded-full ${color}`}></div>
-                        <span className="text-gray-600 dark:text-zinc-400">{text}</span>
+                        <span className="text-black/70 dark:text-white/70">{text}</span>
                       </div>
                     ))}
                     <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                      <span className="text-gray-600 dark:text-zinc-400">
+                      <div className="w-2 h-2 bg-black dark:bg-white rounded-full"></div>
+                      <span className="text-black/70 dark:text-white/70">
                         {createdAtLoading ? (
-                          <span className="animate-pulse bg-gray-200 dark:bg-zinc-700 rounded h-4 w-12 inline-block"></span>
+                          <span className="animate-pulse bg-gray-200 dark:bg-zinc-900 rounded h-4 w-12 inline-block"></span>
                         ) : (
                           `${daysSinceJoining} days active`
                         )}
                       </span>
+                    </div>
+                  </div>
+                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-black dark:text-white">Activity Feed</h4>
+                      <button
+                        onClick={() => router.push('/notifications')}
+                        className="text-sm text-black dark:text-white hover:underline font-medium"
+                      >
+                        View All
+                      </button>
+                    </div>
+                    <UserActivityFeed userId={userProfile.id} showFilters={false} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'profile-details' && (
+              <div className="space-y-6">
+                {/* Complete Profile Information */}
+                <div className="rounded-2xl p-6 border bg-white/70 dark:bg-black/70 backdrop-blur-md border-gray-200/50 dark:border-gray-800/50 shadow-sm">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 font-sora">Complete Profile Information</h3>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Personal Details */}
+                    <div className="space-y-6">
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Personal Details</h4>
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">User ID</span>
+                            <span className="text-gray-900 dark:text-white font-mono text-sm">{userProfile.id}</span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">First Name</span>
+                            <span className="text-gray-900 dark:text-white">{userProfile.first_name}</span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">Last Name</span>
+                            <span className="text-gray-900 dark:text-white">{userProfile.last_name}</span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">Username</span>
+                            <span className="text-gray-900 dark:text-white">@{userProfile.username}</span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">Email</span>
+                            <span className="text-gray-900 dark:text-white">{userProfile.email}</span>
+                          </div>
+                          {userProfile.phone && (
+                            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                              <span className="text-gray-600 dark:text-gray-400 font-medium">Phone</span>
+                              <span className="text-gray-900 dark:text-white">{userProfile.phone}</span>
+                            </div>
+                          )}
+                          {userProfile.date_of_birth && (
+                            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                              <span className="text-gray-600 dark:text-gray-400 font-medium">Date of Birth</span>
+                              <span className="text-gray-900 dark:text-white">
+                                {new Date(userProfile.date_of_birth).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Account Details */}
+                    <div className="space-y-6">
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Account Details</h4>
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">Role</span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${userProfile.role === 'author' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'}`}>
+                              {userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">Profile Status</span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${userProfile.profile_completed ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'}`}>
+                              {userProfile.profile_completed ? 'Complete' : 'Incomplete'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">Account Created</span>
+                            <span className="text-gray-900 dark:text-white text-sm">
+                              {new Date(userProfile.created_at).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">Last Updated</span>
+                            <span className="text-gray-900 dark:text-white text-sm">
+                              {new Date(userProfile.updated_at).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                          {userProfile.location && (
+                            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                              <span className="text-gray-600 dark:text-gray-400 font-medium">Location</span>
+                              <span className="text-gray-900 dark:text-white">{userProfile.location}</span>
+                            </div>
+                          )}
+                          {userProfile.website && (
+                            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                              <span className="text-gray-600 dark:text-gray-400 font-medium">Website</span>
+                              <a 
+                                href={userProfile.website.startsWith('http') ? userProfile.website : `https://${userProfile.website}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[#EF3866] hover:underline"
+                              >
+                                {userProfile.website}
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bio Section */}
+                  {userProfile.bio && (
+                    <div className="mt-8">
+                      <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Bio</h4>
+                      <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <p className="text-gray-900 dark:text-white leading-relaxed">{userProfile.bio}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Profile Image */}
+                  {userProfile.image_url && (
+                    <div className="mt-8">
+                      <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Profile Image</h4>
+                      <div className="flex items-center gap-4">
+                        <img 
+                          src={userProfile.image_url} 
+                          alt={`${userProfile.first_name} ${userProfile.last_name}`}
+                          className="w-20 h-20 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                        />
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Current profile picture</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-500">Uploaded via authentication provider</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Data Export Section */}
+                <div className="rounded-2xl p-6 border bg-white/70 dark:bg-black/70 backdrop-blur-md border-gray-200/50 dark:border-gray-800/50 shadow-sm">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 font-sora">Data Management</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-white">Export Profile Data</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Download all your profile information as JSON</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const profileData = {
+                            ...userProfile,
+                            followers_count: followersCount,
+                            following_count: followingCount,
+                            posts_count: postsCount,
+                            total_comments: totalComments,
+                            total_likes: userLikedPosts,
+                            verified_news_count: verifiedNewsCount,
+                            export_date: new Date().toISOString()
+                          };
+                          const blob = new Blob([JSON.stringify(profileData, null, 2)], { type: 'application/json' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `profile-data-${userProfile.username}-${new Date().toISOString().split('T')[0]}.json`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        Export
+                      </Button>
                     </div>
                   </div>
                 </div>

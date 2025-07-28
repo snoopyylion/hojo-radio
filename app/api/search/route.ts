@@ -461,7 +461,7 @@ const searchSanityContent = async (query: string, limit: number = 20): Promise<S
       allResults.authors.forEach((author: SanityAuthor) => {
         if (author && author._id && author.name) {
           const slug = safeString(author.slug?.current || author._id);
-          const imageUrl = safeString(author.image?.asset?.url || '/default-avatar.png');
+          const imageUrl = safeString(author.image?.asset?.url || '/default-avatar.svg');
           const name = safeString(author.name);
           const bio = safeString(author.bio || '');
           

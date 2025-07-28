@@ -175,14 +175,44 @@ export async function POST() {
       );
     }
 
-    // Get full user data from Clerk
-    const clerkUser = await currentUser();
+    // Get full user data from Clerk with retry logic
+    let clerkUser = null;
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (!clerkUser && retryCount < maxRetries) {
+      try {
+        clerkUser = await currentUser();
+        
+        if (!clerkUser) {
+          console.log(`⚠️ No Clerk user found on attempt ${retryCount + 1}/${maxRetries}, retrying...`);
+          retryCount++;
+          
+          if (retryCount < maxRetries) {
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          }
+        }
+      } catch (error) {
+        console.log(`⚠️ Error getting Clerk user on attempt ${retryCount + 1}/${maxRetries}:`, error);
+        retryCount++;
+        
+        if (retryCount < maxRetries) {
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        }
+      }
+    }
     
     if (!clerkUser) {
-      console.log('❌ No Clerk user found for userId:', userId);
+      console.log('❌ No Clerk user found after all retries for userId:', userId);
       return NextResponse.json(
-        { error: 'User not found in Clerk', code: 'CLERK_USER_NOT_FOUND' }, 
-        { status: 404 }
+        { 
+          error: 'User session not ready. Please try signing in again.', 
+          code: 'CLERK_USER_NOT_FOUND',
+          details: 'User session may still be initializing'
+        }, 
+        { status: 503 }
       );
     }
 

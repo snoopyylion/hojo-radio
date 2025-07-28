@@ -109,7 +109,13 @@ export async function GET(request: NextRequest) {
         if (replyToIds.length > 0) {
             const { data, error } = await supabase
                 .from('messages')
-                .select('id, content, sender_id, created_at')
+                .select(`
+                    id, 
+                    content, 
+                    sender_id, 
+                    created_at,
+                    sender:users!messages_sender_id_fkey(id, username, image_url, first_name, last_name)
+                `)
                 .in('id', replyToIds);
 
             if (!error && data) {

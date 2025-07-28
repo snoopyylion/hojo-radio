@@ -1,7 +1,7 @@
 // hooks/useTypingIndicator.ts
 import { useEffect, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { useUser } from '@clerk/nextjs';
+import { supabase } from '@/lib/supabaseClient';
 
 interface UseTypingIndicatorProps {
   conversationId: string;
@@ -17,11 +17,6 @@ export const useTypingIndicator = ({
   const isTypingRef = useRef(false);
   const channelRef = useRef<any>(null); // Store channel reference
   
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
   // Initialize channel
   useEffect(() => {
     if (!user?.id || !isEnabled) return;
@@ -34,7 +29,7 @@ export const useTypingIndicator = ({
         channelRef.current.unsubscribe();
       }
     };
-  }, [conversationId, user?.id, isEnabled, supabase]);
+  }, [conversationId, user?.id, isEnabled]);
 
   const sendTypingStatus = (isTyping: boolean) => {
     if (!user?.id || !isEnabled || !channelRef.current) return;

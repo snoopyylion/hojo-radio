@@ -50,13 +50,13 @@ export function useAuthRedirect() {
       }
     }
 
-    const callbackUrl = buildOAuthCallbackUrl('email-signin');
-    console.log('🔄 Redirecting to oauth-callback:', callbackUrl);
+    // For email sign-ins, redirect directly instead of going through OAuth callback
+    console.log('🔄 Redirecting directly to:', redirectUrl);
 
     setTimeout(() => {
-      router.replace(callbackUrl);
+      router.replace(redirectUrl);
     }, delay);
-  }, [router, buildOAuthCallbackUrl]);
+  }, [router, redirectUrl]);
 
   const clearUrlError = useCallback(() => {
     if (errorParam) {
@@ -80,6 +80,38 @@ export function useAuthRedirect() {
       : forgotPasswordUrl;
   }, [redirectUrl]);
 
+  const clearPendingAuthState = useCallback(() => {
+    try {
+      sessionStorage.removeItem('pendingSessionId');
+      sessionStorage.removeItem('pendingSessionTimestamp');
+      console.log('🧹 Cleared pending authentication state');
+    } catch (error) {
+      console.warn('⚠️ Failed to clear session storage:', error);
+    }
+  }, []);
+
+  const isFirstTimeSignup = useCallback(() => {
+    try {
+      const pendingSessionId = sessionStorage.getItem('pendingSessionId');
+      const pendingTimestamp = sessionStorage.getItem('pendingSessionTimestamp');
+      
+      // If there's a pending session, it's likely a first-time signup
+      if (pendingSessionId && pendingTimestamp) {
+        const timestamp = parseInt(pendingTimestamp);
+        const now = Date.now();
+        const timeDiff = now - timestamp;
+        
+        // If the session was created within the last 5 minutes, it's likely a first-time signup
+        return timeDiff < 5 * 60 * 1000;
+      }
+      
+      return false;
+    } catch (error) {
+      console.warn('⚠️ Failed to check first-time signup status:', error);
+      return false;
+    }
+  }, []);
+
   return {
     redirectUrl,
     errorParam,
@@ -88,6 +120,8 @@ export function useAuthRedirect() {
     redirectAfterSignIn,
     clearUrlError,
     buildSignUpUrl,
-    buildForgotPasswordUrl
+    buildForgotPasswordUrl,
+    clearPendingAuthState,
+    isFirstTimeSignup
   };
 }

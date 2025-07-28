@@ -376,18 +376,14 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
     }
 
     try {
-      const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}/global?userId=${userId}`;
-      console.log('🌐 Connecting to Global WebSocket:', wsUrl);
-
+      const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001'}/global?userId=${userId}`;
       const ws = new WebSocket(wsUrl);
-      globalWsRef.current = ws;
 
       ws.onopen = () => {
         if (!mountedRef.current) {
           ws.close();
           return;
         }
-        console.log('🌐 Global WebSocket connected');
         dispatch({
           type: 'SET_WS_CONNECTION',
           payload: { ws, isConnected: true }
@@ -407,7 +403,6 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
           }
 
           const data = JSON.parse(messageData);
-          console.log('🌐 Global WebSocket message:', data);
 
           switch (data.type) {
             case 'new_message':
@@ -423,7 +418,7 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
               break;
 
             default:
-              console.log('❓ Unknown global message type:', data.type);
+              break;
           }
         } catch (error) {
           console.error('❌ Error parsing global WebSocket message:', error);
@@ -431,7 +426,6 @@ export const GlobalChatNotificationsProvider: React.FC<{ children: React.ReactNo
       };
 
       ws.onclose = (event) => {
-        console.log('🌐 Global WebSocket disconnected:', event.code, event.reason);
         dispatch({
           type: 'SET_WS_CONNECTION',
           payload: { ws: null, isConnected: false }

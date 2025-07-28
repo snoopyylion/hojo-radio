@@ -19,7 +19,7 @@ const Navbar = () => {
   }
 
   // Handle click to open sign-in modal
-  const handleClick = () => {
+  const handleSignInClick = () => {
     if (!user) {
       openSignIn();
     }
@@ -68,28 +68,38 @@ const Navbar = () => {
 
         {/* Sign Up / User Button */}
         <div className="hidden md:block">
-        <div onClick={handleClick}>
-            <button className="flex items-center gap-4 bg-[#EF3866] hover:bg-[#d7325a] text-white px-6 py-4 rounded-full transition-all text-xl">
-              {user ? (
-                <>
-                  <span className="text-lg">Account</span> {/* More professional word */}
-                  <UserButton />
-                </>
-              ) : (
-                <>
-                  <span className="text-lg">Sign Up</span>
+          {user ? (
+            <div onClick={handleSignInClick}>
+              <button className="flex items-center gap-4 bg-[#EF3866] hover:bg-[#d7325a] text-white px-6 py-4 rounded-full transition-all text-xl">
+                <span className="text-lg">Account</span>
+                <UserButton />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              {/* Login Button */}
+              <button 
+                onClick={handleSignInClick}
+                className="flex items-center gap-2 px-6 py-3 text-[#EF3866] border-2 border-[#EF3866] rounded-full transition-all hover:bg-[#EF3866] hover:text-white font-semibold"
+              >
+                <span className="text-lg">Login</span>
+              </button>
+              
+              {/* Get Started Button */}
+              <Link href="/authentication/sign-up">
+                <button className="flex items-center gap-3 bg-[#EF3866] hover:bg-[#d7325a] text-white px-6 py-3 rounded-full transition-all font-semibold">
+                  <span className="text-lg">Get Started</span>
                   <Image
                     src="/icons/arrow-circle-right.png"
                     alt="arrow"
                     width={50}
                     height={50}
-                    className="w-[30px] h-[30px]"  // Adjust icon size
+                    className="w-[24px] h-[24px]"
                   />
-                </>
-              )}
-            </button>
-        </div>
-
+                </button>
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Mobile Hamburger */}
@@ -114,16 +124,28 @@ const Navbar = () => {
             <Link href="/about" className="text-gray-300 hover:text-[#d7325a]">About Us</Link>
             <Link href="/blog" className="text-gray-300 hover:text-[#d7325a]">Blog</Link>
             <Link href="/contact" className="text-gray-300 hover:text-[#d7325a]">Contact Us</Link>
-            <div onClick={handleClick} className='flex mt-72'>
-              <button className="flex items-center gap-3 bg-[#EF3866] hover:bg-[#d7325a] text-white font-semibold px-5 py-2 rounded-full transition-all text-sm md:text-base">
-                {user ? (
-                  <>
-                    <span className="text-lg">Account</span>
-                    <UserButton />
-                  </>
-                ) : (
-                  <>
-                    <span className="text-lg">Sign Up</span>
+            
+            {user ? (
+              <div onClick={handleSignInClick} className='flex mt-72'>
+                <button className="flex items-center gap-3 bg-[#EF3866] hover:bg-[#d7325a] text-white font-semibold px-5 py-2 rounded-full transition-all text-sm md:text-base">
+                  <span className="text-lg">Account</span>
+                  <UserButton />
+                </button>
+              </div>
+            ) : (
+              <div className='flex flex-col gap-3 mt-72'>
+                {/* Login Button */}
+                <button 
+                  onClick={handleSignInClick}
+                  className="flex items-center justify-center gap-2 px-5 py-3 text-[#EF3866] border-2 border-[#EF3866] rounded-full transition-all hover:bg-[#EF3866] hover:text-white font-semibold"
+                >
+                  <span className="text-lg">Login</span>
+                </button>
+                
+                {/* Get Started Button */}
+                <Link href="/authentication/sign-up">
+                  <button className="flex items-center justify-center gap-3 bg-[#EF3866] hover:bg-[#d7325a] text-white font-semibold px-5 py-3 rounded-full transition-all text-sm md:text-base w-full">
+                    <span className="text-lg">Get Started</span>
                     <Image
                       src="/icons/arrow-circle-right.png"
                       alt="arrow"
@@ -131,10 +153,10 @@ const Navbar = () => {
                       height={20}
                       className="w-6 h-6 md:w-8 md:h-8"
                     />
-                  </>
-                )}
-              </button>
-            </div>
+                  </button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
 

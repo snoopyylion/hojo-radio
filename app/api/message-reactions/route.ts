@@ -31,27 +31,36 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Verify the message exists and user has access to it
+        // First, get the message to find its conversation
         const { data: message, error: messageError } = await supabase
             .from('messages')
-            .select(`
-                id,
-                conversation_id,
-                conversation_participants!inner (
-                    user_id
-                )
-            `)
+            .select('id, conversation_id')
             .eq('id', message_id)
-            .eq('conversation_participants.user_id', userId)
-            .is('conversation_participants.left_at', null)
             .is('deleted_at', null)
             .single();
 
         if (messageError || !message) {
-            console.error('Message access check error:', messageError);
+            console.error('Message not found:', messageError);
             return NextResponse.json(
-                { error: 'Message not found or access denied' },
+                { error: 'Message not found' },
                 { status: 404 }
+            );
+        }
+
+        // Verify user is participant in the conversation
+        const { data: participant, error: participantError } = await supabase
+            .from('conversation_participants')
+            .select('id')
+            .eq('conversation_id', message.conversation_id)
+            .eq('user_id', userId)
+            .is('left_at', null)
+            .single();
+
+        if (participantError || !participant) {
+            console.error('Access denied to conversation:', participantError);
+            return NextResponse.json(
+                { error: 'Access denied to this conversation' },
+                { status: 403 }
             );
         }
 
@@ -147,7 +156,7 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// GET - Get reactions for a specific message (optional, for debugging)
+// GET - Get reactions for a specific message
 export async function GET(request: NextRequest) {
     try {
         const { userId } = await auth();
@@ -166,26 +175,34 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Verify user has access to the message
+        // First, get the message to find its conversation
         const { data: message, error: messageError } = await supabase
             .from('messages')
-            .select(`
-                id,
-                conversation_id,
-                conversation_participants!inner (
-                    user_id
-                )
-            `)
+            .select('id, conversation_id')
             .eq('id', messageId)
-            .eq('conversation_participants.user_id', userId)
-            .is('conversation_participants.left_at', null)
             .is('deleted_at', null)
             .single();
 
         if (messageError || !message) {
             return NextResponse.json(
-                { error: 'Message not found or access denied' },
+                { error: 'Message not found' },
                 { status: 404 }
+            );
+        }
+
+        // Verify user has access to the conversation
+        const { data: participant, error: participantError } = await supabase
+            .from('conversation_participants')
+            .select('id')
+            .eq('conversation_id', message.conversation_id)
+            .eq('user_id', userId)
+            .is('left_at', null)
+            .single();
+
+        if (participantError || !participant) {
+            return NextResponse.json(
+                { error: 'Access denied to this conversation' },
+                { status: 403 }
             );
         }
 
@@ -211,7 +228,10 @@ export async function GET(request: NextRequest) {
 
         if (reactionsError) {
             console.error('Reactions fetch error:', reactionsError);
-            throw reactionsError;
+            return NextResponse.json(
+                { error: 'Failed to fetch reactions' },
+                { status: 500 }
+            );
         }
 
         return NextResponse.json({
@@ -219,7 +239,7 @@ export async function GET(request: NextRequest) {
         });
 
     } catch (error) {
-        console.error('Get message reactions API error:', error);
+        console.error('Get reactions API error:', error);
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }

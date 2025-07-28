@@ -8,9 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import PageLoader from '@/components/PageLoader';
+import { useAuth } from '@clerk/nextjs';
+import { notificationService } from '@/lib/notificationService';
 
 export default function UpdateProfilePage() {
   const { user, isLoaded } = useUser();
+  const { userId } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -69,6 +72,18 @@ export default function UpdateProfilePage() {
       if (!response.ok) throw new Error(data.error || 'Failed to update profile');
 
       toast.success('Profile updated successfully!');
+      // Log user activity
+      if (userId) {
+        await notificationService.createUserActivity({
+          user_id: userId,
+          type: 'profile_updated',
+          title: 'Profile Updated',
+          description: 'You updated your profile.',
+          category: 'system',
+          visibility: 'private',
+          data: {}
+        });
+      }
       router.push('/hashedpage');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update profile');

@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState } from "react";
 import { gsap } from "gsap";
+import { LoadingSpinner, LoadingWave } from "../ui/LoadingSpinner";
 
 interface OAuthButtonsProps {
   onGoogleSignIn: () => Promise<void>;
@@ -9,6 +10,7 @@ interface OAuthButtonsProps {
   disabled?: boolean;
   isLoading?: boolean;
   className?: string;
+  action?: 'signin' | 'signup'; // Add action prop to determine button text
 }
 
 type LoadingState = 'idle' | 'google' | 'apple';
@@ -18,7 +20,8 @@ export default function OAuthButtons({
   onAppleSignIn, 
   disabled = false,
   isLoading = false,
-  className = "" 
+  className = "",
+  action = 'signin' // Default to signin
 }: OAuthButtonsProps) {
   const appleButtonRef = useRef<HTMLButtonElement>(null);
   const googleButtonRef = useRef<HTMLButtonElement>(null);
@@ -84,28 +87,15 @@ export default function OAuthButtons({
     }
   };
 
-  const isButtonDisabled = disabled || isLoading || loadingState !== 'idle';
-  const isGoogleLoading = loadingState === 'google' || isLoading;
-  const isAppleLoading = loadingState === 'apple' || isLoading;
+  const isButtonDisabled = disabled || loadingState !== 'idle';
+  const isGoogleLoading = loadingState === 'google';
+  const isAppleLoading = loadingState === 'apple';
 
-  const LoadingSpinner = ({ variant = 'dark' }: { variant?: 'dark' | 'light' }) => (
-    <div className="relative">
-      <div 
-        className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 ${
-          variant === 'dark' 
-            ? 'border-gray-300 border-t-gray-700' 
-            : 'border-gray-400 border-t-white'
-        } animate-spin`}
-      />
-      <div 
-        className={`absolute inset-0 w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-transparent ${
-          variant === 'dark' 
-            ? 'border-t-gray-700' 
-            : 'border-t-white'
-        } animate-pulse`}
-      />
-    </div>
-  );
+  // Get button text based on action
+  const getButtonText = (provider: 'google' | 'apple') => {
+    const actionText = action === 'signup' ? 'Sign up' : 'Sign in';
+    return `${actionText} with ${provider === 'google' ? 'Google' : 'Apple'}`;
+  };
 
   const AppleIcon = () => (
     <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" viewBox="0 0 24 24">
@@ -150,14 +140,14 @@ export default function OAuthButtons({
       >
         <div className={`flex items-center gap-2 transition-opacity duration-200 ${isAppleLoading ? 'opacity-0' : 'opacity-100'}`}>
           <AppleIcon />
-          <span className="hidden sm:inline">Sign in with Apple</span>
+          <span className="hidden sm:inline">{getButtonText('apple')}</span>
           <span className="sm:hidden">Apple</span>
         </div>
         
         {isAppleLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
             <div className="flex items-center gap-2">
-              <LoadingSpinner variant="light" />
+              <LoadingWave size="sm" variant="white" />
               <span className="hidden sm:inline text-sm">Connecting...</span>
               <span className="sm:hidden text-xs">Loading...</span>
             </div>
@@ -188,14 +178,14 @@ export default function OAuthButtons({
       >
         <div className={`flex items-center gap-2 transition-opacity duration-200 ${isGoogleLoading ? 'opacity-0' : 'opacity-100'}`}>
           <GoogleIcon />
-          <span className="hidden sm:inline">Sign in with Google</span>
+          <span className="hidden sm:inline">{getButtonText('google')}</span>
           <span className="sm:hidden">Google</span>
         </div>
         
         {isGoogleLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
             <div className="flex items-center gap-2">
-              <LoadingSpinner variant="dark" />
+              <LoadingWave size="sm" variant="brand" />
               <span className="hidden sm:inline text-sm text-gray-700">Connecting...</span>
               <span className="sm:hidden text-xs text-gray-700">Loading...</span>
             </div>

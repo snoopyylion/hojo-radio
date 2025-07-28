@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { createPostItem } from "@/lib/action";
 import ImageUploader from "./ImageUploader";
+import { useAuth } from '@clerk/nextjs';
+import { notificationService } from '@/lib/notificationService';
 
 // Define the state type
 interface ActionState {
@@ -20,6 +22,7 @@ interface ActionState {
 }
 
 const CreatePostForm = () => {
+    const { userId } = useAuth();
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [body, setBody] = useState("");
     const [categories, setCategories] = useState<string[]>([]);
@@ -122,6 +125,18 @@ const CreatePostForm = () => {
 
             if (result.status === 'SUCCESS') {
                 toast.success("Post created successfully!");
+                // Log user activity
+                if (userId && formValues.title) {
+                    await notificationService.createUserActivity({
+                        user_id: userId,
+                        type: 'post_created',
+                        title: 'Post Created',
+                        description: `You created a new post: \"${formValues.title}\"`,
+                        category: 'content',
+                        visibility: 'public',
+                        data: { post_title: formValues.title }
+                    });
+                }
                 router.push(`/post/${result._id}`);
             } else if (result.error) {
                 toast.error(result.error);

@@ -202,7 +202,7 @@ export const useWebSocketConnection = ({
     // Show browser notification if enabled and permission granted
     if ('Notification' in window && Notification.permission === 'granted') {
       showBrowserNotification(notificationTitle, notificationMessage, {
-        icon: data.followerImage || '/default-avatar.png',
+        icon: data.followerImage || '/default-avatar.svg',
         tag: notificationId,
         requireInteraction: false,
         silent: false
@@ -323,17 +323,20 @@ export const useWebSocketConnection = ({
           const messageData = await parseMessageData(event.data);
           const data = JSON.parse(messageData);
 
-          console.log('📨 WebSocket message received:', data.type, data);
-
           switch (data.type) {
             case 'new_message':
+              if (!data.message) {
+                console.warn('❌ Received new_message without message data');
+                break;
+              }
+              
               setMessages(prev => {
                 const exists = prev.some(msg => msg.id === data.message.id);
                 return exists ? prev : [...prev, data.message];
               });
 
               setConversations(prev => prev.map(conv =>
-                conv.id === data.message.conversation_id
+                conv.id === data.message?.conversation_id
                   ? {
                     ...conv,
                     last_message: data.message,
@@ -397,6 +400,20 @@ export const useWebSocketConnection = ({
               toast(`New message from ${data.senderName}: ${data.content}`, { icon: '💬' });
               break;
 
+            case 'typing':
+              setTypingUsers((prev) => {
+                const updated = { ...prev };
+                if (!updated[data.conversationId]) updated[data.conversationId] = [];
+                // Remove old entry for this user
+                updated[data.conversationId] = updated[data.conversationId].filter(u => u.userId !== data.userId);
+                // Add new typing user with timestamp
+                if (data.isTyping) {
+                  updated[data.conversationId].push({ userId: data.userId, username: data.username || 'Someone', timestamp: Date.now() });
+                }
+                return updated;
+              });
+              break;
+
             default:
               console.log('❓ Unknown message type:', data.type);
           }
@@ -453,7 +470,8 @@ export const useWebSocketConnection = ({
     isViewingConversation,
     setMessages,
     setConversations,
-    setOnlineUsers
+    setOnlineUsers,
+    setTypingUsers
   ]);
 
   const canSendMessages = useCallback(() => {

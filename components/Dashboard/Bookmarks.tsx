@@ -20,6 +20,9 @@ import {
   List
 } from 'lucide-react';
 
+import { useAuth } from '@clerk/nextjs';
+import { notificationService } from '@/lib/notificationService';
+
 interface SanityImage {
   asset: {
     _ref: string;
@@ -77,6 +80,7 @@ const getImageUrl = (image: SanityImage | undefined, width: number, height: numb
 };
 
 const BookmarksPage: React.FC = () => {
+  const { userId } = useAuth();
   const [bookmarksData, setBookmarksData] = useState<BookmarksData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,9 +128,28 @@ const BookmarksPage: React.FC = () => {
           const updated = prev.bookmarks.filter(b => b.id !== bookmarkId);
           return { ...prev, bookmarks: updated, count: prev.count - 1 };
         });
+        // Log user activity
+        if (userId && postId) {
+          await notificationService.createUserActivity({
+            user_id: userId,
+            type: 'post_bookmarked',
+            title: 'Bookmark Removed',
+            description: `You removed a bookmark from a post`,
+            category: 'content',
+            visibility: 'private',
+            data: { post_id: postId }
+          });
+        }
+        // Show toast
+        if (typeof window !== 'undefined' && window.toast) {
+          window.toast.success('Bookmark removed');
+        }
       }
     } catch (err) {
       console.error('Remove failed:', err);
+      if (typeof window !== 'undefined' && window.toast) {
+        window.toast.error('Failed to remove bookmark');
+      }
     } finally {
       setIsRemoving(null);
     }

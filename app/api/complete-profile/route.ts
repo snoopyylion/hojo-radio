@@ -65,12 +65,44 @@ export async function POST(req: NextRequest) {
     if (updateError.code === 'PGRST116') {
       console.log('👤 User not found in database, creating new record for:', userId);
       
-      // Get user info from Clerk to create complete record
-      const clerkUser = await currentUser();
+      // Get user info from Clerk to create complete record with retry logic
+      let clerkUser = null;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (!clerkUser && retryCount < maxRetries) {
+        try {
+          clerkUser = await currentUser();
+          
+          if (!clerkUser) {
+            console.log(`⚠️ No Clerk user found on attempt ${retryCount + 1}/${maxRetries}, retrying...`);
+            retryCount++;
+            
+            if (retryCount < maxRetries) {
+              // Wait before retrying (exponential backoff)
+              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+            }
+          }
+        } catch (error) {
+          console.log(`⚠️ Error getting Clerk user on attempt ${retryCount + 1}/${maxRetries}:`, error);
+          retryCount++;
+          
+          if (retryCount < maxRetries) {
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          }
+        }
+      }
+      
       if (!clerkUser) {
+        console.log('❌ No Clerk user found after all retries for userId:', userId);
         return NextResponse.json(
-          { error: 'Unable to fetch user information from Clerk' },
-          { status: 400 }
+          { 
+            error: 'User session not ready. Please try again.', 
+            code: 'CLERK_USER_NOT_FOUND',
+            details: 'User session may still be initializing'
+          }, 
+          { status: 503 }
         );
       }
 

@@ -36,6 +36,9 @@ export const NotificationList: React.FC = () => {
     fetchNotifications();
   }, [fetchNotifications]);
 
+  // Note: Auto-refresh removed to prevent reload behavior
+  // Real-time updates are handled by WebSocket connections
+
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.read) {
       markAsRead(notification.id);

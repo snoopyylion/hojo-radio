@@ -118,7 +118,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const getUserImageUrl = useCallback((userId: string): string => {
     const user = users.get(userId);
-    return user?.imageUrl || '/default-avatar.png';
+    return user?.imageUrl || '/default-avatar.svg';
   }, [users]);
 
   const getUserDisplayName = useCallback((userId: string): string => {

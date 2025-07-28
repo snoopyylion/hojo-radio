@@ -104,10 +104,10 @@ const ConversationItem: React.FC<ConversationItemProps> = memo(({
         }
 
         if (conversation.type === 'direct') {
-            return imageUrl || otherParticipant?.user?.imageUrl || '/default-avatar.png';
+            return imageUrl || otherParticipant?.user?.imageUrl || '/default-avatar.svg';
         }
 
-        return '/default-avatar.png';
+        return '/default-avatar.svg';
     }, [conversation.image_url, conversation.type, imageUrl, otherParticipant?.user?.imageUrl]);
 
     // Memoized online status
@@ -190,7 +190,7 @@ const ConversationItem: React.FC<ConversationItemProps> = memo(({
     // Optimized image error handler
     const handleImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
         const target = e.target as HTMLImageElement;
-        target.src = '/default-avatar.png';
+        target.src = '/default-avatar.svg';
     }, []);
 
     // Show skeleton loading state while profile is loading for new conversations

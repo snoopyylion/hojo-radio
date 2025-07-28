@@ -1,9 +1,9 @@
-import { NotificationList } from '@/components/NotificationLiat';
+import { EnhancedNotificationList } from '@/components/EnhancedNotificationList';
 
 export default function NotificationsPage() {
   return (
-    <div className="min-h-screen bg-white dark:bg-black pt-[100px] ">
-      <NotificationList />
+    <div className="min-h-screen bg-white dark:bg-black pt-[100px]">
+      <EnhancedNotificationList />
     </div>
   );
 }

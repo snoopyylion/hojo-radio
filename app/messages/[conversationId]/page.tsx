@@ -67,6 +67,7 @@ export default function ConversationPage() {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [hasInitialized, setHasInitialized] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
+    const [replyingTo, setReplyingTo] = useState<Message | null>(null);
     const messageListRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -78,10 +79,9 @@ export default function ConversationPage() {
         return (typingUsers[conversationId] || []).filter(user => user.userId !== userId);
     }, [typingUsers, conversationId, userId]);
 
-    const typingUsersSet = useMemo(() =>
-        new Set(currentTypingUsers.map(user => user.userId)),
-        [currentTypingUsers]
-    );
+    const typingUsersSet = useMemo(() => {
+        return new Set(currentTypingUsers.map(user => user.userId));
+    }, [currentTypingUsers]);
 
     // Enhanced typing cleanup with better timing
     useEffect(() => {
@@ -206,19 +206,17 @@ export default function ConversationPage() {
         initializeData();
     }, [isLoaded, userId, initializeData, router]);
 
-    // Set current conversation
+    // Load conversation data
     useEffect(() => {
-        if (conversations.length === 0) return;
+        if (!hasInitialized || !conversations.length) return;
 
         const conversation = conversations.find((c: Conversation) => c.id === conversationId);
         if (conversation) {
-            console.log('✅ Found conversation:', conversation);
             setCurrentConversation(conversation);
         } else {
-            console.log('❌ Conversation not found in list:', conversationId);
-            console.log('Available conversations:', conversations.map((c: Conversation) => c.id));
+            console.warn('Conversation not found:', conversationId);
         }
-    }, [conversations, conversationId]);
+    }, [hasInitialized, conversations, conversationId]);
 
     const handleLoadMore = useCallback(async () => {
         if (isLoadingMore || messages.length === 0) return;
@@ -237,26 +235,30 @@ export default function ConversationPage() {
 
     const handleSendMessage = useCallback(async (
         content: string,
-        messageType: 'text' | 'image' | 'file' = 'text',
-        replyToId?: string
+        type?: string,
+        replyToId?: string,
+        metadata?: any
     ) => {
         if (!content.trim() || !currentConversation) {
-            console.log('❌ Cannot send message: missing content or conversation');
             return;
         }
 
         // Stop typing when sending message
         if (isTyping) {
             setIsTyping(false);
-            sendTypingUpdate(false); // Pass conversationId here
+            sendTypingUpdate(false);
             if (typingTimeoutRef.current) {
                 clearTimeout(typingTimeoutRef.current);
             }
         }
 
         try {
+            // Use reply_to_id from replyingTo state if available
+            const finalReplyToId = replyToId || replyingTo?.id;
+            const messageType = (type as 'text' | 'image' | 'file') || 'text';
+
             // Send via API
-            const message = await sendApiMessage(conversationId, content, messageType, replyToId);
+            const message = await sendApiMessage(conversationId, content, messageType, finalReplyToId);
 
             if (message) {
                 // Add message to local state immediately
@@ -264,6 +266,9 @@ export default function ConversationPage() {
 
                 // Send real-time update via WebSocket
                 sendWebSocketMessage(message);
+
+                // Clear reply state after sending
+                setReplyingTo(null);
 
                 // Scroll to bottom after sending
                 setTimeout(() => {
@@ -274,25 +279,85 @@ export default function ConversationPage() {
             }
         } catch (error) {
             console.error('❌ Error sending message:', error);
+            
+            // Show user-friendly error message
+            if (error instanceof Error) {
+                // You could add a toast notification here
+                console.error('Error details:', error.message);
+                
+                // Show specific error messages for common issues
+                if (error.message.includes('Network error')) {
+                    alert('Network error: Please check your internet connection and try again.');
+                } else if (error.message.includes('Unauthorized')) {
+                    alert('Authentication error: Please sign in again.');
+                } else if (error.message.includes('Access denied')) {
+                    alert('Access denied: You may not have permission to send messages in this conversation.');
+                } else {
+                    alert(`Failed to send message: ${error.message}`);
+                }
+            } else {
+                alert('An unexpected error occurred while sending the message.');
+            }
         }
-    }, [currentConversation, conversationId, sendApiMessage, sendWebSocketMessage, setMessages, isTyping, sendTypingUpdate]);
+    }, [currentConversation, conversationId, sendApiMessage, sendWebSocketMessage, setMessages, isTyping, sendTypingUpdate, replyingTo]);
 
     const handleReaction = useCallback(async (messageId: string, emoji: string) => {
         try {
-            const reaction = await reactToMessage(messageId, emoji);
+            // Get current user's reaction for this message
+            const currentMessage = messages.find(msg => msg.id === messageId);
+            const currentUserReactions = currentMessage?.reactions
+                ?.filter(r => r.user_id === userId)
+                ?.map(r => r.emoji) || [];
+
+            const reaction = await reactToMessage(messageId, emoji, currentUserReactions);
 
             if (reaction) {
                 setMessages((prev: Message[]) =>
-                    prev.map((msg: Message) => msg.id === messageId
-                        ? { ...msg, reactions: [...(msg.reactions || []), reaction] }
-                        : msg
-                    )
+                    prev.map((msg: Message) => {
+                        if (msg.id === messageId) {
+                            // Remove any existing reactions from current user
+                            const otherReactions = msg.reactions?.filter(r => r.user_id !== userId) || [];
+                            // Add the new reaction
+                            return { ...msg, reactions: [...otherReactions, reaction] };
+                        }
+                        return msg;
+                    })
                 );
             }
         } catch (error) {
             console.error('❌ Error reacting to message:', error);
         }
-    }, [reactToMessage, setMessages]);
+    }, [reactToMessage, setMessages, messages, userId]);
+
+    const handleDeleteMessage = useCallback(async (messageId: string) => {
+        try {
+            const response = await fetch(`/api/messages/${messageId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                // Remove the message from local state
+                setMessages((prev: Message[]) => prev.filter(msg => msg.id !== messageId));
+            } else {
+                const errorData = await response.json();
+                alert(`Failed to delete message: ${errorData.error}`);
+            }
+        } catch (error) {
+            console.error('❌ Error deleting message:', error);
+            alert('Failed to delete message. Please try again.');
+        }
+    }, [setMessages]);
+
+    const handleReply = useCallback((message: Message) => {
+        setReplyingTo(message);
+    }, []);
+
+    const handleCancelReply = useCallback(() => {
+        setReplyingTo(null);
+    }, []);
 
     const handleRetry = useCallback(() => {
         setHasInitialized(false);
@@ -353,28 +418,34 @@ export default function ConversationPage() {
                             users={users}
                             currentUserId={userId!}
                             onReactToMessage={handleReaction}
+                            onReply={handleReply}
+                            replyingTo={replyingTo}
                             onLoadMore={handleLoadMore}
                             loading={isLoadingMore}
+                            onDeleteMessage={handleDeleteMessage}
                         />
                     </div>
 
                     {/* Enhanced Typing indicator */}
-                    {currentTypingUsers.length > 0 && (
-                        <div className="px-4 py-2 bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800">
-                            <TypingIndicator
-                                typingUsers={typingUsersSet}
-                                users={users}
-                            />
-                        </div>
-                    )}
+                    {(() => {
+                        return currentTypingUsers.length > 0 && (
+                            <div className="px-4 py-2 bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800">
+                                <TypingIndicator
+                                    typingUsers={typingUsersSet}
+                                    users={users}
+                                />
+                            </div>
+                        );
+                    })()}
 
                     {/* Message input */}
                     <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-lg">
                         <MessageInput
                             onSendMessage={handleSendMessage}
-                            onTyping={handleTyping}
-                            disabled={loading}
-                            conversationId={conversationId}
+                            onTypingChange={handleTyping}
+                            disabled={!isConnected}
+                            replyingTo={replyingTo}
+                            onCancelReply={handleCancelReply}
                         />
                     </div>
                 </div>

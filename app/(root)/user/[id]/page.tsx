@@ -13,6 +13,9 @@ import { VerifiedNewsList } from '@/components/UserProfile/VerifiedNewsList';
 import { AuthorPostsSection } from '@/components/UserProfile/AuthorPostsSection';
 import { FollowersFollowingSection } from '@/components/UserProfile/FollowModal';
 import { BookOpen, MessageCircle } from 'lucide-react';
+import { notificationService } from '@/lib/notificationService';
+import { useAuth } from '@clerk/nextjs';
+import toast from 'react-hot-toast';
 
 
 interface VerifiedNews {
@@ -57,6 +60,7 @@ const UserProfilePage = () => {
   const { id } = useParams();
   const { user } = useAppContext();
   const router = useRouter();
+  const { userId } = useAuth();
 
   // Profile state
   const [profile, setProfile] = useState<ExtendedUserProfile | null>(null);
@@ -283,10 +287,29 @@ const UserProfilePage = () => {
             ? Math.max(0, prev.followers_count - 1)
             : prev.followers_count + 1
         } : null);
+        // Log user activity
+        if (userId && profile.id) {
+          await notificationService.createUserActivity({
+            user_id: userId,
+            type: isFollowing ? 'user_unfollowed' : 'user_followed',
+            title: isFollowing ? 'User Unfollowed' : 'User Followed',
+            description: isFollowing
+              ? `You unfollowed ${profile.first_name} ${profile.last_name}`
+              : `You followed ${profile.first_name} ${profile.last_name}`,
+            category: 'social',
+            visibility: 'public',
+            data: { target_user_id: profile.id, target_user_name: `${profile.first_name} ${profile.last_name}` }
+          });
+          // Send notification to the receiver if it's a follow
+          if (!isFollowing && userId !== profile.id) {
+            await notificationService.createFollowNotification(userId, profile.id, user?.first_name || 'Someone');
+          }
+        }
+        toast.success(isFollowing ? 'Unfollowed!' : 'Followed!');
       }
     } catch (error) {
       console.error('Error updating follow status:', error);
-      alert('Failed to update follow status. Please try again.');
+      toast.error('Failed to update follow status. Please try again.');
     } finally {
       setFollowLoading(false);
     }

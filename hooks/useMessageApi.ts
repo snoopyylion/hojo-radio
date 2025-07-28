@@ -62,30 +62,101 @@ export const useMessageApi = () => {
     replyToId?: string
   ) => {
     try {
-      const response = await fetch('/api/messages', {
+      console.log('🔄 Sending message:', { conversationId, content, messageType, replyToId });
+      
+      // Get token with fallback
+      let token = '';
+      try {
+        token = await getToken();
+        console.log('🔐 Token obtained:', token ? 'Yes' : 'No');
+      } catch (tokenError) {
+        console.warn('⚠️ Token error, trying without auth:', tokenError);
+      }
+
+      // Prepare headers
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      // Prepare request body
+      const requestBody = {
+        conversation_id: conversationId,
+        content: content.trim(),
+        message_type: messageType,
+        ...(replyToId && { reply_to_id: replyToId })
+      };
+
+      console.log('📤 Request details:', {
+        url: '/api/messages',
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await getToken()}`
-        },
-        body: JSON.stringify({
-          conversation_id: conversationId,
-          content: content.trim(),
-          message_type: messageType,
-          reply_to_id: replyToId
-        })
+        headers: Object.keys(headers),
+        body: requestBody
       });
 
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody)
+      });
+
+      console.log('📥 Response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If JSON parsing fails, use the text as is
+        }
+        
+        throw new Error(errorMessage);
+      }
+
       const data = await response.json();
+      console.log('✅ Message sent successfully:', data);
       return data.message;
     } catch (error) {
       console.error('❌ Error sending message:', error);
-      throw error;
+      
+      // Provide more specific error messages
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        throw new Error('Network error: Unable to connect to server. Please check your internet connection.');
+      } else if (error instanceof Error) {
+        throw error;
+      } else {
+        throw new Error('Unknown error occurred while sending message');
+      }
     }
   }, [getToken]);
 
-  const reactToMessage = useCallback(async (messageId: string, emoji: string) => {
+  const reactToMessage = useCallback(async (messageId: string, emoji: string, currentUserReactions: string[] = []) => {
     try {
+      // If the user already reacted with a different emoji, remove it first
+      if (currentUserReactions.length > 0 && !currentUserReactions.includes(emoji)) {
+        for (const oldEmoji of currentUserReactions) {
+          await fetch('/api/message-reactions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${await getToken()}`
+            },
+            body: JSON.stringify({ message_id: messageId, emoji: oldEmoji })
+          });
+        }
+      }
+      // Now add/toggle the new reaction
       const response = await fetch('/api/message-reactions', {
         method: 'POST',
         headers: {
@@ -94,7 +165,6 @@ export const useMessageApi = () => {
         },
         body: JSON.stringify({ message_id: messageId, emoji })
       });
-
       const data = await response.json();
       return data.reaction;
     } catch (error) {

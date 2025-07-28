@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import MobileSidebar from '@/components/MobileSidebar';
 import SearchComponent from '@/components/SearchComponent';
 import { useInstantNotifications } from '@/hooks/useInstantNotifications';
-import { NotificationBell } from './NotificationBell';
+import { RealTimeNotificationBell } from './RealTimeNotificationBell';
 
 // Define the navigation item type with proper typing
 interface NavItem {
@@ -172,12 +172,8 @@ const NewNavbar = () => {
                   <SearchComponent />
                 </div>
 
-                {/* Enhanced Notification Bell - Using NotificationBell Component */}
-                <Link href="/notifications">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center transition-all hover:scale-105 bg-gray-50 hover:bg-gray-100/80">
-                    <NotificationBell />
-                  </div>
-                </Link>
+                {/* Enhanced Notification Bell - Using RealTimeNotificationBell Component */}
+                <RealTimeNotificationBell size="md" showCount={true} />
 
                 {/* Enhanced User Button Container */}
                 <div className="relative">

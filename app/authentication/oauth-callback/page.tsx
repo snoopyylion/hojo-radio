@@ -5,6 +5,7 @@ import { useUser, useAuth, useClerk } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { BrandSpinner, LoadingWave } from "../../../components/ui/LoadingSpinner";
 
 interface AuthStatus {
   stage: 'authenticating' | 'syncing' | 'checking' | 'completing' | 'redirecting' | 'error';
@@ -159,6 +160,38 @@ function OAuthCallbackContent() {
     let syncSuccessful = false;
     let syncData = null;
 
+    // Step 0: Check if user exists in database first
+    try {
+      const checkResponse = await fetch('/api/check-profile', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (checkResponse.ok) {
+        const checkData = await checkResponse.json();
+        console.log('📊 Initial profile check:', checkData);
+        
+        // If user exists and profile is complete, we can skip sync
+        if (checkData.exists && !checkData.needsCompletion) {
+          console.log('✅ User exists and profile is complete, skipping sync');
+          const redirectUrl = getRedirectUrl();
+          setAuthStatus({
+            stage: 'redirecting',
+            message: 'Welcome back! Taking you to your destination...',
+            progress: 100
+          });
+
+          userProcessedRef.current = true;
+          setTimeout(() => {
+            router.replace(redirectUrl);
+          }, 1500);
+          return;
+        }
+      }
+    } catch (checkError) {
+      console.log('⚠️ Initial profile check failed, proceeding with sync:', checkError);
+    }
+
     // Step 1: Sync user to database with retry logic
     try {
       const syncResponse = await fetch('/api/sync-user', {
@@ -170,6 +203,22 @@ function OAuthCallbackContent() {
         console.error('❌ User sync failed with status:', syncResponse.status);
         const errorText = await syncResponse.text();
         console.error('❌ Sync error details:', errorText);
+        
+        // Check if this is a first-time signup (user session not ready)
+        if (syncResponse.status === 503 && errorText.includes('CLERK_USER_NOT_FOUND')) {
+          console.log('🆕 First-time signup detected, redirecting to profile completion');
+          
+          // Update status to be more specific for first-time signups
+          setAuthStatus({
+            stage: 'completing',
+            message: 'Setting up your profile...',
+            progress: 75
+          });
+          
+          forceCompleteProfile('First-time signup - complete your profile');
+          return;
+        }
+        
         throw new Error(`User sync failed: ${syncResponse.status}`);
       }
 
@@ -281,7 +330,58 @@ function OAuthCallbackContent() {
     }
   }, [forceCompleteProfile, getRedirectUrl, router]);
 
-  // Main processing effect
+  // Early check for unauthenticated users
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      const source = searchParams.get('source');
+      const pendingSessionId = sessionStorage.getItem('pendingSessionId');
+      
+      // If user is not signed in and there's no pending session, redirect immediately
+      if (!pendingSessionId && source !== 'existing-session') {
+        console.log('⚠️ Unauthenticated user on OAuth callback, redirecting to sign-in');
+        setAuthStatus({
+          stage: 'authenticating',
+          message: 'Redirecting to sign-in...',
+          progress: 10
+        });
+        
+        setTimeout(() => {
+          const redirectUrl = getRedirectUrl();
+          const signInUrl = `/authentication/sign-in${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+          router.replace(signInUrl);
+        }, 1000);
+        return;
+      }
+      
+      // If there's a pending session but user is not signed in, wait a bit longer
+      if (pendingSessionId && source === 'email-signin') {
+        console.log('⏳ Pending session found, waiting for authentication to complete...');
+        setAuthStatus({
+          stage: 'authenticating',
+          message: 'Completing your sign-in...',
+          progress: 20
+        });
+      }
+      
+      // For email sign-ins, redirect directly instead of going through complex OAuth callback
+      if (source === 'email-signin' && pendingSessionId) {
+        console.log('📧 Email sign-in detected, redirecting directly');
+        const redirectUrl = getRedirectUrl();
+        setAuthStatus({
+          stage: 'redirecting',
+          message: 'Welcome! Taking you to your destination...',
+          progress: 100
+        });
+        
+        setTimeout(() => {
+          router.replace(redirectUrl);
+        }, 1500);
+        return;
+      }
+    }
+  }, [isLoaded, isSignedIn, searchParams, getRedirectUrl, router]);
+
+  // Main authentication processing
   useEffect(() => {
     if (!isLoaded || processingRef.current || userProcessedRef.current) {
       console.log('⏳ Waiting for conditions:', {
@@ -307,6 +407,15 @@ function OAuthCallbackContent() {
           userId: user?.id,
           isLoaded
         });
+
+        // If user is not signed in and there's no pending session, redirect to sign-in
+        if (!isSignedIn && !pendingSessionId && source !== 'existing-session') {
+          console.log('⚠️ User not signed in and no pending session, redirecting to sign-in');
+          const redirectUrl = getRedirectUrl();
+          const signInUrl = `/authentication/sign-in${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+          router.replace(signInUrl);
+          return;
+        }
 
         // Handle email/password sign-in that needs session activation
         if (source === 'email-signin' && pendingSessionId) {
@@ -341,6 +450,21 @@ function OAuthCallbackContent() {
           sessionStorage.removeItem('pendingSessionId');
           sessionStorage.removeItem('pendingSessionTimestamp');
           console.log('✅ Email session processed successfully');
+          
+          // For email sign-ins, skip the complex sync process and redirect directly
+          // The sync will happen naturally when the user accesses protected routes
+          const redirectUrl = getRedirectUrl();
+          setAuthStatus({
+            stage: 'redirecting',
+            message: 'Welcome! Taking you to your destination...',
+            progress: 100
+          });
+
+          userProcessedRef.current = true;
+          setTimeout(() => {
+            router.replace(redirectUrl);
+          }, 1500);
+          return;
         }
 
         // For OAuth or existing sessions, just verify the user is signed in
@@ -357,7 +481,12 @@ function OAuthCallbackContent() {
               throw new Error('OAuth authentication verification failed');
             }
           } else {
-            throw new Error('User authentication verification failed');
+            // For non-OAuth flows, redirect to sign-in instead of showing error
+            console.log('🔄 Redirecting to sign-in for non-authenticated user');
+            const redirectUrl = getRedirectUrl();
+            const signInUrl = `/authentication/sign-in${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+            router.replace(signInUrl);
+            return;
           }
         }
 

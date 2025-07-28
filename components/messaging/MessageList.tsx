@@ -1,7 +1,7 @@
 // components/messaging/MessagesList.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import { Message, User } from '@/types/messaging';
-import MessageBubble from './MessageBubble';
+import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -13,6 +13,9 @@ interface MessagesListProps {
     users: User[];
     currentUserId: string;
     onReactToMessage: (messageId: string, emoji: string) => void;
+    onReply?: (message: Message) => void;
+    replyingTo?: Message | null;
+    onDeleteMessage?: (messageId: string) => void;
     onLoadMore?: () => void;
     loading?: boolean;
     hasMore?: boolean;
@@ -25,6 +28,9 @@ export function MessagesList({
     users,
     currentUserId,
     onReactToMessage,
+    onReply = () => {},
+    replyingTo,
+    onDeleteMessage = () => {},
     onLoadMore,
     loading = false,
     hasMore = false,
@@ -157,7 +163,7 @@ export function MessagesList({
                         {group.messages.map((message, index) => {
                             const previousMessage = index > 0 ? group.messages[index - 1] : null;
                             const nextMessage = index < group.messages.length - 1 ? group.messages[index + 1] : null;
-                            const isOwn = message.sender_id === currentUserId;
+                            const isOwnMessage = message.sender_id === currentUserId;
                             const isGrouped = shouldGroupMessage(message, previousMessage);
                             const isLastInGroup = nextMessage ? !shouldGroupMessage(nextMessage, message) : true;
 
@@ -165,13 +171,12 @@ export function MessagesList({
                                 <MessageBubble
                                     key={message.id}
                                     message={message}
-                                    isOwn={isOwn}
-                                    showAvatar={!isOwn && (!isGrouped || isLastInGroup)}
-                                    isGrouped={isGrouped}
+                                    isOwnMessage={message.sender_id === currentUserId}
+                                    onReply={onReply}
                                     onReact={onReactToMessage}
-                                    onReply={() => { }}
-                                    onEdit={() => { }}
-                                    onDelete={() => { }}
+                                    onImageClick={() => {}}
+                                    replyingTo={replyingTo}
+                                    onDelete={onDeleteMessage}
                                 />
                             );
                         })}

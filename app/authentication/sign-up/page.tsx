@@ -16,9 +16,10 @@ export default function SignUpPage() {
 
   useEffect(() => {
     if (isSignedIn) {
-      memoizedRouter().replace("/blog");
+      // Redirect directly instead of going through oauth-callback
+      router.replace("/blog");
     }
-  }, [isSignedIn, memoizedRouter]);
+  }, [isSignedIn, router]);
 
   return (
     <Suspense fallback={<LoadingSpinner size="lg" />}>

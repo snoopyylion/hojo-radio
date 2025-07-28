@@ -79,9 +79,28 @@ export default function SignUpForm({ onVerificationNeeded }: SignUpFormProps) {
       if (err && typeof err === "object" && "errors" in err) {
         const clerkError = err as { errors: Array<{ message?: string; code?: string }> };
         if (clerkError.errors?.length) {
+          const error = clerkError.errors[0];
+          
+          // Check if this is an existing user trying to sign up
+          if (error.code === 'form_identifier_exists' || 
+              error.message?.toLowerCase().includes('already exists') ||
+              error.message?.toLowerCase().includes('already registered')) {
+            setErrors({
+              message: "An account with this email already exists. Please sign in instead.",
+              code: "USER_EXISTS",
+            });
+            
+            // Redirect to sign-in after a short delay
+            setTimeout(() => {
+              const signInUrl = `/authentication/sign-in${redirectUrl && redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+              window.location.href = signInUrl;
+            }, 3000);
+            return;
+          }
+          
           setErrors({
-            message: clerkError.errors[0].message || "An error occurred during sign up",
-            code: clerkError.errors[0].code,
+            message: error.message || "An error occurred during sign up",
+            code: error.code,
           });
         } else {
           setErrors({ message: "An unexpected error occurred" });
@@ -168,6 +187,7 @@ export default function SignUpForm({ onVerificationNeeded }: SignUpFormProps) {
           onAppleSignIn={signUpWithApple}
           isLoading={isOAuthLoading}
           disabled={isLoading}
+          action="signup"
         />
 
         <button
@@ -188,7 +208,7 @@ export default function SignUpForm({ onVerificationNeeded }: SignUpFormProps) {
           <p className="text-gray-600">
             Already have an account?{" "}
             <Link 
-              href={`/authentication/sign-in${redirectUrl && redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`}
+              href="/authentication/sign-in"
               className="text-[#EF3866] hover:underline"
             >
               Sign in

@@ -1,7 +1,7 @@
-// hooks/useRealtimeMessaging.ts
-import { useEffect, useState, useCallback, useRef } from 'react';
+// hooks/useRealTimeMessaging.ts
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabaseClient';
 import { Message, Conversation, TypingUser } from '@/types/messaging';
 import { useGlobalTyping } from '@/context/GlobalTypingContext';
 
@@ -27,10 +27,6 @@ interface UseRealtimeMessagingReturn {
 export function useRealtimeMessaging(conversationId?: string): UseRealtimeMessagingReturn {
   const { user } = useUser();
   const { userId, isLoaded, isSignedIn } = useAuth();
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);

@@ -103,7 +103,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       return (
         <div className="relative">
           <Image
-            src={otherParticipant.user.imageUrl || '/default-avatar.png'}
+            src={otherParticipant.user.imageUrl || '/default-avatar.svg'}
             alt={otherParticipant.user.firstName || 'User'}
             width={40}
             height={40}

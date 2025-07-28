@@ -9,6 +9,7 @@ import Image from "next/image";
 import { gsap } from "gsap";
 
 export default function SignUpContent() {
+  const { clearPendingAuthState } = useAuthRedirect(); // Get the clear function
   useAuthRedirect(); // Redirects if already signed in
 
   const [showVerification, setShowVerification] = useState(false);
@@ -17,6 +18,11 @@ export default function SignUpContent() {
   const logoRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const subtitleRef = useRef<HTMLParagraphElement>(null);
+
+  // Clear any pending authentication state when page loads
+  useEffect(() => {
+    clearPendingAuthState();
+  }, [clearPendingAuthState]);
 
 
   const handleVerificationNeeded = (email: string) => {

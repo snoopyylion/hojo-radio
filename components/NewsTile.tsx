@@ -7,6 +7,9 @@ import { formatDistance } from 'date-fns';
 import { gsap } from "gsap";
 import { Heart, Bookmark, Clock, MessageCircle, ChevronUp, ChevronDown } from 'lucide-react';
 import CommentSection from "./CommentSection";
+import { useAuth } from '@clerk/nextjs';
+import { notificationService } from '@/lib/notificationService';
+import toast from 'react-hot-toast';
 
 interface SanityImage {
   asset: {
@@ -26,6 +29,7 @@ interface NewsTileProps {
     author: {
       name: string;
       image?: SanityImage;
+      supabaseUserId?: string; // Added for notification logic
     };
     categories: { title: string }[];
   };
@@ -112,6 +116,7 @@ const useEngagementData = (postId: string) => {
 };
 
 const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
+  const { userId } = useAuth();
   const {
     isLiked,
     isBookmarked,
@@ -220,6 +225,36 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
         likeCount: data.likeCount || 0,
         isLoading: false,
       }));
+      // Toast and activity logging
+      if (userId) {
+        if (data.liked) {
+          toast.success('Liked!');
+          await notificationService.createUserActivity({
+            user_id: userId,
+            type: 'post_liked',
+            title: 'Post Liked',
+            description: `You liked "${post.title}"`,
+            category: 'content',
+            visibility: 'public',
+            data: { post_id: post._id, post_title: post.title }
+          });
+          // Notify post owner if not self
+          if (userId !== post.author.supabaseUserId) {
+            await notificationService.createLikeNotification(userId, post.author.supabaseUserId, 'Someone', post._id, post.title);
+          }
+        } else {
+          toast('Like removed');
+          await notificationService.createUserActivity({
+            user_id: userId,
+            type: 'post_unliked',
+            title: 'Like Removed',
+            description: `You unliked "${post.title}"`,
+            category: 'content',
+            visibility: 'public',
+            data: { post_id: post._id, post_title: post.title }
+          });
+        }
+      }
     } catch (err) {
       // Revert optimistic update
       setState(prev => ({
@@ -229,8 +264,9 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
         isLoading: false,
       }));
       console.error("Like request failed", err);
+      toast.error('Failed to like post');
     }
-  }, [post._id, isLiked, likeCount, isLoading, setState, animateButton]);
+  }, [post._id, isLiked, likeCount, isLoading, setState, animateButton, post.title, post.author?.supabaseUserId, userId]);
 
   const handleBookmark = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();

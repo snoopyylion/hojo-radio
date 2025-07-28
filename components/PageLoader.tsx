@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
+import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { BrandSpinner } from './ui/LoadingSpinner';
 
 interface LoadingState {
   stage: 'loading' | 'syncing' | 'finalizing' | 'complete';
@@ -205,10 +206,10 @@ export function InlineLoader({
   size?: 'xs' | 'sm' | 'md';
   useLogo?: boolean;
 }) {
-  const sizeClasses = {
-    xs: "w-4 h-4",
-    sm: "w-5 h-5",
-    md: "w-6 h-6"
+  const sizeMap = {
+    xs: 'xs' as const,
+    sm: 'sm' as const,
+    md: 'md' as const
   };
 
   const logoSizes = {
@@ -220,7 +221,7 @@ export function InlineLoader({
   return (
     <div className="flex items-center justify-center space-x-3 py-8">
       {useLogo ? (
-        <div className={`${sizeClasses[size]} flex items-center justify-center`}>
+        <div className="flex items-center justify-center">
           <Image
             src="/img/logo.png"
             alt="Logo"
@@ -230,7 +231,7 @@ export function InlineLoader({
           />
         </div>
       ) : (
-        <div className={`${sizeClasses[size]} border-2 border-[#EF3866] border-t-transparent rounded-full animate-spin`}></div>
+        <BrandSpinner size={sizeMap[size]} />
       )}
       <span className="text-gray-600 dark:text-gray-400 font-sora transition-colors">{message}</span>
     </div>
