@@ -1,6 +1,7 @@
 // components/chat/ConversationSettings.tsx
 import React, { useState } from 'react';
 import { Settings, Users, Edit3, Trash2, LogOut, UserMinus, Shield, X, Crown, UserPlus } from 'lucide-react';
+import Image from 'next/image';
 import { Conversation, ConversationParticipant } from '@/types/messaging';
 import { AddParticipantsModal } from '../modals/AddParticipantsModal';
 
@@ -240,9 +241,11 @@ export function ConversationSettings({
                   <div key={participant.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 border border-gray-200 dark:border-gray-800">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       {participant.user?.imageUrl ? (
-                        <img
+                        <Image
                           src={participant.user.imageUrl}
                           alt={participant.user.username}
+                          width={48}
+                          height={48}
                           className="w-12 h-12 rounded-full object-cover border-2 border-gray-200 dark:border-gray-800"
                         />
                       ) : (

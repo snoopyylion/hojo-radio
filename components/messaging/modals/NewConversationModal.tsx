@@ -1,6 +1,7 @@
 // components/messaging/NewConversationModal.tsx
 import React, { useState, useCallback } from 'react';
 import { X, Users, MessageCircle, Search, Plus } from 'lucide-react';
+import Image from 'next/image';
 import { User } from '@/types/messaging';
 
 interface NewConversationModalProps {
@@ -234,7 +235,13 @@ export default function NewConversationModal({
                   >
                     <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
                       {user.imageUrl ? (
-                        <img src={user.imageUrl} alt={user.username} className="w-full h-full rounded-full" />
+                        <Image
+                          src={user.imageUrl}
+                          alt={user.username}
+                          width={40}
+                          height={40}
+                          className="w-full h-full rounded-full"
+                        />
                       ) : (
                         <span className="text-sm font-medium text-gray-600">
                           {user.firstName?.[0]}{user.lastName?.[0]}

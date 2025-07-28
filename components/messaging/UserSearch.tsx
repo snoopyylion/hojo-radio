@@ -283,6 +283,7 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
 
   // Filter raw users based on current exclusions - this runs when exclusions change
   useEffect(() => {
+    const excludedIdsString = JSON.stringify(excludedIds);
     const filteredUsers = rawUsers.filter((user) => {
       const isExcluded = excludedIds.includes(user.id);
       console.log('User filter check:', { 
@@ -297,7 +298,7 @@ export const UserSearch = forwardRef<UserSearchHandle, UserSearchProps>(({
 
     console.log('📋 Filtered users:', filteredUsers);
     setUsers(filteredUsers);
-  }, [rawUsers, JSON.stringify(excludedIds)]); // Filter when raw results or exclusions change
+  }, [rawUsers, excludedIds]); // Filter when raw results or exclusions change
 
   // Cleanup on unmount
   useEffect(() => {

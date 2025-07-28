@@ -1,8 +1,6 @@
 // lib/notificationService.ts
 import { 
   BaseNotification, 
-  NotificationType, 
-  NotificationCategory,
   UserActivity,
   ActivityType,
   ActivityCategory,
@@ -329,7 +327,7 @@ export class NotificationService {
     description: string,
     category: ActivityCategory,
     visibility: 'public' | 'private' | 'followers_only' = 'public',
-    data?: Record<string, any>
+    data?: Record<string, unknown>
   ): Promise<void> {
     const activity: Omit<UserActivity, 'id' | 'timestamp'> = {
       user_id: userId,
@@ -465,7 +463,7 @@ export class NotificationService {
   }
 
   // WebSocket connection management
-  connectWebSocket(userId: string, onMessage: (data: any) => void): void {
+  connectWebSocket(userId: string, onMessage: (data: unknown) => void): void {
     if (this.wsConnection?.readyState === WebSocket.OPEN) {
       this.wsConnection.close();
     }
@@ -497,7 +495,7 @@ export class NotificationService {
     };
   }
 
-  private attemptReconnect(userId: string, onMessage: (data: any) => void): void {
+  private attemptReconnect(userId: string, onMessage: (data: unknown) => void): void {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
