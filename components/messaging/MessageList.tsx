@@ -29,7 +29,6 @@ export function MessagesList({
     currentUserId,
     onReactToMessage,
     onReply = () => {},
-    replyingTo,
     onDeleteMessage = () => {},
     onLoadMore,
     loading = false,
