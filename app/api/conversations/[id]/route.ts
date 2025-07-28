@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { auth } from '@clerk/nextjs/server';
+import { ConversationParticipant } from '@/types/messaging';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -54,7 +55,7 @@ export async function GET(
 
         // Check if user is participant
         const isParticipant = conversation.conversation_participants.some(
-            (p: any) => p.user_id === userId && !p.left_at
+            (p: ConversationParticipant) => p.user_id === userId && !p.left_at
         );
 
         if (!isParticipant) {
@@ -108,7 +109,11 @@ export async function PATCH(
         }
 
         // Update conversation
-        const updates: any = {};
+        const updates: {
+            name?: string;
+            description?: string;
+            image_url?: string;
+        } = {};
         if (name !== undefined) updates.name = name;
         if (description !== undefined) updates.description = description;
         if (image_url !== undefined) updates.image_url = image_url;

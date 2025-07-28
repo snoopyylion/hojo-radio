@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Download, Share2, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
 import Image from 'next/image';
-import { Message } from '@/types/messaging';
 
 interface ImageGalleryProps {
   isOpen: boolean;

@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from "react";
 import { gsap } from "gsap";
-import { LoadingSpinner, LoadingWave } from "../ui/LoadingSpinner";
+import { LoadingWave } from "../ui/LoadingSpinner";
 
 interface OAuthButtonsProps {
   onGoogleSignIn: () => Promise<void>;

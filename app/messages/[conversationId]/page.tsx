@@ -236,8 +236,7 @@ export default function ConversationPage() {
     const handleSendMessage = useCallback(async (
         content: string,
         type?: string,
-        replyToId?: string,
-        metadata?: any
+        replyToId?: string
     ) => {
         if (!content.trim() || !currentConversation) {
             return;

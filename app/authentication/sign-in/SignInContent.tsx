@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 export function SignInContent() {
   const { isSignedIn } = useUser();
   const searchParams = useSearchParams();
-  const { redirectUrl, redirectToDestination, clearPendingAuthState } = useAuthRedirect();
+  const { redirectUrl, clearPendingAuthState } = useAuthRedirect();
   const processedRef = useRef(false);
   const router = useRouter();
   

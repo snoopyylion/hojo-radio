@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth, useUser } from "@clerk/nextjs";
 import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
 import { gsap } from "gsap";
-import { TrendingUp, CheckCircle, Crown, BarChart3, Edit3, MessageCircle, Bookmark, User, Download } from "lucide-react";
+import { TrendingUp, CheckCircle, Crown, BarChart3, Edit3, MessageCircle, Bookmark, Download } from "lucide-react";
 import VerifiedList from '@/components/VerifiedList';
 import { FollowersFollowingSection } from '@/components/Dashboard/FollowersFollowingSection';
 import PageLoader from '@/components/PageLoader';
@@ -121,8 +121,7 @@ export default function UserDashboard() {
   const [, setTabLoading] = useState(false);
   const { totalLikes: userLikedPosts } = useUserLikes();
   const {
-    totalComments,
-    loading: commentsLoading
+    totalComments
   } = useUserComments();
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);

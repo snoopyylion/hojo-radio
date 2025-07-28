@@ -96,15 +96,7 @@ export function MessagesList({
     };
 
     // Check if messages should be grouped (same sender within 2 minutes)
-    const shouldGroupMessage = (currentMessage: Message, previousMessage: Message | null) => {
-        if (!previousMessage) return false;
-
-        const isSameSender = currentMessage.sender_id === previousMessage.sender_id;
-        const timeDiff = new Date(currentMessage.created_at).getTime() - new Date(previousMessage.created_at).getTime();
-        const isWithinTimeLimit = timeDiff < 2 * 60 * 1000; // 2 minutes for Instagram-style grouping
-
-        return isSameSender && isWithinTimeLimit;
-    };
+    // Message grouping logic can be added here if needed in the future
 
     const messageGroups = groupMessagesByDate(messages);
 
@@ -160,26 +152,18 @@ export function MessagesList({
                         </div>
 
                         {/* Messages for this date */}
-                        {group.messages.map((message, index) => {
-                            const previousMessage = index > 0 ? group.messages[index - 1] : null;
-                            const nextMessage = index < group.messages.length - 1 ? group.messages[index + 1] : null;
-                            const isOwnMessage = message.sender_id === currentUserId;
-                            const isGrouped = shouldGroupMessage(message, previousMessage);
-                            const isLastInGroup = nextMessage ? !shouldGroupMessage(nextMessage, message) : true;
-
-                            return (
-                                <MessageBubble
-                                    key={message.id}
-                                    message={message}
-                                    isOwnMessage={message.sender_id === currentUserId}
-                                    onReply={onReply}
-                                    onReact={onReactToMessage}
-                                    onImageClick={() => {}}
-                                    replyingTo={replyingTo}
-                                    onDelete={onDeleteMessage}
-                                />
-                            );
-                        })}
+                        {group.messages.map((message) => (
+                            <MessageBubble
+                                key={message.id}
+                                message={message}
+                                isOwnMessage={message.sender_id === currentUserId}
+                                onReply={onReply}
+                                onReact={onReactToMessage}
+                                onImageClick={() => {}}
+                                replyingTo={replyingTo}
+                                onDelete={onDeleteMessage}
+                            />
+                        ))}
                     </div>
                 ))}
 

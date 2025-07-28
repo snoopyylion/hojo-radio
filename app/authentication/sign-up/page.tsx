@@ -11,8 +11,7 @@ export default function SignUpPage() {
   const { isSignedIn } = useUser();
   const router = useRouter();
 
-  // Memoize router to avoid dependency warnings
-  const memoizedRouter = useCallback(() => router, [router]);
+  // Router is used in useEffect dependency array
 
   useEffect(() => {
     if (isSignedIn) {

@@ -5,7 +5,7 @@ import { useUser, useAuth, useClerk } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { BrandSpinner, LoadingWave } from "../../../components/ui/LoadingSpinner";
+import { BrandSpinner } from "../../../components/ui/LoadingSpinner";
 
 interface AuthStatus {
   stage: 'authenticating' | 'syncing' | 'checking' | 'completing' | 'redirecting' | 'error';

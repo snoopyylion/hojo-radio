@@ -4,12 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Edit, 
-  Trash2, 
   Crown, 
   UserPlus, 
-  UserMinus, 
-  Settings, 
-  Image as ImageIcon,
+  UserMinus,
   X,
   Save,
   Camera
@@ -51,7 +48,7 @@ export const GroupChatSettings: React.FC<GroupChatSettingsProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const currentUser = conversation.participants.find(p => p.user_id === userId);
@@ -84,18 +81,6 @@ export const GroupChatSettings: React.FC<GroupChatSettingsProps> = ({
     }
   }, [searchQuery, showAddMember]);
 
-  // Handle image selection
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onload = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   // Save group changes
   const handleSave = async () => {

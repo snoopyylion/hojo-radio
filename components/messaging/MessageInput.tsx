@@ -6,17 +6,17 @@ import {
   Paperclip, 
   Image as ImageIcon, 
   Smile, 
-  X, 
   Reply,
   FileText,
   Video,
-  Music
+  Music,
+  X
 } from 'lucide-react';
 import { Message } from '@/types/messaging';
 import { useAuth } from '@clerk/nextjs';
 
 interface MessageInputProps {
-  onSendMessage: (content: string, type?: string, replyToId?: string, metadata?: any) => Promise<void>;
+  onSendMessage: (content: string, type?: string, replyToId?: string, metadata?: Record<string, any>) => Promise<void>;
   onTypingChange: (isTyping: boolean) => void;
   disabled?: boolean;
   placeholder?: string;
@@ -32,7 +32,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   replyingTo,
   onCancelReply
 }) => {
-  const { userId } = useAuth();
+  // User authentication context available if needed
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(false);

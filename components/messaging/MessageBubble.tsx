@@ -10,14 +10,9 @@ import {
   FileText,
   Download,
   Play,
-  Pause,
-  Volume2,
-  VolumeX,
   Trash2,
-  Check,
-  X
 } from 'lucide-react';
-import { Message, MessageReaction } from '@/types/messaging';
+import { Message } from '@/types/messaging';
 import { useAuth } from '@clerk/nextjs';
 import Image from 'next/image';
 
@@ -27,7 +22,6 @@ interface MessageBubbleProps {
   onReply: (message: Message) => void;
   onReact: (messageId: string, emoji: string) => void;
   onImageClick: (imageUrl: string) => void;
-  replyingTo?: Message;
   onDelete?: (messageId: string) => void;
 }
 
@@ -39,7 +33,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onReply,
   onReact,
   onImageClick,
-  replyingTo,
   onDelete = () => {}
 }) => {
   const { userId } = useAuth();
