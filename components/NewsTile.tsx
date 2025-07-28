@@ -244,15 +244,7 @@ const NewsTile: React.FC<NewsTileProps> = ({ post }) => {
           }
         } else {
           toast('Like removed');
-          await notificationService.createUserActivity({
-            user_id: userId,
-            type: 'post_unliked',
-            title: 'Like Removed',
-            description: `You unliked "${post.title}"`,
-            category: 'content',
-            visibility: 'public',
-            data: { post_id: post._id, post_title: post.title }
-          });
+          // Note: Unlike actions are not tracked as user activities
         }
       }
     } catch (err) {
