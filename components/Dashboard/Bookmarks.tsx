@@ -22,6 +22,7 @@ import {
 
 import { useAuth } from '@clerk/nextjs';
 import { notificationService } from '@/lib/notificationService';
+import toast from 'react-hot-toast';
 
 interface SanityImage {
   asset: {
@@ -141,15 +142,11 @@ const BookmarksPage: React.FC = () => {
           });
         }
         // Show toast
-        if (typeof window !== 'undefined' && window.toast) {
-          window.toast.success('Bookmark removed');
-        }
+        toast.success('Bookmark removed');
       }
     } catch (err) {
       console.error('Remove failed:', err);
-      if (typeof window !== 'undefined' && window.toast) {
-        window.toast.error('Failed to remove bookmark');
-      }
+      toast.error('Failed to remove bookmark');
     } finally {
       setIsRemoving(null);
     }

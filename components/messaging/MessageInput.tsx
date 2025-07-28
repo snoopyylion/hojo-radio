@@ -31,7 +31,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   replyingTo,
   onCancelReply
 }) => {
-  // User authentication context available if needed
+  // User authentication conupdatedtext available if needed
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
