@@ -1,21 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
-
-// Updated Message type to match MessageBubble
-interface Message {
-  id: string;
-  sender_id: string;
-  content: string;
-  message_type: 'text' | 'image' | 'file' | 'system';
-  created_at: string;
-  conversation_id: string;
-  updated_at: string;
-  reply_to_id?: string;
-  reply_to?: Message;
-  reactions?: Array<{ id: string; emoji: string; user_id: string; message_id: string; created_at: string }>;
-  metadata?: { caption?: string };
-}
+import { Message } from '@/types/messaging';
 
 interface User {
   id: string;

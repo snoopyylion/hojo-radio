@@ -310,29 +310,54 @@ export default function ConversationPage() {
 
     const handleReaction = useCallback(async (messageId: string, emoji: string) => {
         try {
+            console.log('🔄 Handling reaction:', { messageId, emoji });
+            
             // Get current user's reaction for this message
             const currentMessage = messages.find(msg => msg.id === messageId);
             const currentUserReactions = currentMessage?.reactions
                 ?.filter(r => r.user_id === userId)
                 ?.map(r => r.emoji) || [];
 
+            console.log('📋 Current user reactions:', currentUserReactions);
+
             const reaction = await reactToMessage(messageId, emoji, currentUserReactions);
 
-            if (reaction) {
-                setMessages((prev: Message[]) =>
-                    prev.map((msg: Message) => {
-                        if (msg.id === messageId) {
-                            // Remove any existing reactions from current user
-                            const otherReactions = msg.reactions?.filter(r => r.user_id !== userId) || [];
+            console.log('📥 Reaction result:', reaction);
+
+            setMessages((prev: Message[]) =>
+                prev.map((msg: Message) => {
+                    if (msg.id === messageId) {
+                        // Remove any existing reactions from current user
+                        const otherReactions = msg.reactions?.filter(r => r.user_id !== userId) || [];
+                        
+                        if (reaction) {
                             // Add the new reaction
                             return { ...msg, reactions: [...otherReactions, reaction] };
+                        } else {
+                            // Reaction was removed, return without current user's reactions
+                            return { ...msg, reactions: otherReactions };
                         }
-                        return msg;
-                    })
-                );
-            }
+                    }
+                    return msg;
+                })
+            );
         } catch (error) {
             console.error('❌ Error reacting to message:', error);
+            
+            // Show user-friendly error message
+            if (error instanceof Error) {
+                if (error.message.includes('Network error')) {
+                    toast.error('Network error: Please check your internet connection.', { duration: 4000 });
+                } else if (error.message.includes('Unauthorized')) {
+                    toast.error('You are not authorized to react to this message.', { duration: 4000 });
+                } else if (error.message.includes('Access denied')) {
+                    toast.error('Access denied: You may not have permission to react to messages in this conversation.', { duration: 4000 });
+                } else {
+                    toast.error(`Failed to react to message: ${error.message}`, { duration: 4000 });
+                }
+            } else {
+                toast.error('An unexpected error occurred while reacting to the message.', { duration: 4000 });
+            }
         }
     }, [reactToMessage, setMessages, messages, userId]);
 
@@ -442,7 +467,7 @@ export default function ConversationPage() {
                     })()}
 
                     {/* Message input */}
-                    <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-lg flex-shrink-0">
+                    <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-lg flex-shrink-0 relative z-[99999999]">
                         <MessageInput
                             onSendMessage={handleSendMessage}
                             onTypingChange={handleTyping}

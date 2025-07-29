@@ -2,21 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Reply, Smile, MoreHorizontal, Copy, Trash2 } from 'lucide-react';
-
-// Updated Message type to match both files
-interface Message {
-  id: string;
-  sender_id: string;
-  content: string;
-  message_type: 'text' | 'image' | 'file' | 'system';
-  created_at: string;
-  conversation_id: string;
-  updated_at: string;
-  reply_to_id?: string;
-  reply_to?: Message;
-  reactions?: Array<{ id: string; emoji: string; user_id: string; message_id: string; created_at: string }>;
-  metadata?: { caption?: string };
-}
+import { Message } from '@/types/messaging';
 
 interface MessageBubbleProps {
   message: Message;
@@ -128,7 +114,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const hasReactions = message.reactions && message.reactions.length > 0;
 
   // Group reactions by emoji and count them
-  const groupedReactions = message.reactions?.reduce((acc, reaction) => {
+  const groupedReactions = message.reactions?.reduce((acc: Record<string, { count: number; users: string[] }>, reaction) => {
     if (!acc[reaction.emoji]) {
       acc[reaction.emoji] = { count: 0, users: [] };
     }

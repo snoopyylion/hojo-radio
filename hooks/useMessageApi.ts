@@ -148,6 +148,8 @@ export const useMessageApi = () => {
 
   const reactToMessage = useCallback(async (messageId: string, emoji: string, currentUserReactions: string[] = []) => {
     try {
+      console.log('🔄 Reacting to message:', { messageId, emoji, currentUserReactions });
+      
       const token = await getToken();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -159,24 +161,71 @@ export const useMessageApi = () => {
       // If the user already reacted with a different emoji, remove it first
       if (currentUserReactions.length > 0 && !currentUserReactions.includes(emoji)) {
         for (const oldEmoji of currentUserReactions) {
-          await fetch('/api/message-reactions', {
+          console.log('🗑️ Removing old reaction:', oldEmoji);
+          const removeResponse = await fetch('/api/message-reactions', {
             method: 'POST',
             headers,
             body: JSON.stringify({ message_id: messageId, emoji: oldEmoji })
           });
+          
+          if (!removeResponse.ok) {
+            console.warn('⚠️ Failed to remove old reaction:', oldEmoji);
+          }
         }
       }
+
       // Now add/toggle the new reaction
+      console.log('➕ Adding new reaction:', emoji);
       const response = await fetch('/api/message-reactions', {
         method: 'POST',
         headers,
         body: JSON.stringify({ message_id: messageId, emoji })
       });
+
+      console.log('📥 Reaction response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Reaction API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If JSON parsing fails, use the text as is
+        }
+        
+        throw new Error(errorMessage);
+      }
+
       const data = await response.json();
-      return data.reaction;
+      console.log('✅ Reaction response data:', data);
+
+      // Handle both add and remove responses
+      if (data.action === 'removed') {
+        return null; // Return null to indicate reaction was removed
+      } else if (data.action === 'added' && data.reaction) {
+        return data.reaction; // Return the reaction object
+      } else {
+        console.warn('⚠️ Unexpected reaction response:', data);
+        return null;
+      }
     } catch (error) {
       console.error('❌ Error reacting to message:', error);
-      throw error;
+      
+      // Provide more specific error messages
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        throw new Error('Network error: Unable to connect to server. Please check your internet connection.');
+      } else if (error instanceof Error) {
+        throw error;
+      } else {
+        throw new Error('Unknown error occurred while reacting to message');
+      }
     }
   }, [getToken]);
 

@@ -48,7 +48,7 @@ export interface Message {
   updated_at: string;
   edited_at?: string;
   sender?: User;
-  reply_to?: Message;
+  reply_to?: Message | null;
   reactions?: MessageReaction[];
   isRead?: boolean;
   read_by?: string[];

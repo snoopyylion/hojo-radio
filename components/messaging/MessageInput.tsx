@@ -13,15 +13,7 @@ import {
   Plus,
   Camera
 } from 'lucide-react';
-
-interface Message {
-  id: string;
-  sender?: {
-    firstName?: string;
-    username?: string;
-  };
-  content: string;
-}
+import { Message } from '@/types/messaging';
 
 interface MessageInputProps {
   onSendMessage: (content: string, type?: string, replyToId?: string, metadata?: Record<string, unknown>) => Promise<void>;
@@ -380,39 +372,32 @@ const MessageInput: React.FC<MessageInputProps> = ({
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative border-t border-gray-200/50 dark:border-gray-800/50 bg-white/80 dark:bg-black/80 backdrop-blur-xl z-[9998] max-h-[50vh] overflow-hidden"
-    >
-      {/* Subtle gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-t from-gray-50/50 via-transparent to-transparent dark:from-gray-950/50 pointer-events-none"></div>
-      
-      <div className="relative z-[9998] p-2 sm:p-4 md:p-6">
+    <div className="relative z-[99999999] bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 p-4 sm:p-6 max-h-[50vh] overflow-hidden">
+      <div ref={containerRef} className="space-y-4">
         {/* Reply preview */}
         {replyingTo && (
-          <div className="mb-4 p-4 bg-white/60 dark:bg-black/60 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-1 h-8 bg-[#EF3866] rounded-full"></div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <Reply className="w-4 h-4 text-[#EF3866]" />
-                    <span className="text-sm font-semibold text-[#EF3866]">
-                      Replying to {replyingTo.sender?.firstName || replyingTo.sender?.username || 'Unknown'}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
-                    {replyingTo.content}
-                  </p>
-                </div>
+          <div className="flex items-center justify-between p-4 bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm">
+            <div className="flex items-center space-x-3 flex-1 min-w-0">
+              <div className="p-2 bg-[#EF3866]/10 rounded-xl">
+                <Reply className="w-4 h-4 text-[#EF3866]" />
               </div>
-              <button
-                onClick={onCancelReply}
-                className="p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
-              >
-                <X className="w-4 h-4 text-[#EF3866]" />
-              </button>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-semibold text-[#EF3866]">
+                    Replying to {replyingTo.sender?.firstName || replyingTo.sender?.username || 'Unknown'}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
+                  {replyingTo.content}
+                </p>
+              </div>
             </div>
+            <button
+              onClick={onCancelReply}
+              className="p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
+            >
+              <X className="w-4 h-4 text-[#EF3866]" />
+            </button>
           </div>
         )}
 
@@ -477,9 +462,9 @@ const MessageInput: React.FC<MessageInputProps> = ({
               <Plus className="w-5 h-5" />
             </button>
 
-            {/* Attachment menu - Fixed positioning to prevent interference */}
+            {/* Attachment menu - Positioned over the + icon */}
             {showAttachments && (
-              <div className="fixed bottom-20 left-2 sm:left-4 bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-2 min-w-[160px] sm:min-w-[180px] z-[9999] max-w-[200px]">
+              <div className="absolute bottom-full left-0 mb-2 bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-2 min-w-[160px] sm:min-w-[180px] z-[999999999] max-w-[200px]">
                 <button
                   onClick={() => {
                     imageInputRef.current?.click();
@@ -554,7 +539,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
             {/* Emoji picker */}
             {showEmojiPicker && (
-              <div className="fixed bottom-20 right-2 sm:right-4 bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-4 z-[9999] min-w-[240px] sm:min-w-[280px] max-w-[320px]">
+              <div className="fixed bottom-20 right-2 sm:right-4 bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-4 z-[999999999] min-w-[240px] sm:min-w-[280px] max-w-[320px]">
                 <div className="grid grid-cols-8 gap-2">
                   {QUICK_EMOJIS.map((emoji) => (
                     <button
