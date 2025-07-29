@@ -382,12 +382,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
   return (
     <div
       ref={containerRef}
-      className="relative border-t border-gray-200/50 dark:border-gray-800/50 bg-white/80 dark:bg-black/80 backdrop-blur-xl z-[9998]"
+      className="relative border-t border-gray-200/50 dark:border-gray-800/50 bg-white/80 dark:bg-black/80 backdrop-blur-xl z-[9998] max-h-[50vh] overflow-hidden"
     >
       {/* Subtle gradient background */}
       <div className="absolute inset-0 bg-gradient-to-t from-gray-50/50 via-transparent to-transparent dark:from-gray-950/50 pointer-events-none"></div>
       
-      <div className="relative z-[9998] p-4 sm:p-6">
+      <div className="relative z-[9998] p-2 sm:p-4 md:p-6">
         {/* Reply preview */}
         {replyingTo && (
           <div className="mb-4 p-4 bg-white/60 dark:bg-black/60 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-lg">
@@ -479,7 +479,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
             {/* Attachment menu - Fixed positioning to prevent interference */}
             {showAttachments && (
-              <div className="fixed bottom-20 left-4 bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-2 min-w-[180px] z-[9999] max-w-[200px]">
+              <div className="fixed bottom-20 left-2 sm:left-4 bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-2 min-w-[160px] sm:min-w-[180px] z-[9999] max-w-[200px]">
                 <button
                   onClick={() => {
                     imageInputRef.current?.click();
@@ -554,7 +554,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
             {/* Emoji picker */}
             {showEmojiPicker && (
-              <div className="fixed bottom-20 right-4 bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-4 z-[9999] min-w-[280px] max-w-[320px]">
+              <div className="fixed bottom-20 right-2 sm:right-4 bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-4 z-[9999] min-w-[240px] sm:min-w-[280px] max-w-[320px]">
                 <div className="grid grid-cols-8 gap-2">
                   {QUICK_EMOJIS.map((emoji) => (
                     <button

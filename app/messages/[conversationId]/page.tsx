@@ -403,7 +403,7 @@ export default function ConversationPage() {
             <ConnectionStatus isConnected={isConnected} />
 
             {/* Main chat area */}
-            <div className="flex flex-col h-screen bg-white dark:bg-gray-950">
+            <div className="flex flex-col h-screen max-h-screen bg-white dark:bg-gray-950 overflow-hidden">
                 {/* Chat header */}
                 {currentConversation && (
                     <ConversationHeader
@@ -415,8 +415,8 @@ export default function ConversationPage() {
                 )}
 
                 {/* Messages area */}
-                <div className="flex-1 flex flex-col min-h-0 bg-gray-50 dark:bg-gray-900/50">
-                    <div ref={messageListRef} className="flex-1 overflow-y-auto">
+                <div className="flex-1 flex flex-col min-h-0 max-h-full bg-gray-50 dark:bg-gray-900/50 overflow-hidden">
+                    <div ref={messageListRef} className="flex-1 overflow-y-auto min-h-0">
                         <MessagesList
                             messages={messages}
                             typingUsers={typingUsersSet}
@@ -435,14 +435,14 @@ export default function ConversationPage() {
                     {/* Enhanced Typing indicator */}
                     {(() => {
                         return currentTypingUsers.length > 0 && (
-                            <div className="px-4 py-2 bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800">
+                            <div className="px-4 py-2 bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800 flex-shrink-0">
                                 <TypingIndicator />
                             </div>
                         );
                     })()}
 
                     {/* Message input */}
-                    <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-lg">
+                    <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-lg flex-shrink-0">
                         <MessageInput
                             onSendMessage={handleSendMessage}
                             onTypingChange={handleTyping}

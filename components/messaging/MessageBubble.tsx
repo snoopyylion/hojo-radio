@@ -3,21 +3,23 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Reply, Heart, Smile, MoreHorizontal, Copy, Trash2 } from 'lucide-react';
 
-// Types
+// Updated Message type to match both files
 interface Message {
   id: string;
   sender_id: string;
   content: string;
-  message_type: 'text' | 'image';
+  message_type: 'text' | 'image' | 'file' | 'system';
   created_at: string;
+  conversation_id: string;
+  updated_at: string;
   reply_to_id?: string;
   reply_to?: Message | null;
-  reactions?: Array<{ emoji: string; user_id: string }>;
+  reactions?: Array<{ id: string; emoji: string; user_id: string; message_id: string; created_at: string }>;
   metadata?: { caption?: string };
 }
 
 interface MessageReactionsProps {
-  reactions: Array<{ emoji: string; user_id: string }>;
+  reactions: Array<{ id: string; emoji: string; user_id: string; message_id: string; created_at: string }>;
   currentUserId: string;
   onReact: (emoji: string) => void;
 }
@@ -64,6 +66,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [showActions, setShowActions] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [isLongPressed, setIsLongPressed] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
   const bubbleRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -87,6 +90,31 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     setIsLongPressed(false);
   };
 
+  const handleCopy = async () => {
+    try {
+      if (message.content) {
+        await navigator.clipboard.writeText(message.content);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+      }
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+    setShowActions(false);
+  };
+
+  const handleReact = (emoji: string) => {
+    onReact?.(message.id, emoji);
+    setShowReactions(false);
+  };
+
+  const handleDelete = () => {
+    if (window.confirm('Are you sure you want to delete this message?')) {
+      onDelete?.(message.id, message);
+    }
+    setShowActions(false);
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (bubbleRef.current && !bubbleRef.current.contains(event.target as Node)) {
@@ -100,6 +128,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   const isImageMessage = message.message_type === 'image';
   const hasReactions = message.reactions && message.reactions.length > 0;
+
+  // Group reactions by emoji and count them
+  const groupedReactions = message.reactions?.reduce((acc, reaction) => {
+    if (!acc[reaction.emoji]) {
+      acc[reaction.emoji] = { count: 0, users: [] };
+    }
+    acc[reaction.emoji].count += 1;
+    acc[reaction.emoji].users.push(reaction.user_id);
+    return acc;
+  }, {} as Record<string, { count: number; users: string[] }>);
 
   return (
     <div
@@ -175,21 +213,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onReact?.(message.id, '❤️');
-              }}
-              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
-                isOwnMessage 
-                  ? 'hover:bg-white/20 text-white/80' 
-                  : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400'
-              }`}
-              title="React with heart"
-            >
-              <Heart className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
                 onReply?.(message);
               }}
               className={`p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
@@ -222,17 +245,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         {/* Reactions display */}
         {hasReactions && (
           <div className="mt-3 flex flex-wrap gap-2">
-            {message.reactions?.map((reaction, idx) => (
-              <div
-                key={reaction.emoji + '-' + idx}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105 cursor-pointer ${
+            {Object.entries(groupedReactions || {}).map(([emoji, data]) => (
+              <button
+                key={emoji}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105 cursor-pointer flex items-center gap-1 ${
                   isOwnMessage 
-                    ? 'bg-white/20 text-white' 
-                    : 'bg-white dark:bg-black text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-800'
+                    ? 'bg-white/20 text-white hover:bg-white/30' 
+                    : 'bg-white dark:bg-black text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800'
                 }`}
+                onClick={() => handleReact(emoji)}
+                title={`${data.count} reaction${data.count > 1 ? 's' : ''}`}
               >
-                {reaction.emoji}
-              </div>
+                <span>{emoji}</span>
+                {data.count > 1 && <span className="text-xs opacity-80">{data.count}</span>}
+              </button>
             ))}
           </div>
         )}
@@ -241,38 +267,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       {/* Enhanced Actions Menu */}
       {showActions && (
         <div
-          className={`absolute z-50 top-0`}
+          className={`fixed z-[9999] top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2`}
           style={{
-            left: isOwnMessage ? 'auto' : '50%',
-            right: isOwnMessage ? '50%' : 'auto',
-            transform: isOwnMessage 
-              ? 'translateX(calc(50% + 8px))' 
-              : 'translateX(calc(-50% - 8px))',
             maxWidth: '280px',
             minWidth: '240px'
           }}
         >
-          <div className="bg-white dark:bg-black rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 p-2 backdrop-blur-md">
+          <div className="bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-2">
             <div className="space-y-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowReactions(!showReactions);
-                  setShowActions(false);
-                }}
-                className="w-full flex items-center gap-4 px-4 py-3 text-sm text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-900 rounded-2xl transition-all duration-200"
-              >
-                <Smile className="w-5 h-5" />
-                <span>React</span>
-              </button>
-              
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onReply?.(message);
                   setShowActions(false);
                 }}
-                className="w-full flex items-center gap-4 px-4 py-3 text-sm text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-900 rounded-2xl transition-all duration-200"
+                className="w-full flex items-center gap-4 px-4 py-3 text-sm text-black dark:text-white hover:bg-gray-100/50 dark:hover:bg-gray-900/50 rounded-2xl transition-all duration-200"
               >
                 <Reply className="w-5 h-5" />
                 <span>Reply</span>
@@ -281,27 +290,33 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (message.content) {
-                    navigator.clipboard.writeText(message.content);
-                  }
+                  setShowReactions(!showReactions);
                   setShowActions(false);
                 }}
-                className="w-full flex items-center gap-4 px-4 py-3 text-sm text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-900 rounded-2xl transition-all duration-200"
+                className="w-full flex items-center gap-4 px-4 py-3 text-sm text-black dark:text-white hover:bg-gray-100/50 dark:hover:bg-gray-900/50 rounded-2xl transition-all duration-200"
+              >
+                <Smile className="w-5 h-5" />
+                <span>React</span>
+              </button>
+              
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopy();
+                }}
+                className="w-full flex items-center gap-4 px-4 py-3 text-sm text-black dark:text-white hover:bg-gray-100/50 dark:hover:bg-gray-900/50 rounded-2xl transition-all duration-200"
               >
                 <Copy className="w-5 h-5" />
-                <span>Copy</span>
+                <span>{copySuccess ? 'Copied!' : 'Copy'}</span>
               </button>
               
               {isOwnMessage && onDelete && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (window.confirm('Are you sure you want to delete this message?')) {
-                      onDelete(message.id, message);
-                    }
-                    setShowActions(false);
+                    handleDelete();
                   }}
-                  className="w-full flex items-center gap-4 px-4 py-3 text-sm text-[#EF3866] hover:bg-red-50 dark:hover:bg-red-950/20 rounded-2xl transition-all duration-200"
+                  className="w-full flex items-center gap-4 px-4 py-3 text-sm text-[#EF3866] hover:bg-red-50/50 dark:hover:bg-red-950/20 rounded-2xl transition-all duration-200"
                 >
                   <Trash2 className="w-5 h-5" />
                   <span>Delete</span>
@@ -312,19 +327,23 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         </div>
       )}
 
-      {/* Reactions Picker */}
+      {/* Enhanced Reactions Picker */}
       {showReactions && (
-        <div className={`absolute top-0 z-40 ${
-          isOwnMessage ? 'right-full mr-4' : 'left-full ml-4'
-        }`}>
+        <div className={`fixed z-[9998] top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2`}>
           <MessageReactions
             reactions={message.reactions || []}
             currentUserId={message.sender_id}
-            onReact={(emoji: string) => {
-              onReact?.(message.id, emoji);
-              setShowReactions(false);
-            }}
+            onReact={handleReact}
           />
+        </div>
+      )}
+
+      {/* Copy success notification */}
+      {copySuccess && (
+        <div className={`absolute -top-12 ${
+          isOwnMessage ? 'right-0' : 'left-0'
+        } bg-green-500 text-white text-xs px-3 py-1 rounded-full shadow-lg z-50 animate-fade-in-out`}>
+          Copied to clipboard!
         </div>
       )}
     </div>

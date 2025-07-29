@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Reply, Heart, Smile, MoreHorizontal, ChevronDown, Copy, Trash2 } from 'lucide-react';
+import { MessageBubble } from './MessageBubble';
 
-// Types
+// Updated Message type to match MessageBubble
 interface Message {
   id: string;
   sender_id: string;
@@ -11,7 +12,7 @@ interface Message {
   conversation_id: string;
   updated_at: string;
   reply_to_id?: string;
-  reply_to?: Message;
+  reply_to?: Message | null;
   reactions?: Array<{ id: string; emoji: string; user_id: string; message_id: string; created_at: string }>;
   metadata?: { caption?: string };
 }
@@ -39,7 +40,7 @@ interface MessagesListProps {
 
 // MessageReactions Component
 const MessageReactions: React.FC<{
-  reactions: Array<{ emoji: string; user_id: string }>;
+  reactions: Array<{ id: string; emoji: string; user_id: string; message_id: string; created_at: string }>;
   currentUserId: string;
   onReact: (emoji: string) => void;
 }> = ({ onReact }) => {
@@ -61,294 +62,7 @@ const MessageReactions: React.FC<{
   );
 };
 
-// MessageBubble Component
-const MessageBubble: React.FC<{
-  message: Message;
-  isOwnMessage: boolean;
-  onReply?: (message: Message) => void;
-  onReact?: (messageId: string, emoji: string) => void;
-  onDelete?: (messageId: string, message: Message) => void;
-  onImageClick?: (imageUrl: string) => void;
-  replyingTo?: Message | null;
-}> = ({
-  message,
-  isOwnMessage,
-  onReply,
-  onReact,
-  onDelete,
-  onImageClick
-}) => {
-  const [showActions, setShowActions] = useState(false);
-  const [showReactions, setShowReactions] = useState(false);
-  const [isLongPressed, setIsLongPressed] = useState(false);
-  const bubbleRef = useRef<HTMLDivElement>(null);
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
-
-  const handleTouchStart = () => {
-    longPressTimer.current = setTimeout(() => {
-      setIsLongPressed(true);
-      setShowActions(true);
-    }, 500);
-  };
-
-  const handleTouchEnd = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-    }
-  };
-
-  const handleClick = () => {
-    if (!isLongPressed) {
-      setShowActions(!showActions);
-    }
-    setIsLongPressed(false);
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (bubbleRef.current && !bubbleRef.current.contains(event.target as Node)) {
-        setShowActions(false);
-        setShowReactions(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const isImageMessage = message.message_type === 'image';
-  const hasReactions = message.reactions && message.reactions.length > 0;
-
-  return (
-    <div
-      ref={bubbleRef}
-      className={`group relative flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-1 px-2 sm:px-4`}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onClick={handleClick}
-    >
-      {/* Message Container */}
-      <div
-        className={`relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] lg:max-w-[55%] xl:max-w-[50%] ${
-          isOwnMessage 
-            ? 'bg-[#EF3866] text-white' 
-            : 'bg-gray-100 dark:bg-gray-900 text-black dark:text-white border border-gray-200 dark:border-gray-800'
-        } rounded-3xl px-4 py-3 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02]`}
-      >
-        {/* Reply indicator */}
-        {(message.reply_to || message.reply_to_id) && (
-          <div className={`mb-3 p-3 rounded-2xl text-xs ${
-            isOwnMessage 
-              ? 'bg-white/10 text-white/80' 
-              : 'bg-white dark:bg-black text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-800'
-          }`}>
-            <div className="flex items-center gap-2 mb-1">
-              <Reply className="w-3 h-3" />
-              <span className="font-medium">Replying to</span>
-            </div>
-            <p className="truncate opacity-80">
-              {message.reply_to?.content || 'Original message'}
-            </p>
-          </div>
-        )}
-
-        {/* Message content */}
-        <div className="space-y-2">
-          {isImageMessage ? (
-            <div 
-              className="relative cursor-pointer group/image"
-              onClick={() => onImageClick?.(message.content)}
-            >
-              <img
-                src={message.content}
-                alt={message.metadata?.caption || 'Shared image'}
-                className="rounded-2xl max-w-full h-auto object-cover hover:opacity-90 transition-opacity w-full max-h-80"
-              />
-              <div className="absolute inset-0 bg-black/0 group-hover/image:bg-black/10 transition-all duration-200 rounded-2xl" />
-              {message.metadata?.caption && (
-                <p className="text-sm mt-2 opacity-90">{message.metadata.caption}</p>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap break-words">
-              {message.content}
-            </p>
-          )}
-        </div>
-
-        {/* Message metadata and quick actions */}
-        <div className={`flex items-center justify-between mt-3 text-xs ${
-          isOwnMessage ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
-        }`}>
-          <span className="text-xs">
-            {new Date(message.created_at).toLocaleTimeString('en-US', { 
-              hour: 'numeric', 
-              minute: '2-digit',
-              hour12: true 
-            })}
-          </span>
-          
-          {/* Quick actions - visible on hover/mobile */}
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity duration-300">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onReact?.(message.id, '❤️');
-              }}
-              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
-                isOwnMessage 
-                  ? 'hover:bg-white/20 text-white/80' 
-                  : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400'
-              }`}
-              title="React with heart"
-            >
-              <Heart className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onReply?.(message);
-              }}
-              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
-                isOwnMessage 
-                  ? 'hover:bg-white/20 text-white/80' 
-                  : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400'
-              }`}
-              title="Reply"
-            >
-              <Reply className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowActions(!showActions);
-              }}
-              className={`p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
-                isOwnMessage 
-                  ? 'hover:bg-white/20 text-white/80' 
-                  : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400'
-              }`}
-              title="More actions"
-            >
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Reactions display */}
-        {hasReactions && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {message.reactions?.map((reaction, idx) => (
-              <div
-                key={reaction.emoji + '-' + idx}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105 cursor-pointer ${
-                  isOwnMessage 
-                    ? 'bg-white/20 text-white' 
-                    : 'bg-white dark:bg-black text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-800'
-                }`}
-              >
-                {reaction.emoji}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Enhanced Actions Menu */}
-      {showActions && (
-        <div
-          className={`absolute z-50 top-0`}
-          style={{
-            left: isOwnMessage ? 'auto' : '50%',
-            right: isOwnMessage ? '50%' : 'auto',
-            transform: isOwnMessage 
-              ? 'translateX(calc(50% + 8px))' 
-              : 'translateX(calc(-50% - 8px))',
-            maxWidth: '280px',
-            minWidth: '240px'
-          }}
-        >
-          <div className="bg-white dark:bg-black rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 p-2 backdrop-blur-md">
-            <div className="space-y-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowReactions(!showReactions);
-                  setShowActions(false);
-                }}
-                className="w-full flex items-center gap-4 px-4 py-3 text-sm text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-900 rounded-2xl transition-all duration-200"
-              >
-                <Smile className="w-5 h-5" />
-                <span>React</span>
-              </button>
-              
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onReply?.(message);
-                  setShowActions(false);
-                }}
-                className="w-full flex items-center gap-4 px-4 py-3 text-sm text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-900 rounded-2xl transition-all duration-200"
-              >
-                <Reply className="w-5 h-5" />
-                <span>Reply</span>
-              </button>
-              
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (message.content) {
-                    navigator.clipboard.writeText(message.content);
-                  }
-                  setShowActions(false);
-                }}
-                className="w-full flex items-center gap-4 px-4 py-3 text-sm text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-900 rounded-2xl transition-all duration-200"
-              >
-                <Copy className="w-5 h-5" />
-                <span>Copy</span>
-              </button>
-              
-              {isOwnMessage && onDelete && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (window.confirm('Are you sure you want to delete this message?')) {
-                      onDelete(message.id, message);
-                    }
-                    setShowActions(false);
-                  }}
-                  className="w-full flex items-center gap-4 px-4 py-3 text-sm text-[#EF3866] hover:bg-red-50 dark:hover:bg-red-950/20 rounded-2xl transition-all duration-200"
-                >
-                  <Trash2 className="w-5 h-5" />
-                  <span>Delete</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reactions Picker */}
-      {showReactions && (
-        <div className={`absolute top-0 z-40 ${
-          isOwnMessage ? 'right-full mr-4' : 'left-full ml-4'
-        }`}>
-          <MessageReactions
-            reactions={message.reactions || []}
-            currentUserId={message.sender_id}
-            onReact={(emoji: string) => {
-              onReact?.(message.id, emoji);
-              setShowReactions(false);
-            }}
-          />
-        </div>
-      )}
-    </div>
-  );
-};
-
-// TypingIndicator Component
+// TypingIndicator Component with enhanced animation
 const TypingIndicator: React.FC = () => (
   <div className="flex items-center space-x-1">
     <div className="w-2 h-2 bg-gray-400 dark:bg-gray-600 rounded-full animate-bounce"></div>
@@ -357,7 +71,7 @@ const TypingIndicator: React.FC = () => (
   </div>
 );
 
-// LoadingSpinner Component
+// Enhanced LoadingSpinner Component
 const LoadingSpinner: React.FC<{ size?: 'sm' | 'md' | 'lg' }> = ({ size = 'md' }) => {
   const sizeClasses = {
     sm: 'w-4 h-4',
@@ -387,6 +101,11 @@ const MessagesList: React.FC<MessagesListProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+
+  // Enhanced reaction handler
+  const handleReactToMessage = (messageId: string, emoji: string) => {
+    onReactToMessage(messageId, emoji);
+  };
 
   useEffect(() => {
     if (shouldAutoScroll) {
@@ -451,10 +170,10 @@ const MessagesList: React.FC<MessagesListProps> = ({
 
   return (
     <div className={`flex flex-col h-full relative bg-white dark:bg-black ${className}`}>
-      {/* Modern gradient background */}
+      {/* Enhanced gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-950 dark:via-black dark:to-gray-900 pointer-events-none"></div>
       
-      {/* Subtle pattern overlay */}
+      {/* Subtle animated pattern overlay */}
       <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.05] pointer-events-none">
         <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -468,13 +187,13 @@ const MessagesList: React.FC<MessagesListProps> = ({
 
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto py-4 relative z-10 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent"
+        className="flex-1 overflow-y-auto py-4 relative z-10 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent hover:scrollbar-thumb-gray-400 dark:hover:scrollbar-thumb-gray-600"
         onScroll={handleScroll}
       >
-        {/* Loading indicator */}
+        {/* Enhanced loading indicator */}
         {loading && hasMore && (
           <div className="flex justify-center py-8">
-            <div className="flex items-center space-x-3 bg-white dark:bg-black backdrop-blur-sm rounded-full px-6 py-3 shadow-xl border border-gray-200 dark:border-gray-800">
+            <div className="flex items-center space-x-3 bg-white/80 dark:bg-black/80 backdrop-blur-sm rounded-full px-6 py-3 shadow-xl border border-gray-200 dark:border-gray-800">
               <LoadingSpinner size="sm" />
               <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Loading messages...</span>
             </div>
@@ -484,9 +203,9 @@ const MessagesList: React.FC<MessagesListProps> = ({
         {/* Message groups */}
         {messageGroups.map(group => (
           <div key={group.date} className="space-y-2">
-            {/* Date header */}
+            {/* Enhanced date header */}
             <div className="flex justify-center my-8">
-              <div className="bg-white dark:bg-black backdrop-blur-sm text-gray-700 dark:text-gray-300 text-sm font-semibold px-6 py-2 rounded-full border border-gray-200 dark:border-gray-800 shadow-lg">
+              <div className="bg-white/90 dark:bg-black/90 backdrop-blur-sm text-gray-700 dark:text-gray-300 text-sm font-semibold px-6 py-2 rounded-full border border-gray-200 dark:border-gray-800 shadow-lg hover:shadow-xl transition-shadow duration-300">
                 {formatDateHeader(group.date)}
               </div>
             </div>
@@ -498,7 +217,7 @@ const MessagesList: React.FC<MessagesListProps> = ({
                 message={message}
                 isOwnMessage={message.sender_id === currentUserId}
                 onReply={onReply}
-                onReact={onReactToMessage}
+                onReact={handleReactToMessage}
                 onImageClick={() => {}}
                 onDelete={onDeleteMessage}
                 replyingTo={replyingTo}
@@ -507,23 +226,23 @@ const MessagesList: React.FC<MessagesListProps> = ({
           </div>
         ))}
 
-        {/* Typing indicator */}
+        {/* Enhanced typing indicator */}
         {typingUsers.size > 0 && (
           <div className="flex justify-start mb-6 px-2 sm:px-4">
-            <div className="flex items-center space-x-3 bg-gray-100 dark:bg-gray-900 backdrop-blur-sm rounded-full px-4 py-3 shadow-lg border border-gray-200 dark:border-gray-800">
+            <div className="flex items-center space-x-3 bg-gray-100/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-full px-4 py-3 shadow-lg border border-gray-200 dark:border-gray-800">
               <TypingIndicator />
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                Someone is typing...
+                {typingUsers.size === 1 ? 'Someone is typing...' : `${typingUsers.size} people are typing...`}
               </span>
             </div>
           </div>
         )}
 
-        {/* Empty state */}
+        {/* Enhanced empty state */}
         {messages.length === 0 && !loading && (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <div className="bg-white dark:bg-black backdrop-blur-sm rounded-3xl p-12 shadow-2xl border border-gray-200 dark:border-gray-800 max-w-sm">
-              <div className="text-6xl mb-6 opacity-20">💬</div>
+          <div className="flex flex-col items-center justify-center h-full text-center px-4 animate-fade-in">
+            <div className="bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-3xl p-12 shadow-2xl border border-gray-200 dark:border-gray-800 max-w-sm hover:shadow-3xl transition-shadow duration-500">
+              <div className="text-6xl mb-6 opacity-20 animate-pulse">💬</div>
               <h3 className="text-xl font-bold mb-4 text-black dark:text-white">Start a conversation</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                 Send a message to begin chatting. Your conversation will appear here.
@@ -535,18 +254,54 @@ const MessagesList: React.FC<MessagesListProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Scroll to bottom button */}
+      {/* Enhanced scroll to bottom button */}
       {!shouldAutoScroll && (
         <div className="absolute bottom-6 right-4 sm:right-6 z-20">
           <button
             onClick={scrollToBottom}
-            className="bg-white dark:bg-black hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-full p-4 shadow-2xl border border-gray-200 dark:border-gray-800 transition-all duration-300 hover:scale-110 active:scale-95 backdrop-blur-sm"
+            className="bg-white/90 dark:bg-black/90 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-full p-4 shadow-2xl border border-gray-200 dark:border-gray-800 transition-all duration-300 hover:scale-110 active:scale-95 backdrop-blur-sm group"
             title="Scroll to bottom"
           >
-            <ChevronDown className="w-5 h-5" />
+            <ChevronDown className="w-5 h-5 group-hover:animate-bounce" />
           </button>
         </div>
       )}
+
+      <style jsx>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fade-in-out {
+          0% {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.8);
+          }
+          20%, 80% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.8);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.5s ease-out;
+        }
+
+        .animate-fade-in-out {
+          animation: fade-in-out 2s ease-out;
+        }
+      `}</style>
     </div>
   );
 };
