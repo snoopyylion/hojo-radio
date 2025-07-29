@@ -11,38 +11,57 @@ if (!supabaseUrl || !supabaseServiceKey) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    try {
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-        const messageId = (await params).id;
-        // Get the message
-        const { data: message, error: messageError } = await supabase
-            .from('messages')
-            .select('id, sender_id, deleted_at')
-            .eq('id', messageId)
-            .single();
-        if (messageError || !message) {
-            return NextResponse.json({ error: 'Message not found' }, { status: 404 });
-        }
-        if (message.sender_id !== userId) {
-            return NextResponse.json({ error: 'You can only delete your own messages' }, { status: 403 });
-        }
-        if (message.deleted_at) {
-            return NextResponse.json({ error: 'Message already deleted' }, { status: 400 });
-        }
-        // Soft delete
-        const { error: deleteError } = await supabase
-            .from('messages')
-            .update({ deleted_at: new Date().toISOString() })
-            .eq('id', messageId);
-        if (deleteError) {
-            return NextResponse.json({ error: 'Failed to delete message' }, { status: 500 });
-        }
-        return NextResponse.json({ success: true });
-    } catch {
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const { id: messageId } = await context.params;
+    if (!messageId) {
+      return NextResponse.json({ error: 'Message ID is required' }, { status: 400 });
+    }
+    // Fetch the message to check ownership and type
+    const { data: message, error: fetchError } = await supabase
+      .from('messages')
+      .select('id, sender_id, message_type, content')
+      .eq('id', messageId)
+      .single();
+    if (fetchError || !message) {
+      console.error('Fetch message error:', fetchError);
+      return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+    }
+    if (message.sender_id !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    // If image, delete from storage
+    if (message.message_type === 'image' && message.content) {
+      const match = message.content.match(/\/object\/public\/message-files\/(.+)$/);
+      if (match && match[1]) {
+        const filePath = match[1];
+        const { error: storageError } = await supabase.storage.from('message-files').remove([filePath]);
+        if (storageError) {
+          console.error('Failed to delete image from storage:', storageError);
+          // Optionally, return an error here if you want to block deletion on storage failure
+        }
+      }
+    }
+    // Soft delete the message (set deleted_at only)
+    const now = new Date().toISOString();
+    const { error: deleteError } = await supabase
+      .from('messages')
+      .update({ deleted_at: now })
+      .eq('id', messageId);
+    if (deleteError) {
+      console.error('Failed to soft delete message:', deleteError);
+      return NextResponse.json({ error: 'Failed to delete message' }, { status: 500 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Delete message error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 } 

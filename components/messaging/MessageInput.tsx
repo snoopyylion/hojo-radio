@@ -127,17 +127,88 @@ const MessageInput: React.FC<MessageInputProps> = ({
     setAttachedFiles(prev => [...prev, ...validFiles]);
   }, []);
 
-  // Upload file to storage
+  // Upload file to storage with improved error handling
   const uploadFile = async (file: File): Promise<string> => {
-    // This is a placeholder - implement your file upload logic here
-    // You might want to use Supabase Storage, AWS S3, or another service
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        resolve(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    });
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Validate file before upload
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+          throw new Error('File size exceeds 5MB limit');
+        }
+
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+        if (!allowedTypes.includes(file.type)) {
+          throw new Error('Only image files are supported');
+        }
+
+        // Create FormData for file upload
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Upload to your API endpoint with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+        const response = await fetch('/api/messages/upload-file', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage = errorData.error || `Upload failed: ${response.statusText}`;
+          
+          // Don't retry for client errors (4xx)
+          if (response.status >= 400 && response.status < 500) {
+            throw new Error(errorMessage);
+          }
+          
+          // Retry for server errors (5xx)
+          throw new Error(`Server error (attempt ${attempt}/${maxRetries}): ${errorMessage}`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.url) {
+          throw new Error('No URL returned from upload');
+        }
+
+        return result.url;
+
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`Upload attempt ${attempt} failed:`, error);
+
+        // Don't retry for certain errors
+        if (error instanceof Error) {
+          if (error.name === 'AbortError') {
+            throw new Error('Upload timed out. Please try again.');
+          }
+          
+          if (error.message.includes('File size exceeds') || 
+              error.message.includes('Only image files') ||
+              error.message.includes('Unauthorized') ||
+              error.message.includes('No file provided')) {
+            throw error; // Don't retry client errors
+          }
+        }
+
+        // Wait before retrying (exponential backoff)
+        if (attempt < maxRetries) {
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    // All retries failed
+    throw new Error(`Upload failed after ${maxRetries} attempts. ${lastError?.message || 'Please try again later.'}`);
   };
 
   // Format file size
@@ -162,55 +233,95 @@ const MessageInput: React.FC<MessageInputProps> = ({
     setAttachedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Handle send message
+  // Handle send message with improved error handling
   const handleSendMessage = async () => {
     if ((!message.trim() && attachedFiles.length === 0) || disabled || isLoading) return;
 
     setIsLoading(true);
     stopTyping();
 
+    const errors: string[] = [];
+    const successfulUploads: string[] = [];
+
     try {
       // Send text message if any
       if (message.trim()) {
-        await onSendMessage(
-          message.trim(),
-          'text',
-          replyingTo?.id,
-          {}
-        );
+        try {
+          await onSendMessage(
+            message.trim(),
+            'text',
+            replyingTo?.id,
+            {}
+          );
+        } catch (error) {
+          errors.push('Failed to send text message');
+          console.error('Text message error:', error);
+        }
       }
 
-      // Send attached files
+      // Send attached files with individual error handling
       for (const file of attachedFiles) {
-        const fileUrl = await uploadFile(file);
-        const messageType = file.type.startsWith('image/') ? 'image' : 'file';
-        await onSendMessage(
-          fileUrl,
-          messageType,
-          replyingTo?.id,
-          {
-            filename: file.name,
-            filesize: file.size,
-            filetype: file.type,
-            caption: message.trim() || undefined
-          }
-        );
+        try {
+          const fileUrl = await uploadFile(file);
+          const messageType = file.type.startsWith('image/') ? 'image' : 'file';
+          
+          await onSendMessage(
+            fileUrl,
+            messageType,
+            replyingTo?.id,
+            {
+              filename: file.name,
+              filesize: file.size,
+              filetype: file.type,
+              caption: message.trim() || undefined
+            }
+          );
+          
+          successfulUploads.push(file.name);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          errors.push(`Failed to upload ${file.name}: ${errorMessage}`);
+          console.error(`File upload error for ${file.name}:`, error);
+        }
       }
 
-      // Reset state
-      setMessage('');
-      setAttachedFiles([]);
-      if (onCancelReply) onCancelReply();
-      
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
+      // Show success/error feedback
+      if (successfulUploads.length > 0) {
+        const successMessage = successfulUploads.length === 1 
+          ? `Successfully sent ${successfulUploads[0]}`
+          : `Successfully sent ${successfulUploads.length} files`;
+        
+        // You could replace this with a toast notification
+        console.log(successMessage);
       }
 
-      setIsTyping(false);
-      onTypingChange(false);
+      if (errors.length > 0) {
+        const errorMessage = errors.length === 1 
+          ? errors[0]
+          : `Some items failed to send:\n${errors.join('\n')}`;
+        
+        // Show error in a more user-friendly way
+        alert(errorMessage);
+      }
+
+      // Reset state only if we have some success or no files were attempted
+      if (successfulUploads.length > 0 || attachedFiles.length === 0) {
+        setMessage('');
+        setAttachedFiles([]);
+        if (onCancelReply) onCancelReply();
+        
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto';
+        }
+
+        setIsTyping(false);
+        onTypingChange(false);
+      }
+
     } catch (error) {
-      console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      console.error('Error in handleSendMessage:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to send message';
+      alert(`Error: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }

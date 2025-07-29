@@ -16,7 +16,7 @@ interface MessagesListProps {
     onReactToMessage: (messageId: string, emoji: string) => void;
     onReply?: (message: Message) => void;
     replyingTo?: Message | null;
-    onDeleteMessage?: (messageId: string) => void;
+    onDeleteMessage?: (messageId: string, message: Message) => void;
     onLoadMore?: () => void;
     loading?: boolean;
     hasMore?: boolean;
@@ -178,20 +178,6 @@ export function MessagesList({
                                 {Array.from(typingUsers).join(', ')} {typingUsers.size === 1 ? 'is' : 'are'} typing...
                             </span>
                         </div>
-                    </div>
-                )}
-
-                {/* Image Gallery */}
-                {conversationId && messages.length > 0 && (
-                    <div className="mb-6">
-                        <ImageGallery
-                            messages={messages}
-                            conversationId={conversationId}
-                            initialImageUrl={selectedImageUrl}
-                            onImageClick={(imageUrl) => setSelectedImageUrl(imageUrl)}
-                            showHeader={true}
-                            compact={false}
-                        />
                     </div>
                 )}
 

@@ -20,6 +20,7 @@ import {
 } from '@/components/messaging/ConversationStates';
 import { Conversation, Message, TypingUser, User } from '@/types/messaging';
 import { clearConversationNotifications } from '@/hooks/useNotifications';
+import toast from 'react-hot-toast';
 
 export default function ConversationPage() {
     const router = useRouter();
@@ -335,27 +336,25 @@ export default function ConversationPage() {
         }
     }, [reactToMessage, setMessages, messages, userId]);
 
-    const handleDeleteMessage = useCallback(async (messageId: string) => {
+    // Delete handler for messages
+    const handleDeleteMessage = async (messageId: string, message: Message) => {
+        if (!messageId) return;
         try {
-            const response = await fetch(`/api/messages/${messageId}`, {
+            const res = await fetch(`/api/messages/${encodeURIComponent(messageId)}`, {
                 method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
             });
-
-            if (response.ok) {
-                // Remove the message from local state
-                setMessages((prev: Message[]) => prev.filter(msg => msg.id !== messageId));
-            } else {
-                const errorData = await response.json();
-                alert(`Failed to delete message: ${errorData.error}`);
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || 'Failed to delete message');
             }
-        } catch (error) {
-            console.error('❌ Error deleting message:', error);
-            alert('Failed to delete message. Please try again.');
+            // Remove from UI
+            setMessages((prev: Message[]) => prev.filter((m) => m.id !== messageId));
+            toast.success('Message deleted', { duration: 3000 });
+        } catch (err) {
+            toast.error('Failed to delete message. Please try again.', { duration: 4000 });
+            console.error(err);
         }
-    }, [setMessages]);
+    };
 
     const handleReply = useCallback((message: Message) => {
         setReplyingTo(message);
