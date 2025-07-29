@@ -69,7 +69,7 @@ export default function ConversationPage() {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [hasInitialized, setHasInitialized] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
-    const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+    const [replyingTo, setReplyingTo] = useState<Message | undefined>(undefined);
     const messageListRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -275,7 +275,7 @@ export default function ConversationPage() {
                 sendWebSocketMessage(message);
 
                 // Clear reply state after sending
-                setReplyingTo(null);
+                setReplyingTo(undefined);
 
                 // Scroll to bottom after sending
                 setTimeout(() => {
@@ -386,7 +386,7 @@ export default function ConversationPage() {
     }, []);
 
     const handleCancelReply = useCallback(() => {
-        setReplyingTo(null);
+        setReplyingTo(undefined);
     }, []);
 
     const handleRetry = useCallback(() => {
