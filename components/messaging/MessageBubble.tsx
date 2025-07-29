@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Message } from '@/types/messaging';
 import { MessageReactions } from './MessageReactions';
-import { Reply, Heart, Smile, MoreHorizontal, Image as ImageIcon } from 'lucide-react';
+import { Reply, Heart, Smile, MoreHorizontal } from 'lucide-react';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -298,6 +298,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             isOwnMessage ? 'right-full mr-2' : 'left-full ml-2'
           }`}>
             <MessageReactions
+              reactions={Array.isArray(message.reactions) ? message.reactions : []}
+              currentUserId={message.sender_id}
               onReact={(emoji) => {
                 onReact?.(message.id, emoji);
                 setShowReactions(false);

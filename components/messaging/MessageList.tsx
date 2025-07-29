@@ -4,7 +4,6 @@ import { Message, User } from '@/types/messaging';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { ImageGallery } from './ImageGallery';
 import { format, isToday, isYesterday } from 'date-fns';
 import { ChevronDown } from 'lucide-react';
 
@@ -35,10 +34,9 @@ export function MessagesList({
     onLoadMore,
     loading = false,
     hasMore = false,
-    className = "",
-    conversationId
+    className = ""
 }: MessagesListProps) {
-    const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+    const [, setSelectedImageUrl] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
