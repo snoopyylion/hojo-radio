@@ -5,8 +5,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useGlobalNotifications } from '@/context/EnhancedGlobalNotificationsContext';
 import { formatDistanceToNow } from 'date-fns';
 import { 
-  X, Check, CheckCheck, Bell, Filter, Search, RefreshCw, MessageCircle, 
-  Image, Users, Heart, MessageSquare, AtSign, Trophy, Settings, Shield, 
+  X, CheckCheck, Bell, Filter, Search, RefreshCw, MessageCircle, Users, Heart, MessageSquare, AtSign, Trophy,
   ChevronDown, ChevronUp, Camera, ChevronLeft, ChevronRight 
 } from 'lucide-react';
 import { BaseNotification, NotificationCategory, NotificationType } from '@/types/notifications';
@@ -46,7 +45,6 @@ export const EnhancedNotificationList: React.FC = () => {
     markAsRead,
     markAllAsRead,
     removeNotification,
-    clearAllNotifications,
     fetchNotifications,
     isGlobalConnected
   } = useGlobalNotifications();
@@ -90,7 +88,6 @@ export const EnhancedNotificationList: React.FC = () => {
     Object.entries(messageGroups).forEach(([senderId, senderGroups]) => {
       senderGroups.forEach((group, idx) => {
         if (group.length > 1) {
-          const latest = group.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
           groups[`message_${senderId}_${idx}`] = group;
         } else {
           standalone.push(...group);
