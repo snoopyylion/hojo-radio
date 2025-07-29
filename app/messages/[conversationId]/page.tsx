@@ -7,9 +7,9 @@ import { useAuth } from '@clerk/nextjs';
 import { useRealtimeMessaging } from '@/hooks/useRealTimeMessaging';
 import { useWebSocketConnection } from '@/hooks/useWebSocketConnection';
 import { useMessageApi } from '@/hooks/useMessageApi';
-import { MessagesList } from '@/components/messaging/MessageList';
+import MessagesList from '@/components/messaging/MessageList';
 import MessageInput from '@/components/messaging/MessageInput';
-import { TypingIndicator } from '@/components/messaging/TypingIndicator';
+import TypingIndicator from '@/components/messaging/TypingIndicator';
 import { ConversationSettings } from '@/components/messaging/chat/ConversationSettings';
 import { ConversationHeader } from '@/components/messaging/ConversationHeader';
 import {

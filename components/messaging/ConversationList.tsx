@@ -465,7 +465,12 @@ export default function ConversationList({
       }
 
       // Search in last message content
-      if (conversation.last_message?.content?.toLowerCase().includes(searchLower)) {
+      if (conversation.last_message?.message_type === 'image') {
+        // For image messages, search for "image" keyword
+        if ('image'.toLowerCase().includes(searchLower)) {
+          return true;
+        }
+      } else if (conversation.last_message?.content?.toLowerCase().includes(searchLower)) {
         return true;
       }
 

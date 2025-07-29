@@ -113,8 +113,7 @@ export async function GET(request: NextRequest) {
                     id, 
                     content, 
                     sender_id, 
-                    created_at,
-                    sender:users!messages_sender_id_fkey(id, username, image_url, first_name, last_name)
+                    created_at
                 `)
                 .in('id', replyToIds);
 
@@ -216,22 +215,42 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Validate reply_to_id if provided
+        // Validate reply_to_id if provided - FIXED QUERY
+        let replyToMessage = null;
         if (reply_to_id) {
-            const { data: replyMessage, error: replyError } = await supabase
+            console.log('Fetching reply-to message with ID:', reply_to_id);
+            
+            const { data: replyData, error: replyError } = await supabase
                 .from('messages')
-                .select('id')
+                .select(`
+                    id,
+                    content,
+                    sender_id,
+                    message_type,
+                    created_at
+                `)
                 .eq('id', reply_to_id)
                 .eq('conversation_id', conversation_id)
                 .is('deleted_at', null)
                 .single();
 
-            if (replyError || !replyMessage) {
-                console.error('Reply message validation error:', replyError);
-                return NextResponse.json(
-                    { error: 'Invalid reply message' },
-                    { status: 400 }
-                );
+            if (replyError) {
+                console.error('Reply message fetch error:', replyError);
+                // Don't return error, just log it and continue without reply
+                console.warn('Could not fetch reply message, continuing without reply reference');
+            } else if (replyData) {
+                // Get sender details separately
+                const { data: replySender, error: senderError } = await supabase
+                    .from('users')
+                    .select('id, username, image_url, first_name, last_name')
+                    .eq('id', replyData.sender_id)
+                    .single();
+
+                replyToMessage = {
+                    ...replyData,
+                    sender: replySender || null
+                };
+                console.log('Successfully fetched reply-to message:', replyToMessage);
             }
         }
 
@@ -275,11 +294,16 @@ export async function POST(request: NextRequest) {
             // Continue without sender details
         }
 
+
+
         const enrichedMessage = {
             ...message,
             sender: sender || null,
+            reply_to: replyToMessage, // This should now contain the reply message
             reactions: []
         };
+
+        console.log('Sending enriched message response:', JSON.stringify(enrichedMessage, null, 2));
 
         return NextResponse.json({
             message: enrichedMessage,

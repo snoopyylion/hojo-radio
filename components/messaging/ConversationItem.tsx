@@ -4,6 +4,7 @@ import UserPresence from './UserPresence';
 import Image from 'next/image';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useGlobalTyping } from '@/context/GlobalTypingContext';
+import { Image as ImageIcon } from 'lucide-react';
 
 interface ConversationItemProps {
     conversation: Conversation;
@@ -124,10 +125,15 @@ const ConversationItem: React.FC<ConversationItemProps> = memo(({
             return message.substring(0, maxLength) + '...';
         };
         
+        // Check if the last message is an image
+        if (conversation.last_message?.message_type === 'image') {
+            return '📷 Image';
+        }
+        
         return conversation.last_message?.content 
             ? truncate(conversation.last_message.content)
             : 'Start a conversation';
-    }, [conversation.last_message?.content]);
+    }, [conversation.last_message?.content, conversation.last_message?.message_type]);
 
     // Only show unread count if it's greater than 0 AND the last message wasn't sent by the current user
     const hasUnreadMessages = useMemo(() =>
@@ -297,9 +303,20 @@ const ConversationItem: React.FC<ConversationItemProps> = memo(({
                                     You:
                                 </span>
                             )}
-                            <p className={messageClasses}>
-                                {truncateMessage}
-                            </p>
+                            
+                            {/* Show image icon for image messages */}
+                            {conversation.last_message?.message_type === 'image' ? (
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 bg-blue-100 dark:bg-blue-900 rounded flex items-center justify-center">
+                                        <ImageIcon className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400" />
+                                    </div>
+                                    <span className={messageClasses}>Image</span>
+                                </div>
+                            ) : (
+                                <p className={messageClasses}>
+                                    {truncateMessage}
+                                </p>
+                            )}
                         </div>
                     )}
                 </div>
