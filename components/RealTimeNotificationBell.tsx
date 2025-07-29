@@ -48,7 +48,7 @@ export const RealTimeNotificationBell: React.FC<RealTimeNotificationBellProps> =
   const baseClasses = `relative flex items-center justify-center rounded-full transition-all duration-300 ${sizeClasses[size]} ${className}`;
 
   const variantClasses = {
-    default: 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm border border-gray-200 dark:border-gray-600',
+    default: 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-[#EF3866] dark:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-[#EF3866] shadow-sm border border-gray-200 dark:border-gray-200',
     minimal: 'hover:bg-gray-100 dark:hover:bg-gray-800'
   };
 

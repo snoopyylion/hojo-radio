@@ -19,6 +19,7 @@ import {
     ConnectionStatus
 } from '@/components/messaging/ConversationStates';
 import { Conversation, Message, TypingUser, User } from '@/types/messaging';
+import { clearConversationNotifications } from '@/hooks/useNotifications';
 
 export default function ConversationPage() {
     const router = useRouter();
@@ -217,6 +218,12 @@ export default function ConversationPage() {
             console.warn('Conversation not found:', conversationId);
         }
     }, [hasInitialized, conversations, conversationId]);
+
+    useEffect(() => {
+        if (conversationId) {
+            clearConversationNotifications(conversationId);
+        }
+    }, [conversationId]);
 
     const handleLoadMore = useCallback(async () => {
         if (isLoadingMore || messages.length === 0) return;
@@ -422,6 +429,7 @@ export default function ConversationPage() {
                             onLoadMore={handleLoadMore}
                             loading={isLoadingMore}
                             onDeleteMessage={handleDeleteMessage}
+                            conversationId={conversationId}
                         />
                     </div>
 
@@ -477,6 +485,7 @@ export default function ConversationPage() {
                         console.log("Promote to admin", userId);
                         // TODO: Implement promote to admin logic
                     }}
+                    messages={messages}
                 />
             )}
         </>

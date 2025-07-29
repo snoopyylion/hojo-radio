@@ -58,10 +58,13 @@ export const UserActivity: React.FC<UserActivityProps> = ({
     const date = new Date(dateString);
     const now = new Date();
     const diffInMs = now.getTime() - date.getTime();
+    const diffInMinutes = diffInMs / (1000 * 60);
     const diffInHours = diffInMs / (1000 * 60 * 60);
     const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
 
-    if (diffInHours < 24) {
+    if (diffInMinutes < 60) {
+      return `${Math.floor(diffInMinutes)} minutes ago`;
+    } else if (diffInHours < 24) {
       return `${Math.floor(diffInHours)}h ago`;
     } else if (diffInDays < 7) {
       return `${Math.floor(diffInDays)}d ago`;

@@ -1,9 +1,10 @@
 // components/chat/ConversationSettings.tsx
 import React, { useState } from 'react';
-import { Settings, Users, Edit3, Trash2, LogOut, UserMinus, Shield, X, Crown, UserPlus } from 'lucide-react';
+import { Settings, Users, Edit3, Trash2, LogOut, UserMinus, Shield, X, Crown, UserPlus, Image as ImageIcon } from 'lucide-react';
 import Image from 'next/image';
-import { Conversation, ConversationParticipant } from '@/types/messaging';
+import { Conversation, ConversationParticipant, Message } from '@/types/messaging';
 import { AddParticipantsModal } from '../modals/AddParticipantsModal';
+import { ImageGallery } from '../ImageGallery';
 
 interface ConversationSettingsProps {
   conversation: Conversation;
@@ -15,6 +16,7 @@ interface ConversationSettingsProps {
   onRemoveParticipant: (userId: string) => Promise<void>;
   onAddParticipants: (userIds: string[]) => Promise<void>;
   onPromoteToAdmin: (userId: string) => Promise<void>;
+  messages: Message[];
 }
 
 export function ConversationSettings({
@@ -27,6 +29,7 @@ export function ConversationSettings({
   onRemoveParticipant,
   onAddParticipants,
   onPromoteToAdmin,
+  messages,
 }: ConversationSettingsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(conversation.name || '');
@@ -301,6 +304,31 @@ export function ConversationSettings({
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Shared Images Section */}
+            <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl">
+                  <ImageIcon size={20} className="text-gray-700 dark:text-gray-300" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-black dark:text-white">
+                    Shared Images
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                    All images shared in this conversation
+                  </p>
+                </div>
+              </div>
+
+              <ImageGallery
+                messages={messages}
+                conversationId={conversation.id}
+                className=""
+                showHeader={false}
+                compact={true}
+              />
             </div>
 
             {/* Actions Section */}

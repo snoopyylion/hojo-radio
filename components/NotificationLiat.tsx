@@ -3,11 +3,13 @@
 import React, { useEffect } from 'react';
 import { useGlobalNotifications } from '@/context/EnhancedGlobalNotificationsContext';
 import { formatDistanceToNow } from 'date-fns';
-import { X, Check, CheckCheck, Bell } from 'lucide-react';
+import { X, Check, CheckCheck, Bell, Image as ImageIcon } from 'lucide-react';
 
 interface NotificationData {
   conversation_id?: string;
   target_id?: string;
+  image_url?: string;
+  message_type?: string;
   [key: string]: unknown;
 }
 
@@ -143,6 +145,34 @@ export const NotificationList: React.FC = () => {
                   <p className="text-sm text-black/80 dark:text-white/70 leading-relaxed mb-2">
                     {notification.message}
                   </p>
+
+                  {/* Show image icon for image notifications */}
+                  {notification.data?.image_url && (
+                    <div className="mb-2">
+                      <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                          <ImageIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Image
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Show image icon for message notifications with images */}
+                  {notification.type === 'message' && notification.data?.message_type === 'image' && notification.data?.image_url && (
+                    <div className="mb-2">
+                      <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                          <ImageIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Image
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   <p className="text-xs text-black/50 dark:text-white/50">
                     {formatDistanceToNow(new Date(notification.created_at), {

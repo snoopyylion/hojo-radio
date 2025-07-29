@@ -144,8 +144,8 @@ const NewNavbar = () => {
                       </button>
                     </div>
                   ) : (
-                    <Link 
-                      href={item.href} 
+                    <Link
+                      href={item.href}
                       className="hover:text-[#EF3866] transition-all duration-200 font-sora py-2 px-1 rounded-lg hover:bg-[#EF3866]/5 block"
                     >
                       {item.label}
@@ -178,7 +178,7 @@ const NewNavbar = () => {
                 {/* Enhanced User Button Container */}
                 <div className="relative">
                   <div className="p-1 rounded-xl bg-gradient-to-r from-[#EF3866]/10 to-[#d7325a]/10 hover:from-[#EF3866]/20 hover:to-[#d7325a]/20 transition-all duration-300">
-                    <UserButton 
+                    <UserButton
                       afterSignOutUrl="/"
                       appearance={{
                         elements: {
@@ -205,20 +205,45 @@ const NewNavbar = () => {
                 </div>
               </div>
             ) : (
-              <Link href="/authentication/sign-up" className="group">
-                <button className="flex items-center gap-3 bg-gradient-to-r from-[#EF3866] to-[#d7325a] hover:from-[#d7325a] hover:to-[#EF3866] text-white px-6 py-3 rounded-xl transition-all duration-300 text-lg font-sora shadow-lg hover:shadow-xl hover:scale-105 active:scale-95">
-                  <span className="font-medium">Sign Up</span>
-                  <div className="transform group-hover:translate-x-1 transition-transform">
-                    <Image
-                      src="/icons/arrow-circle-right.png"
-                      alt="arrow"
-                      width={24}
-                      height={24}
-                      className="opacity-90 group-hover:opacity-100"
-                    />
-                  </div>
-                </button>
-              </Link>
+              <div className="flex items-center gap-3">
+                {/* Get Started Button */}
+                <Link href="/authentication/sign-up" className="group" aria-label="Get Started">
+                  <button
+                    className="relative overflow-hidden inline-flex items-center justify-center px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[#EF3866] to-[#d7325a] rounded-xl hover:from-[#d7325a] hover:to-[#c42a52] focus:outline-none focus:ring-2 focus:ring-[#EF3866]/30 transition-all duration-300 ease-out transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+                    type="button"
+                  >
+                    {/* Shine effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out" />
+                    <span className="relative flex items-center gap-2">
+                      Get Started
+                      
+                    </span>
+                  </button>
+                </Link>
+
+                {/* Animated Sign In Button with Icon */}
+                <Link href="/authentication/sign-in" className="group" aria-label="Sign In">
+                  <button
+                    className="relative overflow-hidden inline-flex items-center justify-center px-6 py-2.5 text-sm font-medium text-[#EF3866] dark:text-[#ff6b96] bg-[#EF3866]/5 dark:bg-[#EF3866]/10 backdrop-blur-sm border border-[#EF3866]/20 dark:border-[#EF3866]/30 rounded-xl hover:bg-[#EF3866]/10 dark:hover:bg-[#EF3866]/20 hover:border-[#EF3866]/40 dark:hover:border-[#EF3866]/50 hover:shadow-lg hover:shadow-[#EF3866]/10 dark:hover:shadow-[#EF3866]/20 focus:outline-none focus:ring-2 focus:ring-[#EF3866]/20 dark:focus:ring-[#EF3866]/30 transition-all duration-300 ease-out transform hover:scale-[1.02] active:scale-[0.98]"
+                    type="button"
+                  >
+                    {/* Shine effect for Sign In */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#EF3866]/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500 ease-out" />
+                    <span className="relative flex items-center gap-2">
+                      Sign In
+                      <svg 
+                        className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </span>
+                  </button>
+                </Link>
+              </div>
             )}
           </div>
 
@@ -241,7 +266,7 @@ const NewNavbar = () => {
                   <Menu size={20} className="text-gray-600" />
                 )}
               </button>
-              
+
               {/* Mobile notification indicator */}
               {user && hasNewMessages && unreadCount > 0 && (
                 <div className="absolute -top-1 -right-1">

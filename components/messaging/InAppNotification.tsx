@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, MessageCircle, Users } from 'lucide-react';
+import { X, MessageCircle, Users, Image as ImageIcon } from 'lucide-react';
 import { Message, TypingUser, User } from '@/types/messaging';
 
 interface InAppNotificationProps {
@@ -69,9 +69,12 @@ export const InAppNotification: React.FC<InAppNotificationProps> = ({
   const renderContent = () => {
     if (type === 'message' && message) {
       const senderName = getUserName(message.sender_id);
-      const content = message.content.length > 100 
-        ? `${message.content.substring(0, 100)}...`
-        : message.content;
+      const isImageMessage = message.message_type === 'image';
+      const content = isImageMessage 
+        ? '📷 Sent an image'
+        : (message.content.length > 100 
+          ? `${message.content.substring(0, 100)}...`
+          : message.content);
 
       return (
         <div className="flex items-start space-x-3">
@@ -100,6 +103,21 @@ export const InAppNotification: React.FC<InAppNotificationProps> = ({
                 in {conversationName}
               </p>
             )}
+            
+            {/* Show image icon for image messages */}
+            {isImageMessage && message.content && (
+              <div className="mt-2">
+                <div className="flex items-center gap-2 px-2 py-1.5 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900 rounded flex items-center justify-center">
+                    <ImageIcon className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Image
+                  </span>
+                </div>
+              </div>
+            )}
+            
             <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">
               {content}
             </p>

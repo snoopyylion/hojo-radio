@@ -1,243 +1,297 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, Download, Share2, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Image from 'next/image';
+import { X, ChevronLeft, ChevronRight, Download, Share2, Image as ImageIcon } from 'lucide-react';
+import { Message } from '@/types/messaging';
 
 interface ImageGalleryProps {
-  isOpen: boolean;
-  onClose: () => void;
-  images: string[];
-  initialIndex?: number;
+  messages: Message[];
+  conversationId: string;
+  className?: string;
+  initialImageUrl?: string | null;
+  onImageClick?: (imageUrl: string) => void;
+  showHeader?: boolean;
+  compact?: boolean;
+}
+
+interface ImageItem {
+  id: string;
+  url: string;
+  caption?: string;
+  senderName: string;
+  timestamp: string;
+  messageId: string;
 }
 
 export const ImageGallery: React.FC<ImageGalleryProps> = ({
-  isOpen,
-  onClose,
-  images,
-  initialIndex = 0
+  messages,
+  conversationId,
+  className = '',
+  initialImageUrl,
+  onImageClick,
+  showHeader = true,
+  compact = false
 }) => {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState(0);
+  const [selectedImage, setSelectedImage] = useState<ImageItem | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      setCurrentIndex(initialIndex);
-      setZoom(1);
-      setRotation(0);
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
+  // Extract all images from messages
+  const images = useMemo(() => {
+    return messages
+      .filter(message => message.message_type === 'image' && message.content)
+      .map(message => ({
+        id: message.id,
+        url: message.content,
+        caption: message.metadata?.caption,
+        senderName: message.sender?.firstName || message.sender?.username || 'Unknown',
+        timestamp: message.created_at,
+        messageId: message.id
+      }))
+      .reverse(); // Show newest first
+  }, [messages]);
+
+  const handleImageClick = useCallback((image: ImageItem) => {
+    setSelectedImage(image);
+    setIsModalOpen(true);
+    if (onImageClick) {
+      onImageClick(image.url);
     }
+  }, [onImageClick]);
 
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, initialIndex]);
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+    setSelectedImage(null);
+  }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
+  const handlePrevious = useCallback(() => {
+    if (!selectedImage) return;
+    const currentIndex = images.findIndex(img => img.id === selectedImage.id);
+    const previousIndex = currentIndex > 0 ? currentIndex - 1 : images.length - 1;
+    setSelectedImage(images[previousIndex]);
+  }, [selectedImage, images]);
 
-      switch (e.key) {
-        case 'Escape':
-          onClose();
-          break;
-        case 'ArrowLeft':
-          setCurrentIndex(prev => (prev > 0 ? prev - 1 : images.length - 1));
-          break;
-        case 'ArrowRight':
-          setCurrentIndex(prev => (prev < images.length - 1 ? prev + 1 : 0));
-          break;
-        case '=':
-        case '+':
-          e.preventDefault();
-          setZoom(prev => Math.min(prev + 0.25, 3));
-          break;
-        case '-':
-          e.preventDefault();
-          setZoom(prev => Math.max(prev - 0.25, 0.25));
-          break;
-        case 'r':
-          setRotation(prev => prev + 90);
-          break;
-      }
-    };
+  const handleNext = useCallback(() => {
+    if (!selectedImage) return;
+    const currentIndex = images.findIndex(img => img.id === selectedImage.id);
+    const nextIndex = currentIndex < images.length - 1 ? currentIndex + 1 : 0;
+    setSelectedImage(images[nextIndex]);
+  }, [selectedImage, images]);
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, images.length, onClose]);
-
-  const handleDownload = async () => {
+  const handleDownload = useCallback(async (imageUrl: string, filename: string) => {
     try {
-      const response = await fetch(images[currentIndex]);
+      const response = await fetch(imageUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `image-${currentIndex + 1}.jpg`;
+      a.download = filename || 'image.jpg';
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
-      console.error('Failed to download image:', error);
+      console.error('Error downloading image:', error);
     }
-  };
+  }, []);
 
-  const handleShare = async () => {
+  const handleShare = useCallback(async (imageUrl: string) => {
     if (navigator.share) {
       try {
         await navigator.share({
           title: 'Shared Image',
-          url: images[currentIndex]
+          text: 'Check out this image from our conversation!',
+          url: imageUrl
         });
       } catch (error) {
-        console.error('Failed to share:', error);
+        console.error('Error sharing image:', error);
       }
     } else {
       // Fallback: copy to clipboard
       try {
-        await navigator.clipboard.writeText(images[currentIndex]);
-        alert('Image URL copied to clipboard!');
+        await navigator.clipboard.writeText(imageUrl);
+        // You could add a toast notification here
       } catch (error) {
-        console.error('Failed to copy to clipboard:', error);
+        console.error('Error copying image URL:', error);
       }
     }
-  };
+  }, []);
 
-  if (!isOpen) return null;
+  // Handle keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!isModalOpen) return;
+    
+    switch (e.key) {
+      case 'Escape':
+        handleCloseModal();
+        break;
+      case 'ArrowLeft':
+        handlePrevious();
+        break;
+      case 'ArrowRight':
+        handleNext();
+        break;
+    }
+  }, [isModalOpen, handleCloseModal, handlePrevious, handleNext]);
+
+  // Open modal when initial image URL is provided
+  useEffect(() => {
+    if (initialImageUrl && images.length > 0) {
+      const image = images.find(img => img.url === initialImageUrl);
+      if (image) {
+        setSelectedImage(image);
+        setIsModalOpen(true);
+      }
+    }
+  }, [initialImageUrl, images]);
+
+  if (images.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+          <ImageIcon className="w-8 h-8 text-gray-400" />
+        </div>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">
+          No images shared yet
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
-      {/* Close button */}
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-10 p-2 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-75 transition-all"
-      >
-        <X className="w-6 h-6" />
-      </button>
-
-      {/* Navigation arrows */}
-      {images.length > 1 && (
-        <>
-          <button
-            onClick={() => setCurrentIndex(prev => (prev > 0 ? prev - 1 : images.length - 1))}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 p-3 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-75 transition-all"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            onClick={() => setCurrentIndex(prev => (prev < images.length - 1 ? prev + 1 : 0))}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 p-3 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-75 transition-all"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </>
-      )}
-
-      {/* Image container */}
-      <div className="relative max-w-full max-h-full p-4">
-        <div
-          className="relative overflow-hidden rounded-lg"
-          style={{
-            transform: `scale(${zoom}) rotate(${rotation}deg)`,
-            transition: 'transform 0.2s ease-in-out'
-          }}
-        >
-          <Image
-            src={images[currentIndex]}
-            alt={`Gallery image ${currentIndex + 1}`}
-            width={800}
-            height={600}
-            className="max-w-full max-h-[80vh] object-contain"
-            priority
-          />
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center space-x-2 bg-black bg-opacity-50 rounded-full px-4 py-2">
-        <button
-          onClick={() => setZoom(prev => Math.max(prev - 0.25, 0.25))}
-          className="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-full transition-all"
-          disabled={zoom <= 0.25}
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
+    <>
+      {/* Image Gallery Grid */}
+      <div className={`${compact ? '' : 'bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700'} ${className}`}>
+        {showHeader && (
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Shared Images ({images.length})
+            </h3>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              Click to view
+            </span>
+          </div>
+        )}
         
-        <span className="text-white text-sm px-2">
-          {Math.round(zoom * 100)}%
-        </span>
-        
-        <button
-          onClick={() => setZoom(prev => Math.min(prev + 0.25, 3))}
-          className="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-full transition-all"
-          disabled={zoom >= 3}
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-        
-        <button
-          onClick={() => setRotation(prev => prev + 90)}
-          className="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-full transition-all"
-        >
-          <RotateCw className="w-4 h-4" />
-        </button>
-        
-        <button
-          onClick={handleDownload}
-          className="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-full transition-all"
-        >
-          <Download className="w-4 h-4" />
-        </button>
-        
-        <button
-          onClick={handleShare}
-          className="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-full transition-all"
-        >
-          <Share2 className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Image counter */}
-      {images.length > 1 && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 rounded-full px-3 py-1">
-          <span className="text-white text-sm">
-            {currentIndex + 1} / {images.length}
-          </span>
-        </div>
-      )}
-
-      {/* Thumbnail strip */}
-      {images.length > 1 && (
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 flex space-x-2 max-w-full overflow-x-auto">
-          {images.map((image, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentIndex(index)}
-              className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                index === currentIndex
-                  ? 'border-blue-500'
-                  : 'border-transparent hover:border-gray-400'
-              }`}
+        <div className={`grid gap-2 ${compact ? 'grid-cols-3 sm:grid-cols-4' : 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6'}`}>
+          {images.map((image) => (
+            <div
+              key={image.id}
+              className="relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden cursor-pointer group hover:opacity-90 transition-opacity"
+              onClick={() => handleImageClick(image)}
             >
               <Image
-                src={image}
-                alt={`Thumbnail ${index + 1}`}
-                width={64}
-                height={64}
-                className="w-full h-full object-cover"
+                src={image.url}
+                alt={image.caption || 'Shared image'}
+                fill
+                className="object-cover"
+                sizes={compact ? "(max-width: 640px) 33vw, (max-width: 768px) 25vw, 20vw" : "(max-width: 640px) 33vw, (max-width: 768px) 25vw, (max-width: 1024px) 20vw, 16vw"}
               />
-            </button>
+              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200" />
+            </div>
           ))}
         </div>
+      </div>
+
+      {/* Modal Gallery */}
+      {isModalOpen && selectedImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center"
+          onClick={handleCloseModal}
+          onKeyDown={handleKeyDown}
+          tabIndex={0}
+        >
+          <div className="relative max-w-4xl max-h-full p-4">
+            {/* Close button */}
+            <button
+              onClick={handleCloseModal}
+              className="absolute top-4 right-4 z-10 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* Navigation buttons */}
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePrevious();
+                  }}
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleNext();
+                  }}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </>
+            )}
+
+            {/* Image */}
+            <div
+              className="relative max-w-full max-h-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Image
+                src={selectedImage.url}
+                alt={selectedImage.caption || 'Shared image'}
+                width={800}
+                height={600}
+                className="max-w-full max-h-[80vh] object-contain rounded-lg"
+                priority
+              />
+            </div>
+
+            {/* Image info and actions */}
+            <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+              <div className="text-white">
+                <p className="font-medium">{selectedImage.senderName}</p>
+                {selectedImage.caption && (
+                  <p className="text-sm opacity-80">{selectedImage.caption}</p>
+                )}
+                <p className="text-xs opacity-60">
+                  {new Date(selectedImage.timestamp).toLocaleDateString()}
+                </p>
+              </div>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownload(selectedImage.url, `image-${selectedImage.messageId}.jpg`);
+                  }}
+                  className="p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleShare(selectedImage.url);
+                  }}
+                  className="p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
+                >
+                  <Share2 className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Image counter */}
+            {images.length > 1 && (
+              <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-black bg-opacity-50 text-white rounded-full text-sm">
+                {images.findIndex(img => img.id === selectedImage.id) + 1} / {images.length}
+              </div>
+            )}
+          </div>
+        </div>
       )}
-    </div>
+    </>
   );
 }; 

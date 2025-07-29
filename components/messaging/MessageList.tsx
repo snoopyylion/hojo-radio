@@ -4,6 +4,7 @@ import { Message, User } from '@/types/messaging';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { ImageGallery } from './ImageGallery';
 import { format, isToday, isYesterday } from 'date-fns';
 import { ChevronDown } from 'lucide-react';
 
@@ -20,6 +21,7 @@ interface MessagesListProps {
     loading?: boolean;
     hasMore?: boolean;
     className?: string;
+    conversationId?: string;
 }
 
 export function MessagesList({
@@ -33,8 +35,10 @@ export function MessagesList({
     onLoadMore,
     loading = false,
     hasMore = false,
-    className = ""
+    className = "",
+    conversationId
 }: MessagesListProps) {
+    const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
@@ -158,7 +162,7 @@ export function MessagesList({
                                 isOwnMessage={message.sender_id === currentUserId}
                                 onReply={onReply}
                                 onReact={onReactToMessage}
-                                onImageClick={() => {}}
+                                onImageClick={(imageUrl) => setSelectedImageUrl(imageUrl)}
                                 onDelete={onDeleteMessage}
                             />
                         ))}
@@ -174,6 +178,20 @@ export function MessagesList({
                                 {Array.from(typingUsers).join(', ')} {typingUsers.size === 1 ? 'is' : 'are'} typing...
                             </span>
                         </div>
+                    </div>
+                )}
+
+                {/* Image Gallery */}
+                {conversationId && messages.length > 0 && (
+                    <div className="mb-6">
+                        <ImageGallery
+                            messages={messages}
+                            conversationId={conversationId}
+                            initialImageUrl={selectedImageUrl}
+                            onImageClick={(imageUrl) => setSelectedImageUrl(imageUrl)}
+                            showHeader={true}
+                            compact={false}
+                        />
                     </div>
                 )}
 

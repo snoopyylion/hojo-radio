@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { notificationService } from '@/lib/notificationService';
 import { auth } from '@clerk/nextjs/server';
 import WebSocket from 'ws';
 
@@ -195,6 +196,9 @@ export async function POST(request: NextRequest) {
             // Send WebSocket notification for new follow
             const followerName = followerProfile?.username || followerProfile?.first_name || 'Someone';
             sendFollowNotification(followerId, followingId, 'follow', followerName);
+            
+            // Also create notification in database
+            await notificationService.createFollowNotification(followerId, followingId, followerName);
 
             return NextResponse.json({
                 success: true,
@@ -218,9 +222,7 @@ export async function POST(request: NextRequest) {
                 );
             }
 
-            // Send WebSocket notification for unfollow
-            sendFollowNotification(followerId, followingId, 'unfollow', 'Someone'); // Assuming a default name for unfollow
-
+            // No notification for unfollow - only follow notifications
             return NextResponse.json({
                 success: true,
                 message: 'Successfully unfollowed user',

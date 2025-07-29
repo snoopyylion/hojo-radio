@@ -74,7 +74,7 @@ export class NotificationService {
       type: 'follow',
       category: 'social',
       title: 'New Follower',
-      message: `${followerName} started following you!`,
+      message: `${followerName} followed you`,
       priority: 'medium',
       data: {
         actor_id: followerId,
@@ -159,21 +159,32 @@ export class NotificationService {
     senderName: string,
     conversationId: string,
     messageContent: string,
-    messageId: string
+    messageId: string,
+    messageType?: string,
+    imageUrl?: string
   ): Promise<void> {
+    const isImageMessage = messageType === 'image';
+    const displayContent = isImageMessage 
+      ? '📷 Sent an image' 
+      : (messageContent.length > 100 
+        ? `${messageContent.substring(0, 100)}...` 
+        : messageContent);
+
     const notification: Omit<BaseNotification, 'id' | 'created_at'> = {
       user_id: receiverId,
       type: 'message',
       category: 'messaging',
       title: `New message from ${senderName}`,
-      message: messageContent.length > 100 ? `${messageContent.substring(0, 100)}...` : messageContent,
+      message: displayContent,
       priority: 'high',
       data: {
         conversation_id: conversationId,
         sender_id: senderId,
         sender_name: senderName,
         message_preview: messageContent,
-        message_id: messageId
+        message_id: messageId,
+        message_type: messageType,
+        image_url: imageUrl
       },
       action_url: `/messages/${conversationId}`,
       action_text: 'Reply',

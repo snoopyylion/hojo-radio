@@ -271,19 +271,25 @@ export const GlobalNotificationsProvider: React.FC<{ children: React.ReactNode }
     if (message.sender_id === userId) return;
     
     const senderName = users.find(u => u.id === message.sender_id)?.username || 'Unknown User';
+    const isImageMessage = message.message_type === 'image';
+    const displayContent = isImageMessage 
+      ? '📷 Sent an image' 
+      : (message.content.length > 100 
+        ? `${message.content.substring(0, 100)}...` 
+        : message.content);
     
     const notification: Omit<BaseNotification, 'id' | 'created_at'> = {
       user_id: userId!,
       type: 'message',
       title: `New message from ${senderName}`,
-      message: message.content.length > 100 
-        ? `${message.content.substring(0, 100)}...` 
-        : message.content,
+      message: displayContent,
       data: {
         conversation_id: message.conversation_id,
         sender_id: message.sender_id,
         sender_name: senderName,
-        message_preview: message.content
+        message_preview: message.content,
+        message_type: message.message_type,
+        image_url: isImageMessage ? message.content : undefined
       },
       read: false
     };

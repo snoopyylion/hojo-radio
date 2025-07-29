@@ -26,6 +26,12 @@ const notifyWithToast = (title: string, body: string) => {
   });
 };
 
+export async function clearConversationNotifications(conversationId: string) {
+  await fetch(`/api/notifications/clear-all?conversationId=${conversationId}`, {
+    method: 'DELETE',
+  });
+}
+
 export const useNotifications = ({
     currentUserId,
     isWindowFocused = true,

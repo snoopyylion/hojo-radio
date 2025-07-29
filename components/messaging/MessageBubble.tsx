@@ -58,6 +58,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   const handleImageClick = useCallback(() => {
     if (isImage && message.content) {
+      // Open image in a modal or navigate to gallery view
       onImageClick(message.content);
     }
   }, [isImage, message.content, onImageClick]);
