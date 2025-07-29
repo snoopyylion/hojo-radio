@@ -553,6 +553,27 @@ const MessageInput: React.FC<MessageInputProps> = ({
                 {message.length}/1000
               </div>
             )}
+
+            {/* Emoji picker */}
+            {showEmojiPicker && (
+              <div className="absolute bottom-full right-0 mb-4 bg-white/90 dark:bg-black/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-4 z-[9999] min-w-[280px]">
+                <div className="grid grid-cols-8 gap-2">
+                  {QUICK_EMOJIS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => {
+                        setMessage(prev => prev + emoji);
+                        setShowEmojiPicker(false);
+                        textareaRef.current?.focus();
+                      }}
+                      className="p-3 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 rounded-xl text-xl transition-all duration-200 hover:scale-110 active:scale-95"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Send button */}
@@ -568,27 +589,6 @@ const MessageInput: React.FC<MessageInputProps> = ({
             )}
           </button>
         </div>
-
-        {/* Emoji picker */}
-        {showEmojiPicker && (
-          <div className="absolute bottom-full right-0 mb-4 bg-white/90 dark:bg-black/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-4 z-[9999] min-w-[280px]">
-            <div className="grid grid-cols-8 gap-2">
-              {QUICK_EMOJIS.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => {
-                    setMessage(prev => prev + emoji);
-                    setShowEmojiPicker(false);
-                    textareaRef.current?.focus();
-                  }}
-                  className="p-3 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 rounded-xl text-xl transition-all duration-200 hover:scale-110 active:scale-95"
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Hidden file inputs */}
         <input
