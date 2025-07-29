@@ -26,7 +26,6 @@ interface ImageItem {
 
 export const ImageGallery: React.FC<ImageGalleryProps> = ({
   messages,
-  conversationId,
   className = '',
   initialImageUrl,
   onImageClick,
