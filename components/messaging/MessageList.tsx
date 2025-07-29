@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Reply, Heart, Smile, MoreHorizontal, ChevronDown, Copy, Trash2 } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 
 // Updated Message type to match MessageBubble
@@ -37,30 +37,6 @@ interface MessagesListProps {
   replyingTo?: Message | null;
   conversationId?: string;
 }
-
-// MessageReactions Component
-const MessageReactions: React.FC<{
-  reactions: Array<{ id: string; emoji: string; user_id: string; message_id: string; created_at: string }>;
-  currentUserId: string;
-  onReact: (emoji: string) => void;
-}> = ({ onReact }) => {
-  const commonEmojis = ['❤️', '👍', '😂', '😮', '😢', '😡', '👏', '🔥'];
-  return (
-    <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl p-3 backdrop-blur-md">
-      <div className="grid grid-cols-4 gap-2">
-        {commonEmojis.map((emoji) => (
-          <button
-            key={emoji}
-            onClick={() => onReact(emoji)}
-            className="p-2 text-xl hover:bg-gray-100 dark:hover:bg-gray-900 rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
-          >
-            {emoji}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-};
 
 // TypingIndicator Component with enhanced animation
 const TypingIndicator: React.FC = () => (

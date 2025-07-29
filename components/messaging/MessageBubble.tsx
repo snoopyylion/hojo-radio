@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Reply, Heart, Smile, MoreHorizontal, Copy, Trash2 } from 'lucide-react';
+import { Reply, Smile, MoreHorizontal, Copy, Trash2 } from 'lucide-react';
 
 // Updated Message type to match both files
 interface Message {
@@ -18,12 +18,6 @@ interface Message {
   metadata?: { caption?: string };
 }
 
-interface MessageReactionsProps {
-  reactions: Array<{ id: string; emoji: string; user_id: string; message_id: string; created_at: string }>;
-  currentUserId: string;
-  onReact: (emoji: string) => void;
-}
-
 interface MessageBubbleProps {
   message: Message;
   isOwnMessage: boolean;
@@ -35,7 +29,11 @@ interface MessageBubbleProps {
 }
 
 // MessageReactions Component
-const MessageReactions: React.FC<MessageReactionsProps> = ({ onReact }) => {
+const MessageReactions: React.FC<{
+  reactions: Array<{ id: string; emoji: string; user_id: string; message_id: string; created_at: string }>;
+  currentUserId: string;
+  onReact: (emoji: string) => void;
+}> = ({ onReact }) => {
   const commonEmojis = ['❤️', '👍', '😂', '😮', '😢', '😡', '👏', '🔥'];
   return (
     <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl p-3 backdrop-blur-md">
