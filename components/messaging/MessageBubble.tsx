@@ -13,7 +13,7 @@ interface Message {
   conversation_id: string;
   updated_at: string;
   reply_to_id?: string;
-  reply_to?: Message | null;
+  reply_to?: Message;
   reactions?: Array<{ id: string; emoji: string; user_id: string; message_id: string; created_at: string }>;
   metadata?: { caption?: string };
 }
@@ -23,9 +23,9 @@ interface MessageBubbleProps {
   isOwnMessage: boolean;
   onReply?: (message: Message) => void;
   onReact?: (messageId: string, emoji: string) => void;
-  onDelete?: (messageId: string, message: Message) => void;
   onImageClick?: (imageUrl: string) => void;
-  replyingTo?: Message | null;
+  onDelete?: (messageId: string, message: Message) => void;
+  replyingTo?: Message;
 }
 
 // MessageReactions Component

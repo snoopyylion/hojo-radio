@@ -12,7 +12,7 @@ interface Message {
   conversation_id: string;
   updated_at: string;
   reply_to_id?: string;
-  reply_to?: Message | null;
+  reply_to?: Message;
   reactions?: Array<{ id: string; emoji: string; user_id: string; message_id: string; created_at: string }>;
   metadata?: { caption?: string };
 }
@@ -34,7 +34,7 @@ interface MessagesListProps {
   loading?: boolean;
   hasMore?: boolean;
   className?: string;
-  replyingTo?: Message | null;
+  replyingTo?: Message;
   conversationId?: string;
 }
 
