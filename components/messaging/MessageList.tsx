@@ -6,17 +6,19 @@ interface Message {
   id: string;
   sender_id: string;
   content: string;
-  message_type: 'text' | 'image';
+  message_type: 'text' | 'image' | 'file' | 'system';
   created_at: string;
+  conversation_id: string;
+  updated_at: string;
   reply_to_id?: string;
-  reply_to?: Message | null;
-  reactions?: Array<{ emoji: string; user_id: string }>;
+  reply_to?: Message;
+  reactions?: Array<{ id: string; emoji: string; user_id: string; message_id: string; created_at: string }>;
   metadata?: { caption?: string };
 }
 
 interface User {
   id: string;
-  name: string;
+  name?: string;
 }
 
 interface MessagesListProps {
@@ -32,6 +34,7 @@ interface MessagesListProps {
   hasMore?: boolean;
   className?: string;
   replyingTo?: Message | null;
+  conversationId?: string;
 }
 
 // MessageReactions Component
@@ -39,7 +42,7 @@ const MessageReactions: React.FC<{
   reactions: Array<{ emoji: string; user_id: string }>;
   currentUserId: string;
   onReact: (emoji: string) => void;
-}> = ({ reactions, currentUserId, onReact }) => {
+}> = ({ onReact }) => {
   const commonEmojis = ['❤️', '👍', '😂', '😮', '😢', '😡', '👏', '🔥'];
   return (
     <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl p-3 backdrop-blur-md">
@@ -73,8 +76,7 @@ const MessageBubble: React.FC<{
   onReply,
   onReact,
   onDelete,
-  onImageClick,
-  replyingTo
+  onImageClick
 }) => {
   const [showActions, setShowActions] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
@@ -372,7 +374,6 @@ const LoadingSpinner: React.FC<{ size?: 'sm' | 'md' | 'lg' }> = ({ size = 'md' }
 const MessagesList: React.FC<MessagesListProps> = ({
   messages = [],
   typingUsers = new Set(),
-  users = [],
   currentUserId = 'user1',
   onReactToMessage = () => {},
   onReply = () => {},

@@ -103,7 +103,10 @@ export async function POST(request: NextRequest) {
       setTimeout(() => reject(new Error('Upload timeout')), 30000); // 30 second timeout
     });
 
-    const { data, error } = await Promise.race([uploadPromise, timeoutPromise]) as any;
+    const { data, error } = await Promise.race([uploadPromise, timeoutPromise]) as {
+      data: { path: string } | null;
+      error: { message: string } | null;
+    };
 
     if (error) {
       console.error('Supabase upload error:', error);

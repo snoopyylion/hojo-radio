@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
                 console.warn('Could not fetch reply message, continuing without reply reference');
             } else if (replyData) {
                 // Get sender details separately
-                const { data: replySender, error: senderError } = await supabase
+                const { data: replySender } = await supabase
                     .from('users')
                     .select('id, username, image_url, first_name, last_name')
                     .eq('id', replyData.sender_id)

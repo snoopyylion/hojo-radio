@@ -337,7 +337,7 @@ export default function ConversationPage() {
     }, [reactToMessage, setMessages, messages, userId]);
 
     // Delete handler for messages
-    const handleDeleteMessage = async (messageId: string, message: Message) => {
+    const handleDeleteMessage = async (messageId: string) => {
         if (!messageId) return;
         try {
             const res = await fetch(`/api/messages/${encodeURIComponent(messageId)}`, {
@@ -436,10 +436,7 @@ export default function ConversationPage() {
                     {(() => {
                         return currentTypingUsers.length > 0 && (
                             <div className="px-4 py-2 bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800">
-                                <TypingIndicator
-                                    typingUsers={typingUsersSet}
-                                    users={users}
-                                />
+                                <TypingIndicator />
                             </div>
                         );
                     })()}
