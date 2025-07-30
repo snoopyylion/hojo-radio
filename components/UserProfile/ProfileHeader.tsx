@@ -11,7 +11,12 @@ import {
   MapPin,
   Calendar,
   Shield,
-  Verified
+  Verified,
+  Edit3,
+  Crown,
+  Star,
+  Heart,
+  Users
 } from 'lucide-react';
 import { UserProfile } from '@/types/user';
 import { usePostsCount } from '@/hooks/usePostsCount';
@@ -62,7 +67,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric'
     });
   };
@@ -70,7 +75,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'author':
-        return <BookOpen size={14} className="text-white" />;
+        return <Crown size={14} className="text-white" />;
       case 'user':
         return <Shield size={14} className="text-white" />;
       default:
@@ -140,136 +145,200 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     }
   };
 
-  const styles = {
-    profileCard: "bg-white/80 dark:bg-black/80 backdrop-blur-lg rounded-2xl border border-gray-200/50 dark:border-gray-800/50 p-6 w-full shadow-sm",
-    profileTitle: "text-2xl font-black uppercase text-center truncate dark:text-white",
-    profileImage: "rounded-full object-cover mx-auto border-4 border-[#EF3866] my-6",
-    username: "text-3xl font-extrabold mt-7 text-center dark:text-white",
-    bio: "mt-1 text-center text-sm font-normal dark:text-gray-300",
-    location: "mt-2 text-center text-sm flex items-center justify-center gap-1 dark:text-gray-400",
-    actionButton: "flex-1 transition-colors",
-    statsContainer: "flex justify-center gap-8 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700",
-    statItem: "text-center hover:opacity-75 transition-opacity cursor-pointer",
-    statValue: "text-xl font-medium text-[#EF3866]",
-    statLabel: "text-sm font-normal dark:text-gray-400",
+  // Format large numbers
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
   };
 
   return (
-    <div className={styles.profileCard} ref={headerRef}>
-      <div className="mb-4">
-        <h3 className={styles.profileTitle}>
-          {`${profile.first_name} ${profile.last_name}`}
-        </h3>
-      </div>
-
-      {profile.image_url && (
-        <Image
-          src={profile.image_url}
-          alt={`${profile.first_name} ${profile.last_name}`}
-          width={220}
-          height={220}
-          className={styles.profileImage}
-          priority
-        />
-      )}
-
-      <p className={styles.username}>@{profile.username}</p>
-
-      {profile.bio && profile.bio.trim() !== '' && (
-        <p className={styles.bio}>{profile.bio}</p>
-      )}
-
-      {profile.location && profile.location.trim() !== '' && (
-        <p className={styles.location}>
-          <MapPin size={14} className="text-[#EF3866]" />
-          <span>{profile.location}</span>
-        </p>
-      )}
-
-      {/* Joined Date */}
-      <div className="flex items-center justify-center gap-1 mt-2 text-sm text-gray-500 dark:text-gray-400">
-        <Calendar size={14} className="text-[#EF3866]" />
-        <span>Joined {formatDate(profile.created_at)}</span>
-      </div>
-
-      {/* Role Badge */}
-      {profile.role && (
-        <div className="flex items-center justify-center gap-1 mt-2 text-sm">
-          <div className="bg-[#EF3866] text-white px-2 py-1 rounded-full flex items-center gap-1">
-            {getRoleIcon(profile.role)}
-            <span className="capitalize">{profile.role}</span>
-            {profile.role === 'author' && (
-              <Verified size={14} className="text-white" />
-            )}
+    <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl lg:rounded-3xl border border-gray-200/70 dark:border-gray-700/70 shadow-2xl shadow-gray-200/30 dark:shadow-gray-900/30 p-3 md:p-4 lg:p-5 w-[30%] min-w-[280px] max-w-[400px] mx-auto" ref={headerRef}>
+      
+      {/* Profile Image and Basic Info Section */}
+      <div className="flex flex-col items-center text-center mb-4 md:mb-6">
+        {/* Profile Image with Enhanced Styling */}
+        {profile.image_url && (
+          <div className="relative mb-3 md:mb-4">
+            <div className="relative">
+              <Image
+                src={profile.image_url}
+                alt={`${profile.first_name} ${profile.last_name}`}
+                width={120}
+                height={120}
+                className="w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 xl:w-28 xl:h-28 rounded-2xl object-cover border-4 border-white dark:border-gray-800 shadow-2xl shadow-gray-300/40 dark:shadow-gray-900/60"
+                priority
+              />
+              {/* Status Indicator */}
+              <div className="absolute -bottom-1 -right-1 md:-bottom-2 md:-right-2 w-4 h-4 md:w-5 md:h-5 bg-emerald-500 border-3 border-white dark:border-gray-900 rounded-full shadow-lg flex items-center justify-center">
+                <div className="w-1 h-1 md:w-1.5 md:h-1.5 bg-white rounded-full"></div>
+              </div>
+            </div>
           </div>
+        )}
+
+        {/* Name and Username */}
+        <div className="mb-2 md:mb-3">
+          <h1 className="text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 dark:text-white tracking-tight mb-1">
+            {profile.first_name} {profile.last_name}
+          </h1>
+          <p className="text-xs md:text-sm lg:text-base text-gray-600 dark:text-gray-400 font-medium">
+            @{profile.username}
+          </p>
+        </div>
+
+        {/* Role Badge with Enhanced Styling */}
+        {profile.role && (
+          <div className="mb-2 md:mb-3">
+            <div className={`inline-flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-xs font-semibold shadow-lg ${
+              profile.role === 'author' 
+                ? 'bg-gradient-to-r from-[#EF3866] to-[#EF3866]/90 text-white shadow-[#EF3866]/25' 
+                : 'bg-gradient-to-r from-gray-600 to-gray-700 text-white'
+            }`}>
+              {getRoleIcon(profile.role)}
+              <span className="capitalize">{profile.role}</span>
+              {profile.role === 'author' && (
+                <Verified size={10} className="text-yellow-300" />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Bio Section */}
+        {profile.bio && profile.bio.trim() !== '' && (
+          <div className="mb-3 md:mb-4 w-full">
+            <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-xs md:text-sm text-center">
+              {profile.bio}
+            </p>
+          </div>
+        )}
+
+        {/* Location and Join Date */}
+        <div className="flex flex-col gap-1 md:gap-2 text-xs text-gray-600 dark:text-gray-400 mb-3 md:mb-4">
+          {profile.location && profile.location.trim() !== '' && (
+            <div className="flex items-center justify-center gap-1">
+              <MapPin size={12} className="text-[#EF3866] flex-shrink-0" />
+              <span className="truncate">{profile.location}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-center gap-1">
+            <Calendar size={12} className="text-[#EF3866] flex-shrink-0" />
+            <span>Joined {formatDate(profile.created_at)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons Section */}
+      {currentUserId && currentUserId !== profile.id && (
+        <div className="space-y-2 mb-4 md:mb-6">
+          <button
+            onClick={handleFollowClick}
+            disabled={followLoading}
+            className={`w-full py-2.5 md:py-3 px-3 md:px-4 rounded-xl font-semibold transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] text-xs md:text-sm shadow-lg hover:shadow-xl ${
+              isFollowing
+                ? 'bg-white text-[#EF3866] border-2 border-[#EF3866] hover:bg-[#EF3866] hover:text-white'
+                : 'bg-gradient-to-r from-[#EF3866] to-[#EF3866]/90 text-white border-2 border-[#EF3866] hover:from-[#EF3866]/90 hover:to-[#EF3866]'
+            }`}
+          >
+            {followLoading ? (
+              <span className="flex items-center justify-center gap-1">
+                <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                Loading...
+              </span>
+            ) : isFollowing ? (
+              <span className="flex items-center justify-center gap-1">
+                <UserMinus size={14} />
+                Following
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-1">
+                <UserPlus size={14} />
+                Follow
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={handleMessageClick}
+            disabled={messageLoading || !isFollowing}
+            className={`w-full py-2.5 md:py-3 px-3 md:px-4 rounded-xl font-semibold transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] bg-white text-[#EF3866] border-2 border-[#EF3866] hover:bg-[#EF3866] hover:text-white shadow-lg hover:shadow-xl text-xs md:text-sm ${
+              (!isFollowing || messageLoading) ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''
+            }`}
+            title={!isFollowing ? 'You must follow each other to message' : 'Send message'}
+          >
+            {messageLoading ? (
+              <span className="flex items-center justify-center gap-1">
+                <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                Loading...
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-1">
+                <MessageCircle size={14} />
+                Message
+              </span>
+            )}
+          </button>
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex gap-4 mt-6">
-        {currentUserId && currentUserId !== profile.id && (
-          <>
-            <button
-              onClick={handleFollowClick}
-              disabled={followLoading}
-              className={`${styles.actionButton} py-2 rounded-lg ${isFollowing
-                ? 'bg-white text-[#EF3866] border-2 border-[#EF3866] hover:bg-[#EF3866] hover:text-white dark:bg-black dark:text-[#EF3866] dark:border-[#EF3866] dark:hover:bg-[#EF3866] dark:hover:text-white'
-                : 'bg-[#EF3866] text-white border-2 border-[#EF3866] hover:bg-white hover:text-[#EF3866] dark:bg-[#EF3866] dark:text-white dark:hover:bg-white dark:hover:text-[#EF3866]'
-                }`}
-            >
-              {followLoading ? (
-                <span>Loading...</span>
-              ) : isFollowing ? (
-                <span className="flex items-center justify-center gap-1">
-                  <UserMinus size={16} />
-                  Following
-                </span>
-              ) : (
-                <span className="flex items-center justify-center gap-1">
-                  <UserPlus size={16} />
-                  Follow
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={handleMessageClick}
-              disabled={messageLoading || !isFollowing}
-              className={`${styles.actionButton} py-2 bg-white text-[#EF3866] border-2 border-[#EF3866] hover:bg-[#EF3866] hover:text-white dark:bg-black dark:text-[#EF3866] dark:border-[#EF3866] dark:hover:bg-[#EF3866] dark:hover:text-white ${(!isFollowing || messageLoading) ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              title={!isFollowing ? 'You must follow each other to message' : 'Send message'}
-            >
-              {messageLoading ? (
-                <span>Loading...</span>
-              ) : (
-                <span className="flex items-center justify-center gap-1">
-                  <MessageCircle size={16} />
-                  Message
-                </span>
-              )}
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* Stats */}
-      <div className={styles.statsContainer}>
-        <button onClick={onOpenFollowers} className={styles.statItem}>
-          <p className={styles.statValue}>{profile.followers_count || 0}</p>
-          <p className={styles.statLabel}>Followers</p>
-        </button>
-        <button onClick={onOpenFollowing} className={styles.statItem}>
-          <p className={styles.statValue}>{profile.following_count || 0}</p>
-          <p className={styles.statLabel}>Following</p>
-        </button>
-        {profile.role === 'author' && (
-          <div className={styles.statItem}>
-            <p className={styles.statValue}>
-              {postsCountLoading ? '...' : postsCount || 0}
-            </p>
-            <p className={styles.statLabel}>Posts</p>
-          </div>
-        )}
+      {/* Enhanced Stats Section */}
+      <div className="space-y-3">
+        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent"></div>
+        
+        {/* Stats Row */}
+        <div className={`grid gap-1 sm:gap-2 ${profile.role === 'author' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          {/* Followers */}
+          <button 
+            onClick={onOpenFollowers} 
+            className="group p-2 sm:p-3 rounded-lg bg-gray-50/50 dark:bg-gray-800/30 hover:bg-gray-100 dark:hover:bg-gray-800/50 border border-gray-200/50 dark:border-gray-700/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 transform hover:scale-[1.02]"
+          >
+            <div className="text-center">
+              <div className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-gray-900 dark:text-white group-hover:text-[#EF3866] transition-colors">
+                {formatNumber(profile.followers_count || 0)}
+              </div>
+              <div className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors leading-tight">
+                Followers
+              </div>
+            </div>
+          </button>
+          
+          {/* Following */}
+          <button 
+            onClick={onOpenFollowing} 
+            className="group p-2 sm:p-3 rounded-lg bg-gray-50/50 dark:bg-gray-800/30 hover:bg-gray-100 dark:hover:bg-gray-800/50 border border-gray-200/50 dark:border-gray-700/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 transform hover:scale-[1.02]"
+          >
+            <div className="text-center">
+              <div className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-gray-900 dark:text-white group-hover:text-[#EF3866] transition-colors">
+                {formatNumber(profile.following_count || 0)}
+              </div>
+              <div className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors leading-tight">
+                Following
+              </div>
+            </div>
+          </button>
+          
+          {/* Posts (for authors only) */}
+          {profile.role === 'author' && (
+            <div className="p-2 sm:p-3 rounded-lg bg-gray-50/50 dark:bg-gray-800/30 border border-gray-200/50 dark:border-gray-700/50">
+              <div className="text-center">
+                <div className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-gray-900 dark:text-white flex items-center justify-center gap-1">
+                  {postsCountLoading ? (
+                    <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    formatNumber(postsCount || 0)
+                  )}
+                </div>
+                <div className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 leading-tight">
+                  Posts
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

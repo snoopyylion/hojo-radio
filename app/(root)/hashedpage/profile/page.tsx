@@ -217,7 +217,7 @@ export default function UpdateProfilePage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/hashedpage')}
                 disabled={submitting}
                 className="border-gray-400 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white hover:border-gray-500 dark:hover:border-gray-500 bg-transparent h-12 px-8 rounded-xl font-semibold transition-all duration-200 order-2 sm:order-1"
               >
