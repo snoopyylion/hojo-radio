@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
-  BookOpen,
   MessageCircle,
   UserPlus,
   UserMinus,
@@ -12,11 +11,7 @@ import {
   Calendar,
   Shield,
   Verified,
-  Edit3,
-  Crown,
-  Star,
-  Heart,
-  Users
+  Crown
 } from 'lucide-react';
 import { UserProfile } from '@/types/user';
 import { usePostsCount } from '@/hooks/usePostsCount';
