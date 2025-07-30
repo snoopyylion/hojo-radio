@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom'; // ADD THIS IMPORT
 import { 
   Send,
   Image as ImageIcon, 
@@ -60,6 +61,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const [showAttachments, setShowAttachments] = useState(false);
   const [showSmartSuggestions, setShowSmartSuggestions] = useState(false);
   const [suggestionIndex, setSuggestionIndex] = useState(-1);
+  const [attachmentMenuPosition, setAttachmentMenuPosition] = useState<{ top: number; left: number } | null>(null); // ADD THIS STATE
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -67,6 +69,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const attachmentButtonRef = useRef<HTMLButtonElement>(null); // ADD THIS REF
 
   // Smart suggestions based on input
   const smartSuggestions = useMemo(() => {
@@ -352,13 +355,88 @@ const MessageInput: React.FC<MessageInputProps> = ({
     return <FileText className="w-4 h-4" />;
   }, []);
 
-  // Click outside handler
+  // REPLACE the attachment button click handler:
+  const handleAttachmentClick = useCallback(() => {
+    if (!attachmentButtonRef.current) return;
+    
+    if (showAttachments) {
+      setShowAttachments(false);
+      setAttachmentMenuPosition(null);
+    } else {
+      const rect = attachmentButtonRef.current.getBoundingClientRect();
+      setAttachmentMenuPosition({
+        top: rect.top - 200, // Position above the button
+        left: rect.left
+      });
+      setShowAttachments(true);
+    }
+  }, [showAttachments]);
+
+  // ADD this new component for the portal-based attachment menu:
+  const AttachmentMenu = () => {
+    if (!showAttachments || !attachmentMenuPosition) return null;
+
+    return createPortal(
+      <div 
+        className="fixed bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-2 min-w-[160px] sm:min-w-[180px] max-w-[200px]"
+        style={{
+          top: attachmentMenuPosition.top,
+          left: attachmentMenuPosition.left,
+          zIndex: 999999999 // Ensure it's above everything
+        }}
+      >
+        <button
+          onClick={() => {
+            imageInputRef.current?.click();
+            setShowAttachments(false);
+            setAttachmentMenuPosition(null);
+          }}
+          className="flex items-center space-x-3 w-full px-4 py-3 text-left text-sm hover:bg-gray-100/50 dark:hover:bg-gray-800/50 rounded-xl transition-all duration-200"
+        >
+          <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+            <ImageIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          </div>
+          <span className="font-medium">Photo</span>
+        </button>
+        <button
+          onClick={() => {
+            fileInputRef.current?.click();
+            setShowAttachments(false);
+            setAttachmentMenuPosition(null);
+          }}
+          className="flex items-center space-x-3 w-full px-4 py-3 text-left text-sm hover:bg-gray-100/50 dark:hover:bg-gray-800/50 rounded-xl transition-all duration-200"
+        >
+          <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+            <FileText className="w-4 h-4 text-green-600 dark:text-green-400" />
+          </div>
+          <span className="font-medium">Document</span>
+        </button>
+        <button
+          onClick={() => {
+            cameraInputRef.current?.click();
+            setShowAttachments(false);
+            setAttachmentMenuPosition(null);
+          }}
+          className="flex items-center space-x-3 w-full px-4 py-3 text-left text-sm hover:bg-gray-100/50 dark:hover:bg-gray-800/50 rounded-xl transition-all duration-200"
+        >
+          <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+            <Camera className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+          </div>
+          <span className="font-medium">Camera</span>
+        </button>
+      </div>,
+      document.body // Render directly to body
+    );
+  };
+
+  // UPDATE the click outside handler to handle the new positioning:
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setShowEmojiPicker(false);
         setShowAttachments(false);
         setShowSmartSuggestions(false);
+        setAttachmentMenuPosition(null); // ADD THIS LINE
       }
     };
 
@@ -372,7 +450,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   }, []);
 
   return (
-    <div className="relative z-[99999999] bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 p-4 sm:p-6 max-h-[50vh] overflow-hidden">
+    <div className="relative bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 p-4 sm:p-6 max-h-[50vh] overflow-hidden">
       <div ref={containerRef} className="space-y-4">
         {/* Reply preview */}
         {replyingTo && (
@@ -452,57 +530,18 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
         {/* Main input area */}
         <div className="flex items-end space-x-3">
-          {/* Attachment button */}
+          {/* UPDATED Attachment button */}
           <div className="relative">
             <button
-              onClick={() => setShowAttachments(!showAttachments)}
+              ref={attachmentButtonRef} // ADD THIS REF
+              onClick={handleAttachmentClick} // UPDATE THIS
               disabled={disabled}
               className="p-3 text-gray-500 dark:text-gray-400 hover:text-[#EF3866] dark:hover:text-[#EF3866] hover:bg-gray-100/50 dark:hover:bg-gray-800/50 rounded-2xl transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-50 backdrop-blur-sm"
             >
               <Plus className="w-5 h-5" />
             </button>
 
-            {/* Attachment menu - Positioned over the + icon */}
-            {showAttachments && (
-              <div className="absolute bottom-full left-0 mb-2 bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-2 min-w-[160px] sm:min-w-[180px] z-[999999999] max-w-[200px]">
-                <button
-                  onClick={() => {
-                    imageInputRef.current?.click();
-                    setShowAttachments(false);
-                  }}
-                  className="flex items-center space-x-3 w-full px-4 py-3 text-left text-sm hover:bg-gray-100/50 dark:hover:bg-gray-800/50 rounded-xl transition-all duration-200"
-                >
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                    <ImageIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <span className="font-medium">Photo</span>
-                </button>
-                <button
-                  onClick={() => {
-                    fileInputRef.current?.click();
-                    setShowAttachments(false);
-                  }}
-                  className="flex items-center space-x-3 w-full px-4 py-3 text-left text-sm hover:bg-gray-100/50 dark:hover:bg-gray-800/50 rounded-xl transition-all duration-200"
-                >
-                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                    <FileText className="w-4 h-4 text-green-600 dark:text-green-400" />
-                  </div>
-                  <span className="font-medium">Document</span>
-                </button>
-                <button
-                  onClick={() => {
-                    cameraInputRef.current?.click();
-                    setShowAttachments(false);
-                  }}
-                  className="flex items-center space-x-3 w-full px-4 py-3 text-left text-sm hover:bg-gray-100/50 dark:hover:bg-gray-800/50 rounded-xl transition-all duration-200"
-                >
-                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                    <Camera className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <span className="font-medium">Camera</span>
-                </button>
-              </div>
-            )}
+            {/* REMOVE the old attachment menu from here - it's now handled by the portal */}
           </div>
 
           {/* Text input */}
@@ -537,7 +576,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
               </div>
             )}
 
-            {/* Emoji picker */}
+            {/* Emoji picker - Fixed positioning */}
             {showEmojiPicker && (
               <div className="fixed bottom-20 right-2 sm:right-4 bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-4 z-[999999999] min-w-[240px] sm:min-w-[280px] max-w-[320px]">
                 <div className="grid grid-cols-8 gap-2">
@@ -599,6 +638,9 @@ const MessageInput: React.FC<MessageInputProps> = ({
           accept="image/*"
         />
       </div>
+
+      {/* ADD the portal-based attachment menu */}
+      <AttachmentMenu />
     </div>
   );
 };

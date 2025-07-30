@@ -467,7 +467,7 @@ export default function ConversationPage() {
                     })()}
 
                     {/* Message input */}
-                    <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-lg flex-shrink-0 relative z-[99999999]">
+                    <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-lg flex-shrink-0 relative">
                         <MessageInput
                             onSendMessage={handleSendMessage}
                             onTypingChange={handleTyping}

@@ -132,20 +132,23 @@ const MessagesList: React.FC<MessagesListProps> = ({
 
   return (
     <div className={`flex flex-col h-full relative bg-white dark:bg-black ${className}`}>
-      {/* Enhanced gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-950 dark:via-black dark:to-gray-900 pointer-events-none"></div>
+      {/* Enhanced gradient background with better visibility */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-950 dark:via-black dark:to-gray-900 pointer-events-none z-0"></div>
       
-      {/* Subtle animated pattern overlay */}
-      <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.05] pointer-events-none">
+      {/* Enhanced animated pattern overlay with better opacity */}
+      <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.06] pointer-events-none z-0">
         <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
           <defs>
-            <pattern id="dots" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
-              <circle cx="16" cy="16" r="1" fill="currentColor" className="text-gray-600 dark:text-gray-400"/>
+            <pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+              <circle cx="20" cy="20" r="1.5" fill="currentColor" className="text-gray-600 dark:text-gray-400"/>
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#dots)"/>
         </svg>
       </div>
+
+      {/* Additional subtle animated gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent dark:via-black/20 pointer-events-none z-0 animate-pulse"></div>
 
       <div
         ref={messagesContainerRef}
@@ -228,42 +231,6 @@ const MessagesList: React.FC<MessagesListProps> = ({
           </button>
         </div>
       )}
-
-      <style jsx>{`
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes fade-in-out {
-          0% {
-            opacity: 0;
-            transform: translateY(-10px) scale(0.8);
-          }
-          20%, 80% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-10px) scale(0.8);
-          }
-        }
-
-        .animate-fade-in {
-          animation: fade-in 0.5s ease-out;
-        }
-
-        .animate-fade-in-out {
-          animation: fade-in-out 2s ease-out;
-        }
-      `}</style>
     </div>
   );
 };
