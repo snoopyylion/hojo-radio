@@ -4,7 +4,6 @@ import {
   UserActivity,
   ActivityType,
   ActivityCategory,
-  NotificationPreferences,
   NotificationGroup
 } from '@/types/notifications';
 
