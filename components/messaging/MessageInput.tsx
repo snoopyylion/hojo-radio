@@ -403,7 +403,6 @@ const MessageInput: React.FC<MessageInputProps> = ({
       setAttachmentMenuPosition(null);
     } else {
       const rect = attachmentButtonRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
 
       // Calculate optimal position
