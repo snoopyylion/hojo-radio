@@ -452,8 +452,6 @@ export class NotificationService {
 
   // Update notification preferences
   async updateNotificationPreferences(
-    userId: string,
-    preferences: Partial<NotificationPreferences>
   ): Promise<void> {
     // TODO: Implement notification preferences API route
     console.warn('Notification preferences API route not implemented yet');
@@ -461,14 +459,14 @@ export class NotificationService {
   }
 
   // Mark notifications as read
-  async markNotificationsAsRead(notificationIds: string[]): Promise<void> {
+  async markNotificationsAsRead(): Promise<void> {
     // TODO: Implement mark notifications as read API route
     console.warn('Mark notifications as read API route not implemented yet');
     return Promise.resolve();
   }
 
   // Delete notifications
-  async deleteNotifications(notificationIds: string[]): Promise<void> {
+  async deleteNotifications(): Promise<void> {
     // TODO: Implement delete notifications API route
     console.warn('Delete notifications API route not implemented yet');
     return Promise.resolve();
