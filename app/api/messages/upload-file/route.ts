@@ -47,10 +47,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File too large. Maximum size is 5MB.' }, { status: 400 });
     }
 
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    // Validate file type - allow images and common document types
+    const allowedTypes = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+      'application/pdf', 'text/plain', 'application/msword', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    ];
     if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: 'Invalid file type. Only images are allowed.' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid file type. Only images and common document types are allowed.' }, { status: 400 });
     }
 
     // Generate unique filename with better naming

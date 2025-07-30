@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom'; // ADD THIS IMPORT
-import { 
+import { createPortal } from 'react-dom';
+
+import {
   Send,
-  Image as ImageIcon, 
-  Smile, 
+  Image as ImageIcon,
+  Smile,
   Reply,
   FileText,
   Video,
@@ -61,28 +62,31 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const [showAttachments, setShowAttachments] = useState(false);
   const [showSmartSuggestions, setShowSmartSuggestions] = useState(false);
   const [suggestionIndex, setSuggestionIndex] = useState(-1);
-  const [attachmentMenuPosition, setAttachmentMenuPosition] = useState<{ top: number; left: number } | null>(null); // ADD THIS STATE
-  
+  const [attachmentMenuPosition, setAttachmentMenuPosition] = useState<{ top: number; left: number } | null>(null);
+
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const attachmentButtonRef = useRef<HTMLButtonElement>(null); // ADD THIS REF
+  const attachmentButtonRef = useRef<HTMLButtonElement>(null);
 
   // Smart suggestions based on input
   const smartSuggestions = useMemo(() => {
     if (!message.trim()) return [];
-    
+
     const words = message.toLowerCase().split(' ');
     const lastWord = words[words.length - 1];
-    
+
     // Emoji suggestions
-    const emojiSuggestions = QUICK_EMOJIS.filter((emoji, index) => 
+    const emojiSuggestions = QUICK_EMOJIS.filter((emoji, index) =>
       index < 4 // Show only first 4 for space
     );
-    
+
     // Quick responses
     const quickResponses = [];
     if (lastWord.includes('hello') || lastWord.includes('hi')) {
@@ -94,7 +98,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
     if (lastWord.includes('how')) {
       quickResponses.push('I\'m doing great!', 'All good here! 👍');
     }
-    
+
     return [...quickResponses.slice(0, 2), ...emojiSuggestions];
   }, [message]);
 
@@ -113,12 +117,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
       setIsTyping(true);
       onTypingChange(true);
     }
-    
+
     // Clear existing timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    
+
     // Set new timeout
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
@@ -129,14 +133,14 @@ const MessageInput: React.FC<MessageInputProps> = ({
   // Smart text processing with shortcuts
   const processSmartText = useCallback((text: string): string => {
     let processedText = text;
-    
+
     // Replace text shortcuts with emojis
     Object.entries(TEXT_SHORTCUTS).forEach(([shortcut, emoji]) => {
       // Escape special regex characters properly
       const escapedShortcut = shortcut.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       processedText = processedText.replace(new RegExp(escapedShortcut, 'g'), emoji);
     });
-    
+
     return processedText;
   }, []);
 
@@ -144,7 +148,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     const processedValue = processSmartText(value);
-    
+
     setMessage(processedValue);
 
     // Handle typing indicators
@@ -170,12 +174,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
       }
     } else if (e.key === 'ArrowUp' && showSmartSuggestions) {
       e.preventDefault();
-      setSuggestionIndex(prev => 
+      setSuggestionIndex(prev =>
         prev <= 0 ? smartSuggestions.length - 1 : prev - 1
       );
     } else if (e.key === 'ArrowDown' && showSmartSuggestions) {
       e.preventDefault();
-      setSuggestionIndex(prev => 
+      setSuggestionIndex(prev =>
         prev >= smartSuggestions.length - 1 ? 0 : prev + 1
       );
     } else if (e.key === 'Escape') {
@@ -198,75 +202,100 @@ const MessageInput: React.FC<MessageInputProps> = ({
     textareaRef.current?.focus();
   }, []);
 
-  // Optimized file handling with better validation
+  // Improved file handling with better validation and error handling
   const handleFileSelect = useCallback((files: FileList | null, type: 'file' | 'image' = 'file') => {
-    if (!files) return;
+    if (!files || files.length === 0) {
+      return;
+    }
 
     const newFiles = Array.from(files);
-    const maxSize = type === 'image' ? 5 * 1024 * 1024 : 10 * 1024 * 1024; // 5MB for images, 10MB for files
-    
+    const maxSize = 5 * 1024 * 1024; // 5MB limit for all files
+
     const validFiles = newFiles.filter(file => {
       if (file.size > maxSize) {
-        // Use toast instead of alert for better UX
-        console.warn(`File ${file.name} is too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`);
+        setUploadError(`File ${file.name} is too large. Maximum size is 5MB.`);
+        setTimeout(() => setUploadError(null), 5000);
         return false;
       }
-      
+
       if (type === 'image' && !file.type.startsWith('image/')) {
-        console.warn(`${file.name} is not an image file.`);
+        setUploadError(`${file.name} is not an image file.`);
+        setTimeout(() => setUploadError(null), 5000);
         return false;
       }
-      
+
       return true;
     });
 
-    setAttachedFiles(prev => [...prev, ...validFiles]);
+    if (validFiles.length > 0) {
+      setAttachedFiles(prev => [...prev, ...validFiles]);
+      setUploadError(null);
+    }
+
+    // IMPORTANT: Reset input values to allow selecting the same file again
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (imageInputRef.current) imageInputRef.current.value = '';
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+
     setShowAttachments(false);
+    setAttachmentMenuPosition(null);
   }, []);
 
-  // Optimized file upload with retry logic
+  // Improved file upload with better error handling and progress tracking
   const uploadFile = useCallback(async (file: File): Promise<string> => {
     const maxRetries = 3;
     let lastError: Error | null = null;
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+    // Add file to uploading set
+    setUploadingFiles(prev => new Set(prev).add(file.name));
 
-        const response = await fetch('/api/messages/upload-file', {
-          method: 'POST',
-          body: formData,
-          signal: controller.signal,
-        });
+    try {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
 
-        clearTimeout(timeoutId);
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `Upload failed: ${response.statusText}`);
-        }
+          const response = await fetch('/api/messages/upload-file', {
+            method: 'POST',
+            body: formData,
+            signal: controller.signal,
+          });
 
-        const result = await response.json();
-        return result.url;
+          clearTimeout(timeoutId);
 
-      } catch (error) {
-        lastError = error as Error;
-        
-        if (error instanceof Error && error.name === 'AbortError') {
-          throw new Error('Upload timed out. Please try again.');
-        }
-        
-        if (attempt < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, attempt - 1), 5000)));
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Upload failed: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          return result.url;
+
+        } catch (error) {
+          lastError = error as Error;
+
+          if (error instanceof Error && error.name === 'AbortError') {
+            throw new Error('Upload timed out. Please try again.');
+          }
+
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, attempt - 1), 5000)));
+          }
         }
       }
-    }
 
-    throw new Error(`Upload failed after ${maxRetries} attempts. ${lastError?.message || 'Please try again later.'}`);
+      throw new Error(`Upload failed after ${maxRetries} attempts. ${lastError?.message || 'Please try again later.'}`);
+    } finally {
+      // Remove file from uploading set
+      setUploadingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(file.name);
+        return newSet;
+      });
+    }
   }, []);
 
   // Enhanced send message handler
@@ -274,7 +303,8 @@ const MessageInput: React.FC<MessageInputProps> = ({
     if ((!message.trim() && attachedFiles.length === 0) || disabled || isLoading) return;
 
     setIsLoading(true);
-    
+    setUploadError(null);
+
     // Clear typing indicator immediately
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -299,7 +329,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
           try {
             const fileUrl = await uploadFile(file);
             const messageType = file.type.startsWith('image/') ? 'image' : 'file';
-            
+
             return onSendMessage(
               fileUrl,
               messageType,
@@ -313,19 +343,28 @@ const MessageInput: React.FC<MessageInputProps> = ({
             );
           } catch (error) {
             console.error(`Failed to upload ${file.name}:`, error);
+            setUploadError(`Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
             throw error;
           }
         });
 
-        await Promise.allSettled(uploadPromises);
+        const results = await Promise.allSettled(uploadPromises);
+
+        // Check if any uploads failed
+        const failedUploads = results.filter(result => result.status === 'rejected');
+        if (failedUploads.length > 0) {
+          // Don't clear the error here, let it be displayed
+          return;
+        }
       }
 
-      // Reset state
+      // Reset state only if all uploads succeeded
       setMessage('');
       setAttachedFiles([]);
       setShowSmartSuggestions(false);
+      setUploadError(null);
       if (onCancelReply) onCancelReply();
-      
+
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
         textareaRef.current.focus();
@@ -355,39 +394,63 @@ const MessageInput: React.FC<MessageInputProps> = ({
     return <FileText className="w-4 h-4" />;
   }, []);
 
-  // REPLACE the attachment button click handler:
+  // Improved attachment button click handler with better positioning
   const handleAttachmentClick = useCallback(() => {
     if (!attachmentButtonRef.current) return;
-    
+
     if (showAttachments) {
       setShowAttachments(false);
       setAttachmentMenuPosition(null);
     } else {
       const rect = attachmentButtonRef.current.getBoundingClientRect();
-      setAttachmentMenuPosition({
-        top: rect.top - 200, // Position above the button
-        left: rect.left
-      });
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+
+      // Calculate optimal position
+      let top = rect.top - 200; // Default position above
+      let left = rect.left;
+
+      // Adjust if menu would go off-screen
+      if (top < 10) {
+        top = rect.bottom + 10; // Position below if not enough space above
+      }
+
+      if (left + 200 > viewportWidth) {
+        left = viewportWidth - 220; // Adjust if would go off right edge
+      }
+
+      if (left < 10) {
+        left = 10; // Ensure minimum left margin
+      }
+
+      setAttachmentMenuPosition({ top, left });
       setShowAttachments(true);
     }
   }, [showAttachments]);
 
-  // ADD this new component for the portal-based attachment menu:
+  // Improved attachment menu component with better positioning
   const AttachmentMenu = () => {
     if (!showAttachments || !attachmentMenuPosition) return null;
 
     return createPortal(
-      <div 
-        className="fixed bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-2 min-w-[160px] sm:min-w-[180px] max-w-[200px]"
+      <div
+        className="fixed bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 p-2 min-w-[160px] sm:min-w-[180px] max-w-[200px] z-[999999999]"
         style={{
           top: attachmentMenuPosition.top,
           left: attachmentMenuPosition.left,
-          zIndex: 999999999 // Ensure it's above everything
         }}
       >
         <button
-          onClick={() => {
-            imageInputRef.current?.click();
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Photo button clicked - attempting to trigger file input');
+            if (imageInputRef.current) {
+              console.log('Image input ref found, clicking...');
+              imageInputRef.current.click();
+            } else {
+              console.log('Image input ref not found!');
+            }
             setShowAttachments(false);
             setAttachmentMenuPosition(null);
           }}
@@ -399,8 +462,16 @@ const MessageInput: React.FC<MessageInputProps> = ({
           <span className="font-medium">Photo</span>
         </button>
         <button
-          onClick={() => {
-            fileInputRef.current?.click();
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Document button clicked - attempting to trigger file input');
+            if (fileInputRef.current) {
+              console.log('File input ref found, clicking...');
+              fileInputRef.current.click();
+            } else {
+              console.log('File input ref not found!');
+            }
             setShowAttachments(false);
             setAttachmentMenuPosition(null);
           }}
@@ -412,8 +483,16 @@ const MessageInput: React.FC<MessageInputProps> = ({
           <span className="font-medium">Document</span>
         </button>
         <button
-          onClick={() => {
-            cameraInputRef.current?.click();
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Camera button clicked - attempting to trigger file input');
+            if (cameraInputRef.current) {
+              console.log('Camera input ref found, clicking...');
+              cameraInputRef.current.click();
+            } else {
+              console.log('Camera input ref not found!');
+            }
             setShowAttachments(false);
             setAttachmentMenuPosition(null);
           }}
@@ -425,24 +504,48 @@ const MessageInput: React.FC<MessageInputProps> = ({
           <span className="font-medium">Camera</span>
         </button>
       </div>,
-      document.body // Render directly to body
+      document.body
     );
   };
 
-  // UPDATE the click outside handler to handle the new positioning:
+  // Improved click outside handler
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      
+      // Don't close if clicking on file inputs or attachment menu
+      if (
+        containerRef.current && 
+        !containerRef.current.contains(target) &&
+        !fileInputRef.current?.contains(target) &&
+        !imageInputRef.current?.contains(target) &&
+        !cameraInputRef.current?.contains(target)
+      ) {
+        // Only close menus if we're not in the middle of a file selection
+        setTimeout(() => {
+          setShowEmojiPicker(false);
+          setShowAttachments(false);
+          setShowSmartSuggestions(false);
+          setAttachmentMenuPosition(null);
+        }, 100);
+      }
+    };
+  
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
         setShowEmojiPicker(false);
         setShowAttachments(false);
         setShowSmartSuggestions(false);
-        setAttachmentMenuPosition(null); // ADD THIS LINE
+        setAttachmentMenuPosition(null);
       }
     };
-
+  
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+  
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
@@ -452,6 +555,19 @@ const MessageInput: React.FC<MessageInputProps> = ({
   return (
     <div className="relative bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 p-4 sm:p-6 max-h-[50vh] overflow-hidden">
       <div ref={containerRef} className="space-y-4">
+        {/* Upload error message */}
+        {uploadError && (
+          <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+            <span className="text-sm text-red-600 dark:text-red-400">{uploadError}</span>
+            <button
+              onClick={() => setUploadError(null)}
+              className="p-1 hover:bg-red-100 dark:hover:bg-red-800/30 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4 text-red-600 dark:text-red-400" />
+            </button>
+          </div>
+        )}
+
         {/* Reply preview */}
         {replyingTo && (
           <div className="flex items-center justify-between p-4 bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm">
@@ -486,11 +602,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
               <button
                 key={suggestion + index}
                 onClick={() => applySuggestion(suggestion)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
-                  index === suggestionIndex
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${index === suggestionIndex
                     ? 'bg-[#EF3866] text-white shadow-lg'
                     : 'bg-white/60 dark:bg-black/60 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900'
-                } backdrop-blur-sm`}
+                  } backdrop-blur-sm`}
               >
                 {suggestion}
               </button>
@@ -515,11 +630,17 @@ const MessageInput: React.FC<MessageInputProps> = ({
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {formatFileSize(file.size)}
+                    {uploadingFiles.has(file.name) && (
+                      <span className="ml-2 text-blue-600 dark:text-blue-400">
+                        • Uploading...
+                      </span>
+                    )}
                   </p>
                 </div>
                 <button
                   onClick={() => setAttachedFiles(prev => prev.filter((_, i) => i !== index))}
                   className="p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
+                  disabled={uploadingFiles.has(file.name)}
                 >
                   <X className="w-4 h-4 text-gray-500" />
                 </button>
@@ -530,18 +651,17 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
         {/* Main input area */}
         <div className="flex items-end space-x-3">
-          {/* UPDATED Attachment button */}
+          {/* Attachment button */}
           <div className="relative">
             <button
-              ref={attachmentButtonRef} // ADD THIS REF
-              onClick={handleAttachmentClick} // UPDATE THIS
+              ref={attachmentButtonRef}
+              onClick={handleAttachmentClick}
               disabled={disabled}
               className="p-3 text-gray-500 dark:text-gray-400 hover:text-[#EF3866] dark:hover:text-[#EF3866] hover:bg-gray-100/50 dark:hover:bg-gray-800/50 rounded-2xl transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-50 backdrop-blur-sm"
             >
               <Plus className="w-5 h-5" />
             </button>
 
-            {/* REMOVE the old attachment menu from here - it's now handled by the portal */}
           </div>
 
           {/* Text input */}
@@ -558,7 +678,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                 rows={1}
                 maxLength={1000}
               />
-              
+
               {/* Emoji button inside input */}
               <button
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
@@ -601,10 +721,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
           {/* Send button */}
           <button
             onClick={handleSendMessage}
-            disabled={disabled || isLoading || (!message.trim() && attachedFiles.length === 0)}
+            disabled={disabled || isLoading || (!message.trim() && attachedFiles.length === 0) || uploadingFiles.size > 0}
             className="p-4 bg-gradient-to-r from-[#EF3866] to-[#EF3866]/80 hover:from-[#EF3866]/90 hover:to-[#EF3866]/70 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-gray-600 dark:disabled:to-gray-700 text-white rounded-2xl transition-all duration-300 hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg hover:shadow-xl backdrop-blur-sm"
           >
             {isLoading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : uploadingFiles.size > 0 ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
               <Send className="w-5 h-5" />
@@ -617,15 +739,25 @@ const MessageInput: React.FC<MessageInputProps> = ({
           ref={fileInputRef}
           type="file"
           multiple
-          onChange={(e) => handleFileSelect(e.target.files, 'file')}
+          onChange={(e) => {
+            console.log('Document input onChange triggered', e.target.files);
+            if (e.target.files && e.target.files.length > 0) {
+              handleFileSelect(e.target.files, 'file');
+            }
+          }}
           className="hidden"
-          accept="*/*"
+          accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx,.zip,.rar"
         />
         <input
           ref={imageInputRef}
           type="file"
           multiple
-          onChange={(e) => handleFileSelect(e.target.files, 'image')}
+          onChange={(e) => {
+            console.log('Image input onChange triggered', e.target.files);
+            if (e.target.files && e.target.files.length > 0) {
+              handleFileSelect(e.target.files, 'image');
+            }
+          }}
           className="hidden"
           accept="image/*"
         />
@@ -633,13 +765,18 @@ const MessageInput: React.FC<MessageInputProps> = ({
           ref={cameraInputRef}
           type="file"
           capture="environment"
-          onChange={(e) => handleFileSelect(e.target.files, 'image')}
+          onChange={(e) => {
+            console.log('Camera input onChange triggered', e.target.files);
+            if (e.target.files && e.target.files.length > 0) {
+              handleFileSelect(e.target.files, 'image');
+            }
+          }}
           className="hidden"
           accept="image/*"
         />
       </div>
 
-      {/* ADD the portal-based attachment menu */}
+      {/* Portal-based attachment menu */}
       <AttachmentMenu />
     </div>
   );

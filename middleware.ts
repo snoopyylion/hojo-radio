@@ -56,9 +56,20 @@ export default clerkMiddleware(async (auth, req) => {
   
   console.log(`🔍 Middleware check - Path: ${req.nextUrl.pathname}, UserId: ${userId || 'none'}`);
   
-  // Allow API routes to handle their own authentication
+  // For API routes, we need to ensure authentication context is available
   if (isApiRoute(req)) {
-    console.log('🔧 API route detected, allowing through middleware');
+    console.log('🔧 API route detected, ensuring auth context is available');
+    
+    // If no user is authenticated and trying to access protected API routes
+    if (!userId) {
+      console.log('🚫 Unauthenticated access to API route');
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
+    // Allow authenticated requests to proceed
     return NextResponse.next();
   }
   

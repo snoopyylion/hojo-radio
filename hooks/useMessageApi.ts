@@ -24,11 +24,24 @@ export const useMessageApi = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
-      const response = await fetch('/api/conversations', { headers });
+      console.log('🔍 Loading conversations with token:', token ? 'Yes' : 'No');
+      const response = await fetch('/api/conversations', { 
+        headers,
+        credentials: 'include' // Include cookies for session-based auth
+      });
+      
+      if (!response.ok) {
+        console.error('❌ Conversations API error:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Error details:', errorText);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
+      console.log('✅ Conversations loaded successfully:', data.conversations?.length || 0);
       return data.conversations || [];
     } catch (error) {
-      console.error('Failed to load conversations:', error);
+      console.error('❌ Failed to load conversations:', error);
       return [];
     }
   }, [getToken]);
@@ -51,11 +64,24 @@ export const useMessageApi = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`/api/messages?${params}`, { headers });
+      console.log('🔍 Loading messages for conversation:', conversationId, 'with token:', token ? 'Yes' : 'No');
+      const response = await fetch(`/api/messages?${params}`, { 
+        headers,
+        credentials: 'include' // Include cookies for session-based auth
+      });
+      
+      if (!response.ok) {
+        console.error('❌ Messages API error:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Error details:', errorText);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
+      console.log('✅ Messages loaded successfully:', data.messages?.length || 0);
       return data.messages || [];
     } catch (error) {
-      console.error('Failed to load messages:', error);
+      console.error('❌ Failed to load messages:', error);
       return [];
     }
   }, [getToken]);
@@ -105,7 +131,8 @@ export const useMessageApi = () => {
       const response = await fetch('/api/messages', {
         method: 'POST',
         headers,
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        credentials: 'include' // Include cookies for session-based auth
       });
 
       console.log('📥 Response status:', response.status, response.statusText);
