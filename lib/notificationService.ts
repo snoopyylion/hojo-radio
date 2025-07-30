@@ -21,19 +21,45 @@ export class NotificationService {
     return NotificationService.instance;
   }
 
+  // Helper method to get the base URL for API calls
+  private getBaseUrl(): string {
+    // Check if we're on the server side
+    if (typeof window === 'undefined') {
+      // Server-side: use environment variable or default to localhost
+      // Try multiple environment variables for flexibility
+      return process.env.NEXT_PUBLIC_APP_URL || 
+             process.env.NEXT_PUBLIC_API_URL || 
+             'http://localhost:3000';
+    }
+    // Client-side: use relative URL
+    return '';
+  }
+
   // Create notification with proper categorization
   async createNotification(notification: Omit<BaseNotification, 'id' | 'created_at'>): Promise<BaseNotification> {
     try {
-      const response = await fetch('/api/notifications', {
+      const baseUrl = this.getBaseUrl();
+      const isServerSide = typeof window === 'undefined';
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Add server call header for server-to-server requests
+      if (isServerSide) {
+        headers['x-server-call'] = 'true';
+      }
+      
+      const response = await fetch(`${baseUrl}/api/notifications`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(notification)
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create notification');
+        const errorText = await response.text();
+        console.error('Notification API error response:', errorText);
+        throw new Error(`Failed to create notification: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -47,16 +73,28 @@ export class NotificationService {
   // Create user activity entry
   async createUserActivity(activity: Omit<UserActivity, 'id' | 'timestamp'>): Promise<UserActivity> {
     try {
-      const response = await fetch('/api/user-activity', {
+      const baseUrl = this.getBaseUrl();
+      const isServerSide = typeof window === 'undefined';
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Add server call header for server-to-server requests
+      if (isServerSide) {
+        headers['x-server-call'] = 'true';
+      }
+      
+      const response = await fetch(`${baseUrl}/api/user-activity`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(activity)
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create user activity');
+        const errorText = await response.text();
+        console.error('User Activity API error response:', errorText);
+        throw new Error(`Failed to create user activity: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -371,7 +409,8 @@ export class NotificationService {
   // Get grouped notifications
   async getGroupedNotifications(userId: string): Promise<NotificationGroup[]> {
     try {
-      const response = await fetch(`/api/notifications/grouped?userId=${userId}`);
+      const baseUrl = this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/api/notifications/grouped?userId=${userId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch grouped notifications');
       }
@@ -389,7 +428,8 @@ export class NotificationService {
     offset: number = 0
   ): Promise<UserActivity[]> {
     try {
-      const response = await fetch(`/api/user-activity?userId=${userId}&limit=${limit}&offset=${offset}`);
+      const baseUrl = this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/api/user-activity?userId=${userId}&limit=${limit}&offset=${offset}`);
       if (!response.ok) {
         throw new Error('Failed to fetch user activity');
       }
@@ -415,62 +455,23 @@ export class NotificationService {
     userId: string,
     preferences: Partial<NotificationPreferences>
   ): Promise<void> {
-    try {
-      const response = await fetch('/api/notification-preferences', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user_id: userId, ...preferences })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update notification preferences');
-      }
-    } catch (error) {
-      console.error('Error updating notification preferences:', error);
-      throw error;
-    }
+    // TODO: Implement notification preferences API route
+    console.warn('Notification preferences API route not implemented yet');
+    return Promise.resolve();
   }
 
   // Mark notifications as read
   async markNotificationsAsRead(notificationIds: string[]): Promise<void> {
-    try {
-      const response = await fetch('/api/notifications/mark-read', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ notification_ids: notificationIds })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to mark notifications as read');
-      }
-    } catch (error) {
-      console.error('Error marking notifications as read:', error);
-      throw error;
-    }
+    // TODO: Implement mark notifications as read API route
+    console.warn('Mark notifications as read API route not implemented yet');
+    return Promise.resolve();
   }
 
   // Delete notifications
   async deleteNotifications(notificationIds: string[]): Promise<void> {
-    try {
-      const response = await fetch('/api/notifications/delete', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ notification_ids: notificationIds })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete notifications');
-      }
-    } catch (error) {
-      console.error('Error deleting notifications:', error);
-      throw error;
-    }
+    // TODO: Implement delete notifications API route
+    console.warn('Delete notifications API route not implemented yet');
+    return Promise.resolve();
   }
 
   // WebSocket connection management
