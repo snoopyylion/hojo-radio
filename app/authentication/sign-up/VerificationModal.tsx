@@ -84,7 +84,11 @@ export default function VerificationModal({ isOpen, onClose, email }: Verificati
 
       if (completeSignUp.status === "complete") {
         await setActive({ session: completeSignUp.createdSessionId });
-        router.push("/blog");
+        
+        // Add a small delay to ensure session is properly set
+        setTimeout(() => {
+          router.push("/authentication/complete-profile");
+        }, 100);
       } else {
         setErrors({ message: "Verification incomplete. Please try again." });
       }
@@ -210,6 +214,7 @@ export default function VerificationModal({ isOpen, onClose, email }: Verificati
             >
               {isLoading ? (
                 <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                   Verifying...
                 </>
               ) : (
