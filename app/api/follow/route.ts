@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { notificationService } from '@/lib/notificationService';
 import { auth } from '@clerk/nextjs/server';
 import WebSocket from 'ws';
 
@@ -197,8 +196,34 @@ export async function POST(request: NextRequest) {
             const followerName = followerProfile?.username || followerProfile?.first_name || 'Someone';
             sendFollowNotification(followerId, followingId, 'follow', followerName);
             
-            // Also create notification in database
-            await notificationService.createFollowNotification(followerId, followingId, followerName);
+            // Create notification directly in database (bypasses API auth issues)
+            try {
+                const { error: notificationError } = await supabase
+                    .from('notifications')
+                    .insert({
+                        user_id: followingId, // The user being followed receives the notification
+                        type: 'follow',
+                        title: 'New Follower',
+                        message: `${followerName} started following you`,
+                        data: {
+                            followerId: followerId,
+                            followerName: followerName
+                        },
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        read: false
+                    });
+
+                if (notificationError) {
+                    console.error('Failed to create notification:', notificationError);
+                    // Don't fail the follow operation if notification fails
+                } else {
+                    console.log('✅ Notification created successfully for follow');
+                }
+            } catch (notificationError) {
+                console.error('Failed to create notification:', notificationError);
+                // Don't fail the follow operation if notification fails
+            }
 
             return NextResponse.json({
                 success: true,
