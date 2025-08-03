@@ -9,7 +9,6 @@ import {
   Instagram,
   Twitter as X,
   ArrowUp,
-  Mail
 } from 'lucide-react'
 
 // Register GSAP plugins
