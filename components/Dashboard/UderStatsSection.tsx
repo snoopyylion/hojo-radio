@@ -33,7 +33,7 @@ const StatItem: React.FC<StatItemProps> = ({
   color 
 }) => {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-gray-950 rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-2 sm:mb-4">
         <div className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 ${color.bg} rounded-lg sm:rounded-xl flex items-center justify-center`}>
           <Icon className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 ${color.icon}`} />
@@ -111,7 +111,7 @@ const UserStatsSection: React.FC<UserStatsProps> = ({
   ];
 
   return (
-    <div className={`bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm ${className}`}>
+    <div className={`bg-white dark:bg-gray-950 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm ${className}`}>
       {/* Header Section */}
       <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-2 sm:gap-3">
@@ -136,7 +136,7 @@ const UserStatsSection: React.FC<UserStatsProps> = ({
         </div>
 
         {/* Additional Info */}
-        <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 dark:bg-gray-950 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse flex-shrink-0"></div>
             <span className="font-medium">Stats update in real-time</span>

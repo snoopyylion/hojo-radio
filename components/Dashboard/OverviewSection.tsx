@@ -91,7 +91,7 @@ export default function OverviewSection({
             variant="outline"
             size="sm"
             onClick={() => router.push('/hashedpage/profile')}
-            className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-white dark:bg-black border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 transition-all duration-200 rounded-lg font-medium shadow-sm hover:shadow-md flex-shrink-0 w-full sm:w-auto justify-center text-sm sm:text-base"
+            className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-white dark:bg-black border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-950 transition-all duration-200 rounded-lg font-medium shadow-sm hover:shadow-md flex-shrink-0 w-full sm:w-auto justify-center text-sm sm:text-base"
           >
             <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
             Edit Profile
@@ -187,7 +187,7 @@ export default function OverviewSection({
                 <div className="space-y-4 sm:space-y-6">
                   <div className="group">
                     <label className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-300 mb-2 sm:mb-3 block tracking-wider uppercase">Email Address</label>
-                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
+                    <div className="bg-gray-50 dark:bg-gray-950 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
                       <span className="text-black dark:text-white font-medium text-sm sm:text-base lg:text-lg break-all">{userProfile.email}</span>
                     </div>
                   </div>
@@ -195,7 +195,7 @@ export default function OverviewSection({
                   {userProfile.phone && (
                     <div className="group">
                       <label className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-300 mb-2 sm:mb-3 block tracking-wider uppercase">Phone Number</label>
-                      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
+                      <div className="bg-gray-50 dark:bg-gray-950 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
                         <span className="text-black dark:text-white font-medium text-sm sm:text-base lg:text-lg">{userProfile.phone}</span>
                       </div>
                     </div>
@@ -204,7 +204,7 @@ export default function OverviewSection({
                   {userProfile.location && (
                     <div className="group">
                       <label className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-300 mb-2 sm:mb-3 block tracking-wider uppercase">Location</label>
-                      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
+                      <div className="bg-gray-50 dark:bg-gray-950 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
                         <span className="text-black dark:text-white font-medium text-sm sm:text-base lg:text-lg break-words">{userProfile.location}</span>
                       </div>
                     </div>
@@ -215,7 +215,7 @@ export default function OverviewSection({
                   {userProfile.date_of_birth && (
                     <div className="group">
                       <label className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-300 mb-2 sm:mb-3 block tracking-wider uppercase">Date of Birth</label>
-                      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
+                      <div className="bg-gray-50 dark:bg-gray-950 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
                         <span className="text-black dark:text-white font-medium text-sm sm:text-base lg:text-lg">
                           {new Date(userProfile.date_of_birth).toLocaleDateString('en-US', {
                             year: 'numeric',
@@ -230,7 +230,7 @@ export default function OverviewSection({
                   {userProfile.website && (
                     <div className="group">
                       <label className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-300 mb-2 sm:mb-3 block tracking-wider uppercase">Website</label>
-                      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
+                      <div className="bg-gray-50 dark:bg-gray-950 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
                         <a
                           href={userProfile.website.startsWith('http') ? userProfile.website : `https://${userProfile.website}`}
                           target="_blank"
@@ -248,7 +248,7 @@ export default function OverviewSection({
               {userProfile.bio && (
                 <div className="mt-6 sm:mt-8">
                   <label className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-300 mb-2 sm:mb-3 block tracking-wider uppercase">Biography</label>
-                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700">
+                  <div className="bg-gray-50 dark:bg-gray-950 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700">
                     <p className="text-black dark:text-white leading-relaxed text-sm sm:text-base lg:text-lg break-words">{userProfile.bio}</p>
                   </div>
                 </div>
@@ -267,7 +267,7 @@ export default function OverviewSection({
   
             <div className="p-4 sm:p-6">
               <div className="space-y-3 sm:space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-950 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
                   <div className="flex items-center gap-3 sm:gap-4 flex-1">
                     <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gray-400 dark:bg-gray-500 rounded-full flex-shrink-0"></div>
                     <span className="text-black dark:text-white font-semibold text-sm sm:text-base lg:text-lg">Account Created</span>
@@ -285,7 +285,7 @@ export default function OverviewSection({
                   </span>
                 </div>
   
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-950 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
                   <div className="flex items-center gap-3 sm:gap-4 flex-1">
                     <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-blue-500 rounded-full flex-shrink-0"></div>
                     <span className="text-black dark:text-white font-semibold text-sm sm:text-base lg:text-lg">Last Profile Update</span>
@@ -299,7 +299,7 @@ export default function OverviewSection({
                   </span>
                 </div>
   
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-950 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
                   <div className="flex items-center gap-3 sm:gap-4 flex-1">
                     <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-purple-500 rounded-full flex-shrink-0"></div>
                     <span className="text-black dark:text-white font-semibold text-sm sm:text-base lg:text-lg">Days Active</span>
@@ -347,12 +347,12 @@ export default function OverviewSection({
                   { label: 'Dashboard accessed', color: 'bg-green-500' },
                   { label: 'Profile updated', color: 'bg-purple-500' },
                 ].map(({ label, color }, idx) => (
-                  <div key={idx} className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div key={idx} className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-gray-50 dark:bg-gray-950 rounded-lg border border-gray-200 dark:border-gray-700">
                     <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${color} flex-shrink-0`}></div>
                     <span className="text-gray-700 dark:text-gray-200 font-medium flex-1 text-sm sm:text-base break-words">{label}</span>
                   </div>
                 ))}
-                <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-gray-50 dark:bg-gray-950 rounded-lg border border-gray-200 dark:border-gray-700">
                   <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-orange-500 rounded-full flex-shrink-0"></div>
                   <span className="text-gray-700 dark:text-gray-200 font-medium flex-1 text-sm sm:text-base">
                     {createdAtLoading ? (
@@ -376,7 +376,7 @@ export default function OverviewSection({
                 </div>
                 <button
                   onClick={() => router.push('/notifications')}
-                  className="text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white font-medium transition-colors px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 text-xs sm:text-sm self-start sm:self-auto"
+                  className="text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white font-medium transition-colors px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-950 text-xs sm:text-sm self-start sm:self-auto"
                 >
                   View All
                 </button>

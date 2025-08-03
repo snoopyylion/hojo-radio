@@ -382,12 +382,12 @@ export const SmartUserActivityFeed: React.FC<SmartUserActivityFeedProps> = ({
     return (
       <div className={`space-y-4 ${className}`}>
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="animate-pulse bg-gray-100 dark:bg-gray-800 rounded-xl p-4">
+          <div key={i} className="animate-pulse bg-gray-100 dark:bg-gray-950 rounded-xl p-4">
             <div className="flex gap-3">
-              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-950 rounded-full"></div>
               <div className="flex-1 space-y-2">
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                <div className="h-4 bg-gray-200 dark:bg-gray-950 rounded w-3/4"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-950 rounded w-1/2"></div>
               </div>
             </div>
           </div>
@@ -420,7 +420,7 @@ export const SmartUserActivityFeed: React.FC<SmartUserActivityFeedProps> = ({
 
       {/* Filters */}
       {showFilters && !isOverview && (
-        <div className="flex flex-wrap gap-2 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+        <div className="flex flex-wrap gap-2 p-4 bg-gray-50 dark:bg-gray-950/50 rounded-lg">
           <Filter size={16} className="text-gray-500 dark:text-gray-400 mt-2" />
           {categories.map((category) => (
             <button
@@ -429,7 +429,7 @@ export const SmartUserActivityFeed: React.FC<SmartUserActivityFeedProps> = ({
               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 selectedCategory === category.value
                   ? 'bg-[#EF3866] text-white'
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
             >
               {category.icon}
@@ -459,7 +459,7 @@ export const SmartUserActivityFeed: React.FC<SmartUserActivityFeedProps> = ({
             {paginatedGroups.map((group) => (
               <div
                 key={group.id}
-                className="activity-group bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-md transition-all duration-200"
+                className="activity-group bg-white dark:bg-gray-950 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-md transition-all duration-200"
               >
                 <div className="p-4">
                   <div className="flex items-start gap-3">
@@ -501,7 +501,7 @@ export const SmartUserActivityFeed: React.FC<SmartUserActivityFeedProps> = ({
                     {group.count > 1 && (
                       <button
                         onClick={() => toggleGroup(group.id)}
-                        className="flex-shrink-0 p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                        className="flex-shrink-0 p-1 hover:bg-gray-100 dark:hover:bg-gray-950 rounded transition-colors"
                       >
                         {expandedGroups.has(group.id) ? (
                           <ChevronUp size={16} className="text-gray-500" />
@@ -515,7 +515,7 @@ export const SmartUserActivityFeed: React.FC<SmartUserActivityFeedProps> = ({
 
                 {/* Expanded activities */}
                 {expandedGroups.has(group.id) && group.count > 1 && (
-                  <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+                  <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-950/50">
                     <div className="p-4 space-y-3">
                       {group.activities.slice(0, 5).map((activity, index) => (
                         <div key={`${activity.id}-${index}`} className="flex items-start gap-3 text-sm">
@@ -559,7 +559,7 @@ export const SmartUserActivityFeed: React.FC<SmartUserActivityFeedProps> = ({
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-950 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Previous
             </button>
@@ -569,7 +569,7 @@ export const SmartUserActivityFeed: React.FC<SmartUserActivityFeedProps> = ({
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-950 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Next
             </button>
