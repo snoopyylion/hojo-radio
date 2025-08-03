@@ -22,7 +22,6 @@ interface StatItemProps {
   color: {
     bg: string;
     icon: string;
-    accent: string;
   };
 }
 
@@ -34,30 +33,22 @@ const StatItem: React.FC<StatItemProps> = ({
   color 
 }) => {
   return (
-    <div className="group text-center hover:scale-105 transition-all duration-300 cursor-pointer">
-      {/* Icon Container */}
-      <div className="flex items-center justify-center mb-4">
-        <div className={`w-12 h-12 ${color.bg} rounded-2xl flex items-center justify-center backdrop-blur-sm transition-all duration-300 group-hover:shadow-lg group-hover:shadow-gray-200/50 dark:group-hover:shadow-gray-800/50`}>
-          <Icon className={`w-6 h-6 ${color.icon} group-hover:text-[#EF3866] transition-colors duration-300`} />
+    <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between mb-2 sm:mb-4">
+        <div className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 ${color.bg} rounded-lg sm:rounded-xl flex items-center justify-center`}>
+          <Icon className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 ${color.icon}`} />
         </div>
       </div>
-
-      {/* Value */}
-      <div className="font-light text-2xl sm:text-3xl text-gray-900 dark:text-white group-hover:text-[#EF3866] transition-colors duration-300 tracking-tight mb-2">
-        {isLoading ? (
-          <div className="animate-pulse bg-gray-200/60 dark:bg-gray-700/60 rounded-lg h-8 w-16 mx-auto backdrop-blur-sm"></div>
-        ) : (
-          typeof value === 'number' ? value.toLocaleString() : value
-        )}
+      <div>
+        <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-medium tracking-wide uppercase mb-1 sm:mb-2">{label}</p>
+        <p className="text-gray-900 dark:text-white text-lg sm:text-xl lg:text-2xl font-bold leading-tight">
+          {isLoading ? (
+            <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-6 sm:h-7 lg:h-8 w-12 sm:w-14 lg:w-16 inline-block"></span>
+          ) : (
+            typeof value === 'number' ? value.toLocaleString() : value
+          )}
+        </p>
       </div>
-
-      {/* Label */}
-      <div className="text-sm text-gray-600 dark:text-gray-400 font-medium uppercase tracking-wide">
-        {label}
-      </div>
-
-      {/* Accent Line */}
-      <div className={`w-8 h-0.5 ${color.accent} mx-auto mt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
     </div>
   );
 };
@@ -93,9 +84,8 @@ const UserStatsSection: React.FC<UserStatsProps> = ({
       label: "Posts Liked",
       isLoading: likesLoading,
       color: {
-        bg: "bg-gradient-to-br from-pink-100/80 to-pink-200/60 dark:from-pink-900/30 dark:to-pink-800/20",
-        icon: "text-pink-600 dark:text-pink-400",
-        accent: "bg-pink-400/50"
+        bg: "bg-pink-100 dark:bg-pink-900/30",
+        icon: "text-pink-600 dark:text-pink-400"
       }
     },
     {
@@ -104,9 +94,8 @@ const UserStatsSection: React.FC<UserStatsProps> = ({
       label: "My Comments",
       isLoading: commentsLoading,
       color: {
-        bg: "bg-gradient-to-br from-purple-100/80 to-purple-200/60 dark:from-purple-900/30 dark:to-purple-800/20",
-        icon: "text-purple-600 dark:text-purple-400",
-        accent: "bg-purple-400/50"
+        bg: "bg-purple-100 dark:bg-purple-900/30",
+        icon: "text-purple-600 dark:text-purple-400"
       }
     },
     {
@@ -115,19 +104,25 @@ const UserStatsSection: React.FC<UserStatsProps> = ({
       label: "Verified News",
       isLoading: verifiedLoading,
       color: {
-        bg: "bg-gradient-to-br from-orange-100/80 to-orange-200/60 dark:from-orange-900/30 dark:to-orange-800/20",
-        icon: "text-orange-600 dark:text-orange-400",
-        accent: "bg-orange-400/50"
+        bg: "bg-orange-100 dark:bg-orange-900/30",
+        icon: "text-orange-600 dark:text-orange-400"
       }
     }
   ];
 
   return (
-    <section className={`bg-white dark:bg-black backdrop-blur-md rounded-2xl border border-gray-200/50 dark:border-gray-800/50 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 ${className}`}>
+    <div className={`bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm ${className}`}>
+      {/* Header Section */}
+      <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-1.5 sm:w-2 h-6 sm:h-8 bg-gradient-to-b from-[#EF3866] to-[#EF3866]/80 rounded-full"></div>
+          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Activity Overview</h3>
+        </div>
+      </div>
 
-      {/* Stats Container */}
-      <div className="px-4 sm:px-8 lg:px-12 py-8 sm:py-10">
-        <div className="grid grid-cols-3 gap-6 sm:gap-8">
+      {/* Stats Grid */}
+      <div className="p-4 sm:p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           {statItems.map((item, index) => (
             <StatItem
               key={index}
@@ -139,8 +134,16 @@ const UserStatsSection: React.FC<UserStatsProps> = ({
             />
           ))}
         </div>
+
+        {/* Additional Info */}
+        <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse flex-shrink-0"></div>
+            <span className="font-medium">Stats update in real-time</span>
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
   );
 };
 

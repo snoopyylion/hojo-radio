@@ -13,14 +13,12 @@ import PageLoader from '@/components/PageLoader';
 import { useUserLikes } from '../../../hooks/user-likes/useUserLikes';
 import { useUserComments } from '../../../hooks/user-comments/useUserComments';
 import { useUserCreatedAt, useUserMemberSince } from '../../../hooks/user-created/useUserCreatedAt';
-import UserStatsSection from "@/components/Dashboard/UderStatsSection";
 import { AuthorPostsSection } from '@/components/UserProfile/AuthorPostsSection';
 import WeeklyTopPosts from "@/components/WeeklyTopPosts";
 import AuthorAccessSection from "@/components/Dashboard/AuthorAccessSection";
 import CommentsSection from "@/components/Dashboard/CommentsSection";
 import BookmarksSection from "@/components/Dashboard/Bookmarks";
-import { SmartUserActivityFeed } from '@/components/Dashboard/UserActivityFeed';
-import { Button } from "@/components/ui/button";
+import OverviewSection from "@/components/Dashboard/OverviewSection";
 
 // ProfileTabs Component
 interface ProfileTabsProps {
@@ -620,9 +618,9 @@ export default function UserDashboard() {
 
   // Define styles
   const styles = {
-    container: "min-h-screen bg-gray-50/50 dark:bg-gray-900/20 pt-[100px] pb-[100px]",
-    profileContainer: "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-8",
-    contentArea: "flex-1 flex flex-col gap-6",
+    container: "min-h-screen bg-gray-50/50 dark:bg-gray-900/20 pt-[100px] pb-[100px] flex justify-center",
+    profileContainer: "max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-8 justify-center items-start",
+    contentArea: "flex-1 flex flex-col gap-6 max-w-4xl",
     tabContent: "min-h-[60vh]",
     sectionTitle: "text-3xl font-bold dark:text-white",
     aboutCard: "bg-white/70 dark:bg-black/70 backdrop-blur-md rounded-2xl border border-gray-200/50 dark:border-gray-800/50 p-8",
@@ -634,597 +632,87 @@ export default function UserDashboard() {
 
   return (
     <div className={styles.container} ref={containerRef}>
-      {/* Profile Section */}
-      <section className={styles.profileContainer}>
-        {/* Profile Card (Left Side) */}
-        <div className="" ref={headerRef}>
-          <ProfileHeader
-            profile={{
-              ...userProfile,
-              followers_count: followersCount,
-              following_count: followingCount,
-              posts_count: userProfile.role === 'author' ? postsCount : 0
-            }}
-            currentUserId={user.id}
-            isFollowing={false}
-            followLoading={false}
-            onFollow={() => { }}
-            onOpenFollowers={handleFollowersClick}
-            onOpenFollowing={handleFollowingClick}
-          />
-        </div>
+      {/* Mobile-First Profile Section */}
+      <section className="max-w-7xl w-full px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
 
-        {/* Content Area (Right Side) */}
-        <div className={styles.contentArea}>
-          {/* Tab Navigation */}
-          <div className="bg-white/80 dark:bg-black/80 backdrop-blur-lg rounded-2xl border border-gray-200/50 dark:border-gray-800/50 p-2 shadow-sm" ref={tabsRef}>
-            <ProfileTabs
-              activeTab={activeTab}
-              onTabChange={(tab) => handleTabClick(tab as typeof activeTab)}
-              postsCount={postsCount}
-              userRole={userProfile.role || 'user'}
-              dashboardTabs={[
+        {/* Mobile Layout (< lg screens) */}
+        <div className="lg:hidden space-y-4 sm:space-y-6">
+          {/* Profile Header - Mobile */}
+          <div ref={headerRef}>
+            <ProfileHeader
+              profile={{
+                ...userProfile,
+                followers_count: followersCount,
+                following_count: followingCount,
+                posts_count: userProfile.role === 'author' ? postsCount : 0
+              }}
+              currentUserId={user.id}
+              isFollowing={false}
+              followLoading={false}
+              onFollow={() => { }}
+              onOpenFollowers={handleFollowersClick}
+              onOpenFollowing={handleFollowingClick}
+            />
+          </div>
+
+          {/* Tab Navigation - Mobile */}
+          <div className="bg-white/80 dark:bg-black/80 backdrop-blur-lg rounded-xl sm:rounded-2xl border border-gray-200/50 dark:border-gray-800/50 p-1.5 sm:p-2 shadow-sm" ref={tabsRef}>
+            <div className="flex justify-between w-full">
+              {[
                 { id: 'overview', label: 'Overview', icon: BarChart3 },
                 { id: 'posts', label: 'Top Posts', icon: TrendingUp },
                 { id: 'bookmarks', label: 'Bookmarks', icon: Bookmark },
                 { id: 'verified', label: 'Verified News', icon: CheckCircle },
                 ...(userProfile?.role === 'author' ? [{ id: 'my-posts', label: 'My Posts', icon: Edit3 }] : []),
-                { id: 'comments', label: 'My Comments', icon: MessageCircle },
+                { id: 'comments', label: 'Comments', icon: MessageCircle },
                 { id: 'author', label: 'Author Access', icon: Crown }
-              ]}
-            />
-          </div>
-
-          {/* Tab Content */}
-          <div className={styles.tabContent} ref={contentRef}>
-          {activeTab === 'overview' && (
-  <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 lg:px-0">
-    {/* Header Section - Fully responsive */}
-    <div className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6 bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-      {/* Profile Info Section */}
-      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 w-full">
-        {userProfile.image_url && (
-          <div className="relative flex-shrink-0">
-            <img
-              src={userProfile.image_url}
-              alt={`${userProfile.first_name} ${userProfile.last_name}`}
-              className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-lg sm:rounded-xl object-cover border-2 border-gray-200 dark:border-gray-700 shadow-sm"
-            />
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 bg-emerald-500 border-2 sm:border-3 border-white dark:border-gray-900 rounded-full shadow-sm"></div>
-          </div>
-        )}
-        <div className="flex-1 min-w-0 text-center sm:text-left">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-900 dark:text-white tracking-tight leading-tight break-words">
-            {userProfile.first_name} {userProfile.last_name}
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 font-medium mt-1 sm:mt-2 text-sm sm:text-base lg:text-lg break-all">@{userProfile.username}</p>
-          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 mt-2 sm:mt-3">
-            <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
-              userProfile.profile_completed 
-                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300' 
-                : 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300'
-            }`}>
-              {userProfile.profile_completed ? 'Profile Complete' : 'Profile Incomplete'}
-            </span>
-            <span className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 capitalize">
-              {userProfile.role}
-            </span>
-          </div>
-        </div>
-      </div>
-      
-      {/* Edit Profile Button */}
-      <div className="flex justify-center sm:justify-end">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => router.push('/hashedpage/profile')}
-          className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 rounded-lg font-medium shadow-sm hover:shadow-md flex-shrink-0 w-full sm:w-auto justify-center text-sm sm:text-base"
-        >
-          <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
-          Edit Profile
-        </Button>
-      </div>
-    </div>
-
-    {/* Stats Cards - Responsive grid */}
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-      <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-center justify-between mb-2 sm:mb-4">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gray-100 dark:bg-gray-800 rounded-lg sm:rounded-xl flex items-center justify-center">
-            <div className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 bg-gray-600 dark:bg-gray-400 rounded"></div>
-          </div>
-        </div>
-        <div>
-          <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-medium tracking-wide uppercase mb-1 sm:mb-2">Role</p>
-          <p className="text-gray-900 dark:text-white text-lg sm:text-xl lg:text-2xl font-bold capitalize leading-tight">
-            {userProfile.role}
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-center justify-between mb-2 sm:mb-4">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gray-100 dark:bg-gray-800 rounded-lg sm:rounded-xl flex items-center justify-center">
-            <div className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 rounded ${userProfile.profile_completed ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
-          </div>
-        </div>
-        <div>
-          <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-medium tracking-wide uppercase mb-1 sm:mb-2">Status</p>
-          <p className="text-gray-900 dark:text-white text-lg sm:text-xl lg:text-2xl font-bold leading-tight">
-            {userProfile.profile_completed ? 'Complete' : 'Incomplete'}
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-center justify-between mb-2 sm:mb-4">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gray-100 dark:bg-gray-800 rounded-lg sm:rounded-xl flex items-center justify-center">
-            <div className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 bg-blue-500 rounded"></div>
-          </div>
-        </div>
-        <div>
-          <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-medium tracking-wide uppercase mb-1 sm:mb-2">Active Days</p>
-          <p className="text-gray-900 dark:text-white text-lg sm:text-xl lg:text-2xl font-bold leading-tight">
-            {createdAtLoading ? (
-              <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-6 sm:h-7 lg:h-8 w-12 sm:w-14 lg:w-16 inline-block"></span>
-            ) : (
-              `${daysSinceJoining}`
-            )}
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-center justify-between mb-2 sm:mb-4">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gray-100 dark:bg-gray-800 rounded-lg sm:rounded-xl flex items-center justify-center">
-            <div className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 bg-purple-500 rounded"></div>
-          </div>
-        </div>
-        <div>
-          <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-medium tracking-wide uppercase mb-1 sm:mb-2">Member Since</p>
-          <p className="text-gray-900 dark:text-white text-sm sm:text-base lg:text-lg font-bold leading-tight">
-            {createdAtLoading ? (
-              <span className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-5 sm:h-6 w-16 sm:w-20 inline-block"></span>
-            ) : (
-              memberSince || new Date(userProfile.created_at).toLocaleDateString('en-US', {
-                month: 'short',
-                year: 'numeric'
-              })
-            )}
-          </p>
-        </div>
-      </div>
-    </div>
-
-    {/* Main Content Grid - Responsive layout */}
-    <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
-      {/* Account Information - Responsive columns */}
-      <div className="xl:col-span-2 space-y-4 sm:space-y-6">
-        {/* Personal Information Card */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-1.5 sm:w-2 h-6 sm:h-8 bg-gradient-to-b from-[#EF3866] to-[#EF3866]/80 rounded-full"></div>
-              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Personal Information</h3>
+              ].map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabClick(tab.id as typeof activeTab)}
+                    className={`flex flex-col sm:flex-row items-center justify-center flex-grow basis-0 min-w-0 px-2 py-2 sm:px-2.5 sm:py-2.5 rounded-lg sm:rounded-xl font-medium text-xs sm:text-sm transition-all duration-200 ${activeTab === tab.id
+                        ? 'bg-[#EF3866] text-white shadow-md'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                  >
+                    <Icon className="w-4 h-4 sm:mr-1" />
+                    <span className="hidden sm:inline text-xs sm:text-sm">{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div className="p-4 sm:p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
-              <div className="space-y-4 sm:space-y-6">
-                <div className="group">
-                  <label className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 sm:mb-3 block tracking-wider uppercase">Email Address</label>
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
-                    <span className="text-gray-900 dark:text-white font-medium text-sm sm:text-base lg:text-lg break-all">{userProfile.email}</span>
-                  </div>
-                </div>
 
-                {userProfile.phone && (
-                  <div className="group">
-                    <label className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 sm:mb-3 block tracking-wider uppercase">Phone Number</label>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
-                      <span className="text-gray-900 dark:text-white font-medium text-sm sm:text-base lg:text-lg">{userProfile.phone}</span>
-                    </div>
-                  </div>
-                )}
-
-                {userProfile.location && (
-                  <div className="group">
-                    <label className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 sm:mb-3 block tracking-wider uppercase">Location</label>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
-                      <span className="text-gray-900 dark:text-white font-medium text-sm sm:text-base lg:text-lg break-words">{userProfile.location}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-4 sm:space-y-6">
-                {userProfile.date_of_birth && (
-                  <div className="group">
-                    <label className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 sm:mb-3 block tracking-wider uppercase">Date of Birth</label>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
-                      <span className="text-gray-900 dark:text-white font-medium text-sm sm:text-base lg:text-lg">
-                        {new Date(userProfile.date_of_birth).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {userProfile.website && (
-                  <div className="group">
-                    <label className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 sm:mb-3 block tracking-wider uppercase">Website</label>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700 group-hover:border-gray-300 dark:group-hover:border-gray-600 transition-all duration-200">
-                      <a
-                        href={userProfile.website.startsWith('http') ? userProfile.website : `https://${userProfile.website}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 font-medium text-sm sm:text-base lg:text-lg transition-colors underline decoration-gray-400 hover:decoration-blue-600 dark:hover:decoration-blue-400 underline-offset-4 break-all"
-                      >
-                        {userProfile.website}
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {userProfile.bio && (
-              <div className="mt-6 sm:mt-8">
-                <label className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 sm:mb-3 block tracking-wider uppercase">Biography</label>
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 sm:p-4 border border-gray-200 dark:border-gray-700">
-                  <p className="text-gray-900 dark:text-white leading-relaxed text-sm sm:text-base lg:text-lg break-words">{userProfile.bio}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Account Timeline Card */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-1.5 sm:w-2 h-6 sm:h-8 bg-gradient-to-b from-[#EF3866] to-[#EF3866]/80 rounded-full"></div>
-              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Account Timeline</h3>
-            </div>
-          </div>
-
-          <div className="p-4 sm:p-6">
-            <div className="space-y-3 sm:space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
-                <div className="flex items-center gap-3 sm:gap-4 flex-1">
-                  <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gray-400 dark:bg-gray-500 rounded-full flex-shrink-0"></div>
-                  <span className="text-gray-900 dark:text-white font-semibold text-sm sm:text-base lg:text-lg">Account Created</span>
-                </div>
-                <span className="text-gray-500 dark:text-gray-400 font-medium text-sm sm:text-base ml-5 sm:ml-0">
-                  {createdAtLoading ? (
-                    <span className="animate-pulse bg-gray-200 dark:bg-gray-600 rounded h-4 sm:h-5 w-20 sm:w-24 inline-block"></span>
-                  ) : (
-                    memberSince || new Date(userProfile.created_at).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })
-                  )}
-                </span>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
-                <div className="flex items-center gap-3 sm:gap-4 flex-1">
-                  <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-blue-500 rounded-full flex-shrink-0"></div>
-                  <span className="text-gray-900 dark:text-white font-semibold text-sm sm:text-base lg:text-lg">Last Profile Update</span>
-                </div>
-                <span className="text-gray-500 dark:text-gray-400 font-medium text-sm sm:text-base ml-5 sm:ml-0">
-                  {new Date(userProfile.updated_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </span>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
-                <div className="flex items-center gap-3 sm:gap-4 flex-1">
-                  <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-purple-500 rounded-full flex-shrink-0"></div>
-                  <span className="text-gray-900 dark:text-white font-semibold text-sm sm:text-base lg:text-lg">Days Active</span>
-                </div>
-                <span className="text-gray-500 dark:text-gray-400 font-medium text-sm sm:text-base ml-5 sm:ml-0">
-                  {createdAtLoading ? (
-                    <span className="animate-pulse bg-gray-200 dark:bg-gray-600 rounded h-4 sm:h-5 w-12 sm:w-16 inline-block"></span>
-                  ) : (
-                    `${daysSinceJoining} days`
-                  )}
-                </span>
-              </div>
-
-              {userProfile.role === 'author' && (
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                  <div className="flex items-center gap-3 sm:gap-4 flex-1">
-                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-emerald-500 rounded-full flex-shrink-0"></div>
-                    <span className="text-gray-900 dark:text-white font-semibold text-sm sm:text-base lg:text-lg">Author Status</span>
-                  </div>
-                  <span className="text-emerald-800 dark:text-emerald-300 font-bold bg-emerald-100 dark:bg-emerald-800/50 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ml-5 sm:ml-0 w-fit">
-                    Active Author
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Activity Sidebar - Responsive width */}
-      <div className="space-y-4 sm:space-y-6">
-        {/* Quick Activity Card */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-1.5 sm:w-2 h-6 sm:h-8 bg-gradient-to-b from-[#EF3866] to-[#EF3866]/80 rounded-full"></div>
-              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Quick Stats</h3>
-            </div>
-          </div>
-
-          <div className="p-4 sm:p-6">
-            <div className="space-y-2 sm:space-y-3">
-              {[
-                { label: 'Viewed 5 articles today', color: 'bg-blue-500' },
-                { label: 'Dashboard accessed', color: 'bg-green-500' },
-                { label: 'Profile updated', color: 'bg-purple-500' },
-              ].map(({ label, color }, idx) => (
-                <div key={idx} className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${color} flex-shrink-0`}></div>
-                  <span className="text-gray-700 dark:text-gray-300 font-medium flex-1 text-sm sm:text-base break-words">{label}</span>
-                </div>
-              ))}
-              <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-orange-500 rounded-full flex-shrink-0"></div>
-                <span className="text-gray-700 dark:text-gray-300 font-medium flex-1 text-sm sm:text-base">
-                  {createdAtLoading ? (
-                    <span className="animate-pulse bg-gray-200 dark:bg-gray-600 rounded h-3 sm:h-4 w-20 sm:w-24 inline-block"></span>
-                  ) : (
-                    `${daysSinceJoining} days active`
-                  )}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Activity Feed */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-1.5 sm:w-2 h-6 sm:h-8 bg-gradient-to-b from-[#EF3866] to-[#EF3866]/80 rounded-full"></div>
-                <h4 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Activity Feed</h4>
-              </div>
-              <button
-                onClick={() => router.push('/notifications')}
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium transition-colors px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-xs sm:text-sm self-start sm:self-auto"
-              >
-                View All
-              </button>
-            </div>
-          </div>
-          <div className="p-4 sm:p-6">
-            <SmartUserActivityFeed userId={userProfile.id} showFilters={false} limit={5} isOverview={true} />
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
-            {activeTab === 'profile-details' && (
-              <div className="space-y-6">
-                {/* Complete Profile Information */}
-                <div className="rounded-2xl p-6 border bg-white/70 dark:bg-black/70 backdrop-blur-md border-gray-200/50 dark:border-gray-800/50 shadow-sm">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 font-sora">Complete Profile Information</h3>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Personal Details */}
-                    <div className="space-y-6">
-                      <div>
-                        <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Personal Details</h4>
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">User ID</span>
-                            <span className="text-gray-900 dark:text-white font-mono text-sm">{userProfile.id}</span>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">First Name</span>
-                            <span className="text-gray-900 dark:text-white">{userProfile.first_name}</span>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">Last Name</span>
-                            <span className="text-gray-900 dark:text-white">{userProfile.last_name}</span>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">Username</span>
-                            <span className="text-gray-900 dark:text-white">@{userProfile.username}</span>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">Email</span>
-                            <span className="text-gray-900 dark:text-white">{userProfile.email}</span>
-                          </div>
-                          {userProfile.phone && (
-                            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                              <span className="text-gray-600 dark:text-gray-400 font-medium">Phone</span>
-                              <span className="text-gray-900 dark:text-white">{userProfile.phone}</span>
-                            </div>
-                          )}
-                          {userProfile.date_of_birth && (
-                            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                              <span className="text-gray-600 dark:text-gray-400 font-medium">Date of Birth</span>
-                              <span className="text-gray-900 dark:text-white">
-                                {new Date(userProfile.date_of_birth).toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric'
-                                })}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Account Details */}
-                    <div className="space-y-6">
-                      <div>
-                        <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Account Details</h4>
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">Role</span>
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${userProfile.role === 'author' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'}`}>
-                              {userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">Profile Status</span>
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${userProfile.profile_completed ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'}`}>
-                              {userProfile.profile_completed ? 'Complete' : 'Incomplete'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">Account Created</span>
-                            <span className="text-gray-900 dark:text-white text-sm">
-                              {new Date(userProfile.created_at).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">Last Updated</span>
-                            <span className="text-gray-900 dark:text-white text-sm">
-                              {new Date(userProfile.updated_at).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
-                          </div>
-                          {userProfile.location && (
-                            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                              <span className="text-gray-600 dark:text-gray-400 font-medium">Location</span>
-                              <span className="text-gray-900 dark:text-white">{userProfile.location}</span>
-                            </div>
-                          )}
-                          {userProfile.website && (
-                            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                              <span className="text-gray-600 dark:text-gray-400 font-medium">Website</span>
-                              <a
-                                href={userProfile.website.startsWith('http') ? userProfile.website : `https://${userProfile.website}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[#EF3866] hover:underline"
-                              >
-                                {userProfile.website}
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bio Section */}
-                  {userProfile.bio && (
-                    <div className="mt-8">
-                      <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Bio</h4>
-                      <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <p className="text-gray-900 dark:text-white leading-relaxed">{userProfile.bio}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Profile Image */}
-                  {userProfile.image_url && (
-                    <div className="mt-8">
-                      <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Profile Image</h4>
-                      <div className="flex items-center gap-4">
-                        <img
-                          src={userProfile.image_url}
-                          alt={`${userProfile.first_name} ${userProfile.last_name}`}
-                          className="w-20 h-20 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
-                        />
-                        <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Current profile picture</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-500">Uploaded via authentication provider</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Data Export Section */}
-                <div className="rounded-2xl p-6 border bg-white/70 dark:bg-black/70 backdrop-blur-md border-gray-200/50 dark:border-gray-800/50 shadow-sm">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 font-sora">Data Management</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div>
-                        <h4 className="font-medium text-gray-900 dark:text-white">Export Profile Data</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Download all your profile information as JSON</p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const profileData = {
-                            ...userProfile,
-                            followers_count: followersCount,
-                            following_count: followingCount,
-                            posts_count: postsCount,
-                            total_comments: totalComments,
-                            total_likes: userLikedPosts,
-                            verified_news_count: verifiedNewsCount,
-                            export_date: new Date().toISOString()
-                          };
-                          const blob = new Blob([JSON.stringify(profileData, null, 2)], { type: 'application/json' });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = `profile-data-${userProfile.username}-${new Date().toISOString().split('T')[0]}.json`;
-                          document.body.appendChild(a);
-                          a.click();
-                          document.body.removeChild(a);
-                          URL.revokeObjectURL(url);
-                        }}
-                        className="flex items-center gap-2"
-                      >
-                        <Download className="w-4 h-4" />
-                        Export
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          {/* Tab Content - Mobile */}
+          <div className="min-h-[50vh]" ref={contentRef}>
+            {activeTab === 'overview' && (
+              <OverviewSection
+                userProfile={userProfile}
+                followersCount={followersCount}
+                followingCount={followingCount}
+                postsCount={postsCount}
+                verifiedNewsCount={verifiedNewsCount}
+                loading={loading}
+              />
             )}
 
             {activeTab === 'posts' && (
-              <div>
+              <div className="space-y-4">
                 <WeeklyTopPosts />
               </div>
             )}
 
             {activeTab === 'bookmarks' && (
-              <div>
+              <div className="space-y-4">
                 <BookmarksSection />
               </div>
             )}
 
             {activeTab === 'my-posts' && (
-              <div>
+              <div className="space-y-4">
                 <AuthorPostsSection
                   userId={userProfile.id}
                   isAuthor={userProfile.role === 'author'}
@@ -1234,40 +722,137 @@ export default function UserDashboard() {
             )}
 
             {activeTab === 'comments' && (
-              <div><CommentsSection /></div>
+              <div className="space-y-4">
+                <CommentsSection />
+              </div>
             )}
 
             {activeTab === 'verified' && (
-              <div>
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">HOJO AI Verified News</h2>
-                  <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">AI-powered fact-checking and verification results</p>
+              <div className="space-y-4 sm:space-y-6">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">HOJO AI Verified News</h2>
+                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 font-sora transition-colors mt-1">AI-powered fact-checking and verification results</p>
                 </div>
                 <VerifiedList />
               </div>
             )}
 
             {activeTab === 'author' && (
-              <div>
+              <div className="space-y-4">
                 <AuthorAccessSection userProfile={userProfile} user={user} />
               </div>
             )}
           </div>
         </div>
+
+        {/* Desktop Layout (lg+ screens) */}
+        <div className="hidden lg:flex gap-6 xl:gap-8 justify-center items-start">
+          {/* Profile Card - Desktop Left Side */}
+          <div className="flex-shrink-0 w-96 xl:w-[420px] 2xl:w-[480px]" ref={headerRef}>
+            <ProfileHeader
+              profile={{
+                ...userProfile,
+                followers_count: followersCount,
+                following_count: followingCount,
+                posts_count: userProfile.role === 'author' ? postsCount : 0
+              }}
+              currentUserId={user.id}
+              isFollowing={false}
+              followLoading={false}
+              onFollow={() => { }}
+              onOpenFollowers={handleFollowersClick}
+              onOpenFollowing={handleFollowingClick}
+            />
+          </div>
+
+          {/* Content Area - Desktop Right Side */}
+          <div className="flex-1 max-w-4xl space-y-6">
+            {/* Tab Navigation - Desktop */}
+            <div className="bg-white/80 dark:bg-black/80 backdrop-blur-lg rounded-2xl border border-gray-200/50 dark:border-gray-800/50 p-2 shadow-sm" ref={tabsRef}>
+              <ProfileTabs
+                activeTab={activeTab}
+                onTabChange={(tab) => handleTabClick(tab as typeof activeTab)}
+                postsCount={postsCount}
+                userRole={userProfile.role || 'user'}
+                dashboardTabs={[
+                  { id: 'overview', label: 'Overview', icon: BarChart3 },
+                  { id: 'posts', label: 'Top Posts', icon: TrendingUp },
+                  { id: 'bookmarks', label: 'Bookmarks', icon: Bookmark },
+                  { id: 'verified', label: 'Verified News', icon: CheckCircle },
+                  ...(userProfile?.role === 'author' ? [{ id: 'my-posts', label: 'My Posts', icon: Edit3 }] : []),
+                  { id: 'comments', label: 'My Comments', icon: MessageCircle },
+                  { id: 'author', label: 'Author Access', icon: Crown }
+                ]}
+              />
+            </div>
+
+            {/* Tab Content - Desktop */}
+            <div className="min-h-[60vh]" ref={contentRef}>
+              {activeTab === 'overview' && (
+                <OverviewSection
+                  userProfile={userProfile}
+                  followersCount={followersCount}
+                  followingCount={followingCount}
+                  postsCount={postsCount}
+                  verifiedNewsCount={verifiedNewsCount}
+                  loading={loading}
+                />
+              )}
+
+              {activeTab === 'posts' && (
+                <div>
+                  <WeeklyTopPosts />
+                </div>
+              )}
+
+              {activeTab === 'bookmarks' && (
+                <div>
+                  <BookmarksSection />
+                </div>
+              )}
+
+              {activeTab === 'my-posts' && (
+                <div>
+                  <AuthorPostsSection
+                    userId={userProfile.id}
+                    isAuthor={userProfile.role === 'author'}
+                    userName={`${userProfile.first_name} ${userProfile.last_name}`}
+                  />
+                </div>
+              )}
+
+              {activeTab === 'comments' && (
+                <div>
+                  <CommentsSection />
+                </div>
+              )}
+
+              {activeTab === 'verified' && (
+                <div>
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white font-sora transition-colors">HOJO AI Verified News</h2>
+                    <p className="text-gray-600 dark:text-gray-400 font-sora transition-colors">AI-powered fact-checking and verification results</p>
+                  </div>
+                  <VerifiedList />
+                </div>
+              )}
+
+              {activeTab === 'author' && (
+                <div>
+                  <AuthorAccessSection userProfile={userProfile} user={user} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Section Reference - Now integrated into overview */}
+        <div ref={statsRef} className="hidden">
+          {/* Stats are integrated into the overview tab */}
+        </div>
       </section>
 
-      {/* Stats Section */}
-      <div ref={statsRef} className="">
-        <UserStatsSection
-          userLikedPosts={userLikedPosts}
-          totalComments={totalComments}
-          verifiedNewsCount={verifiedNewsCount}
-          likesLoading={loading}
-          commentsLoading={loading}
-          verifiedLoading={loading}
-        />
-      </div>
-
+      {/* Followers Modal */}
       {showFollowersModal && (
         <FollowersFollowingSection
           isModal={true}
