@@ -41,9 +41,6 @@ interface OverviewSectionProps {
 
 export default function OverviewSection({
   userProfile,
-  followersCount,
-  followingCount,
-  postsCount,
   verifiedNewsCount,
   loading
 }: OverviewSectionProps) {

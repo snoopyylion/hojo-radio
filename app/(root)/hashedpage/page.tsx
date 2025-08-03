@@ -2,17 +2,14 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useRouter } from 'next/navigation';
 import { useAuth, useUser } from "@clerk/nextjs";
 import { ProfileHeader } from '@/components/UserProfile/ProfileHeader';
 import { gsap } from "gsap";
-import { TrendingUp, CheckCircle, Crown, BarChart3, Edit3, MessageCircle, Bookmark, Download } from "lucide-react";
+import { TrendingUp, CheckCircle, Crown, BarChart3, Edit3, MessageCircle, Bookmark } from "lucide-react";
 import VerifiedList from '@/components/VerifiedList';
 import { FollowersFollowingSection } from '@/components/Dashboard/FollowersFollowingSection';
 import PageLoader from '@/components/PageLoader';
-import { useUserLikes } from '../../../hooks/user-likes/useUserLikes';
 import { useUserComments } from '../../../hooks/user-comments/useUserComments';
-import { useUserCreatedAt, useUserMemberSince } from '../../../hooks/user-created/useUserCreatedAt';
 import { AuthorPostsSection } from '@/components/UserProfile/AuthorPostsSection';
 import WeeklyTopPosts from "@/components/WeeklyTopPosts";
 import AuthorAccessSection from "@/components/Dashboard/AuthorAccessSection";
@@ -116,15 +113,12 @@ export default function UserDashboard() {
   });
   const [activeTab, setActiveTab] = useState<'overview' | 'profile-details' | 'posts' | 'comments' | 'verified' | 'my-posts' | 'author' | 'bookmarks'>('overview');
   const [, setTabLoading] = useState(false);
-  const { totalLikes: userLikedPosts } = useUserLikes();
   const {
-    totalComments
+    
   } = useUserComments();
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [postsCount, setPostsCount] = useState(0);
-  const { loading: createdAtLoading } = useUserCreatedAt();
-  const { memberSince, daysSinceJoining } = useUserMemberSince();
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [followersModalTab, setFollowersModalTab] = useState<'followers' | 'following'>('followers');
 
@@ -134,8 +128,6 @@ export default function UserDashboard() {
   const statsRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-
-  const router = useRouter();
 
   // Updated fetchProfileStats function
   const fetchProfileStats = useCallback(async () => {
