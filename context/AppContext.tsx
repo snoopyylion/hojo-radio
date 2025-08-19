@@ -72,8 +72,7 @@ export const AppContextProvider = ({ children }: AppContextProviderProps) => {
         return;
       }
 
-      // Reset loading state when starting fetch
-      setContextLoaded(false);
+      // Do not reset loading state on every fetch to prevent UI flicker during route changes
 
       try {
         if (clerkUser) {

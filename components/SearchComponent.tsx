@@ -49,6 +49,8 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const latestSearchIdRef = useRef(0);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchResultsRef = useRef<HTMLDivElement>(null);
@@ -166,7 +168,13 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
       return;
     }
 
+    // Do not perform or render search results while navigating
+    if (isNavigating) {
+      return;
+    }
+
     setIsSearching(true);
+    const currentSearchId = ++latestSearchIdRef.current;
 
     try {
       console.log('🔍 Performing navbar search:', { query: searchQuery });
@@ -251,8 +259,13 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
       // Limit total results for navbar dropdown
       const finalResults = prioritizedResults.slice(0, 8);
 
-      setSearchResults(finalResults);
-      setShowSearchResults(finalResults.length > 0);
+      // Only apply results if this is the latest request, not navigating, and input is open on desktop
+      const isLatest = currentSearchId === latestSearchIdRef.current;
+      const canShowResults = isMobile || isSearchExpanded;
+      if (isLatest && !isNavigating) {
+        setSearchResults(finalResults);
+        setShowSearchResults(finalResults.length > 0 && canShowResults);
+      }
 
     } catch (error) {
       console.error('❌ Navbar search error:', error);
@@ -261,7 +274,7 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
     } finally {
       setIsSearching(false);
     }
-  }, [getResultUrl]);
+  }, [getResultUrl, isNavigating, isMobile, isSearchExpanded]);
 
   // Handle result click
   const handleResultClick = async (result: SearchResult, event?: React.MouseEvent | React.TouchEvent) => {
@@ -291,10 +304,11 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
         return;
       }
 
-      // Clear search state immediately
+      // Clear search state immediately and mark navigation in progress
       setIsSearchExpanded(false);
       setShowSearchResults(false);
       setSearchQuery('');
+      setIsNavigating(true);
 
       // Check if we're already on the target page
       if (pathname === url) {
@@ -325,6 +339,8 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
         console.error('❌ Fallback navigation failed:', fallbackError);
         alert('Navigation failed. Please try refreshing the page.');
       }
+    } finally {
+      // We'll rely on route change effect to reset this; keep true during transition
     }
   };
 
@@ -357,6 +373,7 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
       // Clear search state first
       setIsSearchExpanded(false);
       setShowSearchResults(false);
+      setIsNavigating(true);
 
       // Navigate to search results page
       const searchUrl = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
@@ -374,6 +391,8 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
       // Fallback to window.location
       const fallbackUrl = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
       window.location.href = fallbackUrl;
+    } finally {
+      // keep navigating flag until pathname changes
     }
   };
 
@@ -417,10 +436,13 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Close search on route change
+  // Close search on route change and clear navigating state
   useEffect(() => {
     setIsSearchExpanded(false);
     setShowSearchResults(false);
+    setIsNavigating(false);
+    // Invalidate any in-flight searches
+    latestSearchIdRef.current++;
   }, [pathname]);
 
   // Render search results
@@ -586,6 +608,8 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
           ? 'bg-[#EF3866] text-white hover:bg-[#d7325a] ml-2'
           : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-[#EF3866]'
           }`}
+        disabled={isNavigating}
+        aria-busy={isNavigating}
       >
         {isSearchExpanded ? (
           <X size={20} />
@@ -594,7 +618,8 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
         )}
       </button>
 
-      {renderSearchResults()}
+      {/* Only show results if expanded on desktop to avoid flicker */}
+      {(!isMobile && isSearchExpanded) || isMobile ? renderSearchResults() : null}
     </div>
   );
 };

@@ -236,37 +236,63 @@ export const EnhancedNotificationList: React.FC = () => {
   };
 
   const handleNotificationClick = (notification: Notification) => {
-    // Mark as read in UI
+    // Mark as read first
     markAsRead(notification.id);
-    // Remove from UI
-    removeNotification(notification.id);
-    // Delete from backend
-    fetch(`/api/notifications/${notification.id}`, { method: 'DELETE' });
-    // Navigate to chat
+    // Navigate immediately so UI removal doesn't interfere
     navigateToNotification(notification);
+    // Cleanup in background
+    removeNotification(notification.id);
+    fetch(`/api/notifications/${notification.id}`, { method: 'DELETE' });
   };
 
   const navigateToNotification = (notification: Notification) => {
+    const data = (notification.data as Record<string, any>) || {};
     switch (notification.type) {
-      case 'message':
-        if (notification.data?.conversation_id) {
-          window.location.href = `/messages/${notification.data.conversation_id}`;
+      case 'message': {
+        if (data.conversation_id) {
+          window.location.href = `/messages/${data.conversation_id}`;
+          return;
         }
         break;
-      case 'follow':
+      }
+      case 'follow': {
+        const actorId = data.actor_id || data.sender_id || data.user_id || data.follower_id;
+        if (actorId) {
+          window.location.href = `/user/${actorId}`;
+          return;
+        }
+        if (data.action_url) {
+          window.location.href = data.action_url as string;
+          return;
+        }
+        break;
+      }
       case 'like':
       case 'comment':
-      case 'mention':
-        if (notification.data?.target_id) {
-          window.location.href = `/posts/${notification.data.target_id}`;
+      case 'mention': {
+        const targetId = data.target_id || data.post_id;
+        if (targetId) {
+          window.location.href = `/post/${targetId}`;
+          return;
         }
         break;
+      }
       case 'application_approved':
-      case 'application_rejected':
+      case 'application_rejected': {
         window.location.href = '/studio';
-        break;
-      default:
+        return;
+      }
+      default: {
+        if ((notification as any).action_url) {
+          window.location.href = (notification as any).action_url as string;
+          return;
+        }
+        if (data.action_url) {
+          window.location.href = data.action_url as string;
+          return;
+        }
         window.location.href = '/notifications';
+      }
     }
   };
 
@@ -456,7 +482,7 @@ export const EnhancedNotificationList: React.FC = () => {
               Notifications
             </h1>
             {isGlobalConnected && (
-              <div className="flex items-center gap-2 px-3 py-1 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">
+              <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-green-500/10 text-green-500 text-xs font-medium">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 Live
               </div>
@@ -468,17 +494,17 @@ export const EnhancedNotificationList: React.FC = () => {
               <button
                 onClick={handleRefresh}
                 disabled={isRefreshing}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                 Refresh
               </button>
               <button
                 onClick={markAllAsRead}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-[#EF3866] text-white hover:bg-[#d8325b] transition-colors"
               >
                 <CheckCheck className="w-4 h-4" />
-                Mark All Read
+                Mark All
               </button>
             </div>
           )}
@@ -494,7 +520,7 @@ export const EnhancedNotificationList: React.FC = () => {
               placeholder="Search notifications..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-black text-black dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent transition-colors"
+              className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 text-black dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#EF3866] transition"
             />
           </div>
 
@@ -588,7 +614,7 @@ export const EnhancedNotificationList: React.FC = () => {
                     >
                       <div className="flex items-start gap-3">
                         {/* Icon */}
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${getCategoryColor(group.category)}`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-[#EF3866]/10 text-[#EF3866]`}>
                           <IconComponent className="w-5 h-5" />
                         </div>
 
@@ -603,7 +629,7 @@ export const EnhancedNotificationList: React.FC = () => {
                                   : group.notifications[0].title}
                             </h3>
                             {group.total_unread > 0 && (
-                              <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
+                              <span className="w-2 h-2 rounded-full bg-[#EF3866] flex-shrink-0"></span>
                             )}
                             {group.isGrouped && (
                               <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full">
@@ -646,7 +672,7 @@ export const EnhancedNotificationList: React.FC = () => {
                                   e.stopPropagation();
                                   group.notifications.forEach(n => removeNotification(n.id));
                                 }}
-                                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors opacity-0 group-hover:opacity-100"
+                                className="p-1 text-gray-400 hover:text-[#EF3866] transition-colors opacity-0 group-hover:opacity-100"
                               >
                                 <X className="w-4 h-4" />
                               </button>
@@ -678,7 +704,7 @@ export const EnhancedNotificationList: React.FC = () => {
                                 </span>
                               </div>
                               {!notification.read && (
-                                <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
+                                <span className="w-2 h-2 rounded-full bg-[#EF3866] flex-shrink-0"></span>
                               )}
                             </div>
                           </div>

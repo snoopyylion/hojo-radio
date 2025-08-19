@@ -205,36 +205,31 @@ const NewNavbar = () => {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 {/* Get Started Button */}
-                <Link href="/authentication/sign-up" className="group" aria-label="Get Started">
+                <Link href="/authentication/sign-up" aria-label="Get Started">
                   <button
-                    className="relative overflow-hidden inline-flex items-center justify-center px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[#EF3866] to-[#d7325a] rounded-xl hover:from-[#d7325a] hover:to-[#c42a52] focus:outline-none focus:ring-2 focus:ring-[#EF3866]/30 transition-all duration-300 ease-out transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+                    className="relative inline-flex items-center justify-center px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[#EF3866] to-[#d7325a] rounded-lg shadow-md transition-all duration-300 hover:shadow-lg hover:from-[#d7325a] hover:to-[#c42a52] focus:outline-none focus:ring-2 focus:ring-[#EF3866]/30 active:scale-[0.97]"
                     type="button"
                   >
-                    {/* Shine effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out" />
-                    <span className="relative flex items-center gap-2">
-                      Get Started
-                      
-                    </span>
+                    <span className="relative z-10">Get Started</span>
+                    {/* subtle gradient shine */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-700 ease-out" />
                   </button>
                 </Link>
 
-                {/* Animated Sign In Button with Icon */}
-                <Link href="/authentication/sign-in" className="group" aria-label="Sign In">
+                {/* Sign In Button */}
+                <Link href="/authentication/sign-in" aria-label="Sign In">
                   <button
-                    className="relative overflow-hidden inline-flex items-center justify-center px-6 py-2.5 text-sm font-medium text-[#EF3866] dark:text-[#ff6b96] bg-[#EF3866]/5 dark:bg-[#EF3866]/10 backdrop-blur-sm border border-[#EF3866]/20 dark:border-[#EF3866]/30 rounded-xl hover:bg-[#EF3866]/10 dark:hover:bg-[#EF3866]/20 hover:border-[#EF3866]/40 dark:hover:border-[#EF3866]/50 hover:shadow-lg hover:shadow-[#EF3866]/10 dark:hover:shadow-[#EF3866]/20 focus:outline-none focus:ring-2 focus:ring-[#EF3866]/20 dark:focus:ring-[#EF3866]/30 transition-all duration-300 ease-out transform hover:scale-[1.02] active:scale-[0.98]"
+                    className="relative inline-flex items-center justify-center px-6 py-2.5 text-sm font-medium text-[#EF3866] dark:text-[#ff6b96] bg-white dark:bg-black border border-[#EF3866]/20 rounded-lg transition-all duration-300 hover:border-[#EF3866]/40 hover:bg-[#EF3866]/5 dark:hover:bg-[#EF3866]/10 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#EF3866]/20 active:scale-[0.97]"
                     type="button"
                   >
-                    {/* Shine effect for Sign In */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#EF3866]/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500 ease-out" />
-                    <span className="relative flex items-center gap-2">
+                    <span className="relative flex items-center gap-1.5">
                       Sign In
-                      <svg 
-                        className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" 
-                        fill="none" 
-                        stroke="currentColor" 
+                      <svg
+                        className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5"
+                        fill="none"
+                        stroke="currentColor"
                         viewBox="0 0 24 24"
                         aria-hidden="true"
                       >
@@ -244,6 +239,7 @@ const NewNavbar = () => {
                   </button>
                 </Link>
               </div>
+
             )}
           </div>
 
