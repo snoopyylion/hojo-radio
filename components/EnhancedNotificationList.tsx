@@ -17,11 +17,17 @@ interface NotificationData {
   sender_name?: string;
   image_url?: string;
   message_type?: string;
+  actor_id?: string;
+  user_id?: string;
+  follower_id?: string;
+  post_id?: string;
+  action_url?: string;
   [key: string]: unknown;
 }
 
 interface Notification extends BaseNotification {
   data?: NotificationData;
+  action_url?: string;
 }
 
 interface GroupedNotification {
@@ -246,7 +252,7 @@ export const EnhancedNotificationList: React.FC = () => {
   };
 
   const navigateToNotification = (notification: Notification) => {
-    const data = (notification.data as Record<string, any>) || {};
+    const data = notification.data || {};
     switch (notification.type) {
       case 'message': {
         if (data.conversation_id) {
@@ -262,7 +268,7 @@ export const EnhancedNotificationList: React.FC = () => {
           return;
         }
         if (data.action_url) {
-          window.location.href = data.action_url as string;
+          window.location.href = data.action_url;
           return;
         }
         break;
@@ -283,12 +289,12 @@ export const EnhancedNotificationList: React.FC = () => {
         return;
       }
       default: {
-        if ((notification as any).action_url) {
-          window.location.href = (notification as any).action_url as string;
+        if (notification.action_url) {
+          window.location.href = notification.action_url;
           return;
         }
         if (data.action_url) {
-          window.location.href = data.action_url as string;
+          window.location.href = data.action_url;
           return;
         }
         window.location.href = '/notifications';
@@ -305,18 +311,6 @@ export const EnhancedNotificationList: React.FC = () => {
       case 'mention': return AtSign;
       case 'achievement': return Trophy;
       default: return Bell;
-    }
-  };
-
-  const getCategoryColor = (category: NotificationCategory) => {
-    switch (category) {
-      case 'social': return 'text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400';
-      case 'messaging': return 'text-green-600 bg-green-50 dark:bg-green-950 dark:text-green-400';
-      case 'content': return 'text-purple-600 bg-purple-50 dark:bg-purple-950 dark:text-purple-400';
-      case 'system': return 'text-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-gray-400';
-      case 'achievement': return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950 dark:text-yellow-400';
-      case 'security': return 'text-red-600 bg-red-50 dark:bg-red-950 dark:text-red-400';
-      default: return 'text-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-gray-400';
     }
   };
 
