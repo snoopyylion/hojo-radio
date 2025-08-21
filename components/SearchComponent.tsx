@@ -259,12 +259,12 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
       // Limit total results for navbar dropdown
       const finalResults = prioritizedResults.slice(0, 8);
 
-      // Only apply results if this is the latest request, not navigating, and input is open on desktop
+      // Only apply results if this is the latest request and not navigating
       const isLatest = currentSearchId === latestSearchIdRef.current;
-      const canShowResults = isMobile || isSearchExpanded;
       if (isLatest && !isNavigating) {
         setSearchResults(finalResults);
-        setShowSearchResults(finalResults.length > 0 && canShowResults);
+        // Let rendering condition control visibility on desktop; keep state true if we have results
+        setShowSearchResults(finalResults.length > 0);
       }
 
     } catch (error) {
@@ -445,6 +445,13 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
     latestSearchIdRef.current++;
   }, [pathname]);
 
+  // Ensure dropdown becomes visible when we have results and the field is expanded (desktop)
+  useEffect(() => {
+    if (!isMobile && isSearchExpanded && searchResults.length > 0) {
+      setShowSearchResults(true);
+    }
+  }, [isMobile, isSearchExpanded, searchResults.length]);
+
   // Render search results
   const renderSearchResults = () => (
     <AnimatePresence>
@@ -454,7 +461,7 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 10 }}
           transition={{ duration: 0.2 }}
-          className={`absolute ${isMobile ? 'top-16 left-0 right-0' : 'top-12 left-0 right-0'} bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-96 overflow-y-auto`}
+          className={`absolute ${isMobile ? 'top-16 left-0 right-0' : 'top-full mt-2 left-0 right-0'} bg-white border border-gray-200 rounded-xl shadow-lg z-[10001] max-h-96 overflow-y-auto pointer-events-auto`}
         >
           <div className="p-2">
             {searchResults.map((result) => (
@@ -553,10 +560,21 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
                   ref={searchInputRef}
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSearchQuery(value);
+                    if (value.trim().length > 0) {
+                      setShowSearchResults(true);
+                    } else {
+                      setShowSearchResults(false);
+                    }
+                  }}
                   placeholder="Search users, articles, news..."
                   className="w-full h-12 pl-4 pr-12 text-sm bg-gray-100 border border-pink-200 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
                   autoFocus
+                  onFocus={() => {
+                    if (searchResults.length > 0) setShowSearchResults(true);
+                  }}
                 />
                 {isSearching && (
                   <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
@@ -574,7 +592,7 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
 
   // Desktop Search Component
   return (
-    <div className={`relative flex items-center ${className}`} ref={searchResultsRef}>
+    <div className={`relative z-[10000] flex items-center ${className}`} ref={searchResultsRef}>
       <AnimatePresence>
         {isSearchExpanded && (
           <motion.form
@@ -583,15 +601,26 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
             onSubmit={handleSearchSubmit}
-            className="overflow-hidden relative"
+            className="relative"
           >
             <input
               ref={searchInputRef}
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSearchQuery(value);
+                if (value.trim().length > 0) {
+                  setShowSearchResults(true);
+                } else {
+                  setShowSearchResults(false);
+                }
+              }}
               placeholder="Search users, articles, news..."
               className="w-full h-10 pl-4 pr-12 text-sm bg-gray-100 border border-pink-200 rounded-full focus:outline-none focus:ring-pink-200 transition-all"
+              onFocus={() => {
+                if (searchResults.length > 0) setShowSearchResults(true);
+              }}
             />
             {isSearching && (
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
@@ -619,7 +648,7 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
       </button>
 
       {/* Only show results if expanded on desktop to avoid flicker */}
-      {(!isMobile && isSearchExpanded) || isMobile ? renderSearchResults() : null}
+      {((!isMobile && isSearchExpanded) || isMobile) ? renderSearchResults() : null}
     </div>
   );
 };
