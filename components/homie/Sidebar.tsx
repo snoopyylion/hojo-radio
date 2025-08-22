@@ -1,7 +1,7 @@
 // components/home/Sidebar.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, createContext, useContext } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     Home,
     Mic,
@@ -22,28 +22,10 @@ import Image from "next/image";
 import { useAppContext } from '@/context/AppContext';
 import { UserButton } from '@clerk/nextjs';
 
-// Create a context for sidebar state
-interface SidebarContextType {
-    isOpen: boolean;
-    toggleSidebar: () => void;
-    isLargeScreen: boolean;
-}
-
-const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
-
-// Custom hook to use sidebar context
-export const useSidebar = () => {
-    const context = useContext(SidebarContext);
-    if (!context) {
-        throw new Error('useSidebar must be used within SidebarProvider');
-    }
-    return context;
-};
-
-// Provider component
-export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export default function Sidebar() {
     const [isOpen, setIsOpen] = useState(true);
     const [isLargeScreen, setIsLargeScreen] = useState(true);
+    const { user, isLoaded } = useAppContext();
 
     useEffect(() => {
         const checkScreenSize = () => {
@@ -58,17 +40,6 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const toggleSidebar = () => {
         setIsOpen(!isOpen);
     };
-
-    return (
-        <SidebarContext.Provider value={{ isOpen, toggleSidebar, isLargeScreen }}>
-            {children}
-        </SidebarContext.Provider>
-    );
-};
-
-export default function Sidebar() {
-    const { isOpen, toggleSidebar, isLargeScreen } = useSidebar();
-    const { user, isLoaded } = useAppContext();
 
     const getUserDisplay = useCallback(() => {
         if (!user) return { name: 'User', role: 'Member' };
@@ -123,6 +94,7 @@ export default function Sidebar() {
                         </div>
                     </div>
                 )}
+
 
                 {/* Navigation Section */}
                 <nav className="flex-1 px-3 py-4 space-y-1">
@@ -271,24 +243,25 @@ export default function Sidebar() {
                 </div>
             </aside>
 
-            {/* Floating Toggle Button - Only visible on large screens */}
-            {isLargeScreen && (
-                <button
-                    onClick={toggleSidebar}
-                    className={clsx(
-                        "fixed top-1/2 transform -translate-y-1/2 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 h-12 p-1.5 rounded-full shadow-lg hover:shadow-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-300 z-50 border border-gray-200 dark:border-gray-700",
-                        {
-                            // When sidebar is open
-                            "left-[265px]": isOpen,   // 280px - 15px
+            {/* Toggle Button - Always positioned at sidebar border, vertically centered */}
+            <button
+                onClick={toggleSidebar}
+                className={clsx(
+                    "fixed top-1/2 transform -translate-y-1/2 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 h-12 p-1.5 rounded-full shadow-lg hover:shadow-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-300 z-50 border border-gray-200 dark:border-gray-700",
+                    {
+                        // When sidebar is open (both large and small screens)
+                        "left-[265px]": isOpen,   // 280px - 8px
 
-                            // When sidebar is closed
-                            "left-[63px]": !isOpen,   // 80px - 17px
-                        }
-                    )}
-                >
-                    {isOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-                </button>
-            )}
+                        // When sidebar is closed on large screen
+                        "left-[63px]": !isOpen && isLargeScreen,   // 80px - 8px
+
+                        // When sidebar is closed on small screen
+                        "left-0": !isOpen && !isLargeScreen,       // fully closed sidebar
+                    }
+                )}
+            >
+                {isOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+            </button>
 
             {/* Blur overlay for small screens when sidebar is open */}
             {!isLargeScreen && isOpen && (
