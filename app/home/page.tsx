@@ -2,6 +2,7 @@
 
 import React, { useMemo } from "react";
 import { useAppContext } from "@/context/AppContext";
+import DashboardGrid from "@/components/home/Dashboard/DashboardGrid";
 
 const HomePage = () => {
   const { user } = useAppContext();
@@ -24,19 +25,7 @@ const HomePage = () => {
       </p>
       </div>
       <div className="cards">
-        <div className="card1">
-            <div className="card-left">
-                <div>
-                    <p>Podcasts Created</p>
-                    <h2>12</h2>
-                    <p>+3 this week</p>
-                </div>
-
-            </div>
-            <div className="mic-icon crad-right">
-
-            </div>
-        </div>
+        <DashboardGrid />
       </div>
       <div className="recent-tabs">
         <div className="recent-podcasts"></div>
