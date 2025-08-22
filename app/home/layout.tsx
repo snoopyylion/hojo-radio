@@ -15,7 +15,7 @@ function DashboardHeader() {
             {!isLargeScreen && (
                 <button
                     onClick={toggleSidebar}
-                    className="bg-white dark:bg-black border border-gray-200 text-gray-400 dark:text-gray-300 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200"
+                    className="bg-white dark:bg-black border border-gray-300 dark:border-gray-700 text-gray-300 dark:text-gray-300 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200"
                 >
                     {isOpen ? <X size={20} /> : <Menu size={20} />}
                 </button>
