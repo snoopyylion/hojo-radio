@@ -14,7 +14,7 @@ function DashboardHeader() {
             {!isLargeScreen && (
                 <button
                     onClick={toggleSidebar}
-                    className="bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 p-2 rounded-lg shadow hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200"
+                    className="bg-white dark:bg-black border border-gray-200 text-gray-400 dark:text-gray-300 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200"
                 >
                     {isOpen ? <X size={20} /> : <Menu size={20} />}
                 </button>
@@ -33,7 +33,7 @@ function DashboardHeader() {
                       focus:outline-none focus:ring-2 focus:ring-[#EF3866] transition"
                     />
                     {/* Search Icon */}
-                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 w-5 h-5" />
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-400 w-5 h-5" />
                 </div>
             </div>
         </header>

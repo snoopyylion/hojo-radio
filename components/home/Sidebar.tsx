@@ -96,10 +96,10 @@ export default function Sidebar() {
             >
                 {/* Header - Logo Section */}
                 {(isOpen || (isLargeScreen && !isOpen)) && (
-                    <div className="flex items-center justify-center py-6 px-4">
+                    <div className="flex items-center justify-center py-2 px-4">
                         <div
                             className={clsx(
-                                "flex items-center justify-center transition-all duration-300",
+                                "flex justify-center transition-all duration-300",
                                 {
                                     "w-full": isOpen,
                                     "w-16": !isOpen && isLargeScreen, // make collapsed area wider so logo fits
@@ -125,7 +125,7 @@ export default function Sidebar() {
                 )}
 
                 {/* Navigation Section */}
-                <nav className="flex-1 px-3 py-4 space-y-1">
+                <nav className="flex-1 px-3 py-2 space-y-1">
                     <SidebarLink
                         href="/home"
                         label={isOpen ? "Home" : ""}
