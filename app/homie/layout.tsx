@@ -1,6 +1,6 @@
 // app/home/layout.tsx
 import React from "react";
-import Sidebar from "@/components/home/Sidebar";
+import Sidebar from "@/components/homie/Sidebar";
 import { Search } from "lucide-react";
 
 export default function DashboardLayout({
