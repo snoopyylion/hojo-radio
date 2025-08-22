@@ -1,4 +1,5 @@
 "use client";
+
 // app/home/layout.tsx
 import React from "react";
 import Sidebar, { SidebarProvider, useSidebar } from "@/components/home/Sidebar";
@@ -7,9 +8,9 @@ import { Search, Menu, X } from "lucide-react";
 // Header component that uses sidebar context
 function DashboardHeader() {
     const { isOpen, toggleSidebar, isLargeScreen } = useSidebar();
-    
+        
     return (
-        <header className="flex items-center gap-4 mb-6 border-b border-gray-200 dark:border-gray-700 py-2">
+        <header className="flex-shrink-0 flex items-center gap-4 mb-6 border-b border-gray-200 dark:border-gray-700 py-2">
             {/* Hamburger Menu Button - Only visible on small screens */}
             {!isLargeScreen && (
                 <button
@@ -19,7 +20,7 @@ function DashboardHeader() {
                     {isOpen ? <X size={20} /> : <Menu size={20} />}
                 </button>
             )}
-            
+                        
             {/* Search Input - Centered */}
             <div className="flex-1 flex justify-end">
                 <div className="relative w-[30%] min-w-[250px]">
@@ -47,14 +48,18 @@ export default function DashboardLayout({
 }) {
     return (
         <SidebarProvider>
-            <div className="flex min-h-screen bg-white dark:bg-black relative">
+            <div className="flex h-screen bg-white dark:bg-black relative overflow-hidden">
                 {/* Sidebar */}
                 <Sidebar />
-
+                
                 {/* Main Content */}
-                <main className="flex-1 p-2 min-w-0">
+                <main className="flex-1 flex flex-col p-2 min-w-0 overflow-hidden">
                     <DashboardHeader />
-                    {children}
+                    
+                    {/* Scrollable Content Area */}
+                    <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                        {children}
+                    </div>
                 </main>
             </div>
         </SidebarProvider>
