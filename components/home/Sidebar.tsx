@@ -43,18 +43,36 @@ export const useSidebar = () => {
 
 // Provider component
 export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [isOpen, setIsOpen] = useState(true);
+    const [isOpen, setIsOpen] = useState(false); // Start with closed state
     const [isLargeScreen, setIsLargeScreen] = useState(true);
+    const [isInitialized, setIsInitialized] = useState(false);
 
     useEffect(() => {
         const checkScreenSize = () => {
-            setIsLargeScreen(window.innerWidth >= 1024); // lg breakpoint
+            const largeScreen = window.innerWidth >= 1024; // lg breakpoint
+            setIsLargeScreen(largeScreen);
+            
+            // Only set initial sidebar state on first load
+            if (!isInitialized) {
+                setIsOpen(largeScreen); // Open on large screens, closed on small screens
+                setIsInitialized(true);
+            }
         };
 
         checkScreenSize();
         window.addEventListener('resize', checkScreenSize);
         return () => window.removeEventListener('resize', checkScreenSize);
-    }, []);
+    }, [isInitialized]);
+
+    // Handle screen size changes after initialization
+    useEffect(() => {
+        if (isInitialized) {
+            // Close sidebar when switching to small screen
+            if (!isLargeScreen && isOpen) {
+                setIsOpen(false);
+            }
+        }
+    }, [isLargeScreen, isOpen, isInitialized]);
 
     const toggleSidebar = () => {
         setIsOpen(!isOpen);

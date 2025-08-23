@@ -234,7 +234,7 @@ const Page = () => {
         <div className={darkMode ? 'dark' : ''}>
             <div className="h-screen bg-white dark:bg-gray-950 flex flex-col">
                 {/* Main Content - Fixed height with flex */}
-                <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex gap-8 overflow-hidden">
+                <main className="flex-1 max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 sm:py-4 flex gap-8 overflow-hidden">
                     {/* Blog Posts Section - Scrollable */}
                     <div className="flex-1 lg:flex-[2] flex flex-col">
                         <div className="flex-1 overflow-y-auto pr-2">
@@ -297,8 +297,12 @@ const Page = () => {
 
                 {/* Mobile blog Section */}
                 <div className="lg:hidden px-4 sm:px-6 pb-8">
-                    <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 shadow-sm">
-                        <div className="space-y-6">
+                    {/* Publication date */}
+                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 tracking-widest uppercase mb-2">
+                            {formattedDate}
+                        </div>
+                    <div className="bg-white dark:bg-black rounded-2xl shadow-sm">
+                        <div className="space-y-2">
                             {displayedPosts.map(post => (
                                 <div key={post._id} className="transform transition-all duration-200 hover:scale-[1.02]">
                                     <BlogTile post={post} />
