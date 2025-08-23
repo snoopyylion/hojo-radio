@@ -10,7 +10,7 @@ function DashboardHeader() {
     const { isOpen, toggleSidebar, isLargeScreen } = useSidebar();
         
     return (
-        <header className="flex-shrink-0 flex items-center gap-4 mb-6 border-b border-gray-200 dark:border-gray-700 py-2">
+        <header className="flex-shrink-0 flex items-center gap-4 mb-6 border-b border-gray-200 dark:border-gray-700 py-2 sticky-top">
             {/* Hamburger Menu Button - Only visible on small screens */}
             {!isLargeScreen && (
                 <button
