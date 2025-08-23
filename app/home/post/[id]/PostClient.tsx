@@ -8,7 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
 import Link from 'next/link';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { ChevronUp, ChevronLeft, ChevronRight, Heart, Bookmark, Share2, Clock, Eye, MessageCircle, ArrowLeft } from 'lucide-react';
+import { ChevronUp, ChevronLeft, ChevronRight, Heart, Bookmark, Share2, Clock, Eye, MessageCircle } from 'lucide-react';
 import CommentSection from '@/components/CommentSection';
 import type { PortableTextBlock } from '@portabletext/types';
 import { useLikes } from '../../../../hooks/likes/useLikes';
@@ -125,7 +125,7 @@ const markdownComponents: Components = {
       </p>
     );
   },
-  img: ({ src, alt, ...props }) => {
+  img: ({ src, alt }) => {
     if (!src || typeof src !== 'string') return null;
     
     return (
