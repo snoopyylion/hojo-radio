@@ -106,7 +106,7 @@ export default function Sidebar() {
                             )}
                         >
                             <Image
-                                src="/img/test-logo.png"
+                                src="/img/logo.png"
                                 alt="Hojo Logo"
                                 priority
                                 width={isOpen ? 200 : 64}

@@ -14,7 +14,7 @@ const HomePage = () => {
   }, [user]);
 
   return (
-    <div className="p-6">
+    <div className="p-2">
       <div className="first-row">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white font-sora">
         Welcome back, <span className="font-semibold text-capitalize">{name}</span> !
