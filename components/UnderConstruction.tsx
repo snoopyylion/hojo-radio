@@ -129,7 +129,7 @@ const UnderConstruction: React.FC<UnderConstructionProps> = ({
         {/* Footer note */}
         <div className="mt-6 text-center">
           <p className="text-gray-500 dark:text-gray-400 text-sm">
-            We're building something amazing for you! 🚀
+            We&apos;re building something amazing for you! 🚀
           </p>
           <div className="flex justify-center mt-2 space-x-1">
             <div className="w-2 h-2 bg-[#EF3866] rounded-full animate-bounce"></div>
