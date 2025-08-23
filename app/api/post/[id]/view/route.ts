@@ -4,10 +4,11 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { sanityClient } from '@/lib/sanity/server';
 import { auth } from '@clerk/nextjs/server';
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+interface RouteContext {
+  params: Promise<{ id: string }>;
+}
+
+export async function POST(req: NextRequest, context: RouteContext) {
   try {
     const { userId } = await auth();
     
@@ -15,7 +16,8 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const postId = params.id;
+    const { id } = await context.params;
+    const postId = id;
 
     // Get client IP and user agent
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
