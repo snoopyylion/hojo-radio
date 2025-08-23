@@ -1,13 +1,20 @@
-import { Mic, ShieldCheck, FileText, MessageCircle, Eye, TrendingUp } from "lucide-react";
+import { Mic, ShieldCheck, Eye, TrendingUp } from "lucide-react";
 import DashboardCard from "./DashboardCard";
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
+
+interface RecentlyViewedItem {
+  id: string;
+  title: string;
+  viewedAt: string;
+  // Add other properties as needed
+}
 
 interface DashboardAnalytics {
   totalViews: number;
   uniquePostsViewed: number;
   weeklyViews: number;
-  recentlyViewed: any[];
+  recentlyViewed: RecentlyViewedItem[];
   dailyViewCounts: Record<string, number>;
 }
 
