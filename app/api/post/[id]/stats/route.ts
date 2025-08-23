@@ -4,10 +4,10 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function GET(
   req: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const postId = context.params.id;
+    const postId = params.id;
 
     // Get total views for this post
     const { count: totalViews, error: totalError } = await supabaseAdmin

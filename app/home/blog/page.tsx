@@ -102,6 +102,14 @@ const Page = () => {
         }, 800);
     }, [posts, displayedPosts, isLoadingMore, hasMorePosts]);
 
+    const currentDate = new Date();
+    const formattedDate = currentDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
     // Fetch posts from Sanity
     useEffect(() => {
         let isMounted = true;
@@ -190,43 +198,43 @@ const Page = () => {
 
     if (isLoading) {
         return (
-          <div className={darkMode ? 'dark' : ''}>
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center px-4">
-              <div className="w-full max-w-4xl space-y-6">
-                {[...Array(3)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="rounded-2xl bg-white dark:bg-gray-900 shadow-sm p-4 flex gap-4 animate-[pulse_2s_ease-in-out_infinite]"
-                  >
-                    {/* Thumbnail */}
-                    <div className="w-32 h-24 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
-      
-                    {/* Text content */}
-                    <div className="flex-1 space-y-3 py-2">
-                      <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-3/4"></div>
-                      <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-1/2"></div>
-                      <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-full"></div>
-      
-                      {/* Author row */}
-                      <div className="flex items-center gap-3 mt-2">
-                        <div className="w-8 h-8 bg-gray-200 dark:bg-gray-800 rounded-full"></div>
-                        <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-1/4"></div>
-                      </div>
+            <div className={darkMode ? 'dark' : ''}>
+                <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center px-4">
+                    <div className="w-full max-w-4xl space-y-6">
+                        {[...Array(3)].map((_, i) => (
+                            <div
+                                key={i}
+                                className="rounded-2xl bg-white dark:bg-gray-900 shadow-sm p-4 flex gap-4 animate-[pulse_2s_ease-in-out_infinite]"
+                            >
+                                {/* Thumbnail */}
+                                <div className="w-32 h-24 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
+
+                                {/* Text content */}
+                                <div className="flex-1 space-y-3 py-2">
+                                    <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-3/4"></div>
+                                    <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-1/2"></div>
+                                    <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-full"></div>
+
+                                    {/* Author row */}
+                                    <div className="flex items-center gap-3 mt-2">
+                                        <div className="w-8 h-8 bg-gray-200 dark:bg-gray-800 rounded-full"></div>
+                                        <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-1/4"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                  </div>
-                ))}
-              </div>
+                </div>
             </div>
-          </div>
         );
-      }
-      
+    }
+
 
     return (
         <div className={darkMode ? 'dark' : ''}>
             <div className="h-screen bg-white dark:bg-gray-950 flex flex-col">
                 {/* Main Content - Fixed height with flex */}
-                <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8 overflow-hidden">
+                <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex gap-8 overflow-hidden">
                     {/* Blog Posts Section - Scrollable */}
                     <div className="flex-1 lg:flex-[2] flex flex-col">
                         <div className="flex-1 overflow-y-auto pr-2">
@@ -240,7 +248,7 @@ const Page = () => {
 
                             {/* Load More Button - Minimalistic design with EF3866 */}
                             {hasMorePosts && (
-                                <div className="flex justify-center pt-12 pb-8">
+                                <div className="flex justify-center pt-8 pb-8">
                                     <button
                                         onClick={loadMorePosts}
                                         disabled={isLoadingMore}
@@ -277,6 +285,10 @@ const Page = () => {
 
                     {/* Trending Section - Fixed height sidebar */}
                     <aside className="lg:w-80 hidden lg:block">
+                        {/* Publication date */}
+                        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 tracking-widest uppercase mb-2">
+                            {formattedDate}
+                        </div>
                         <div className="h-full">
                             <TrendingSection />
                         </div>
@@ -295,11 +307,11 @@ const Page = () => {
                         </div>
                         {/* Load More Button - Minimalistic design with EF3866 */}
                         {hasMorePosts && (
-                                <div className="flex justify-center pt-12 pb-8">
-                                    <button
-                                        onClick={loadMorePosts}
-                                        disabled={isLoadingMore}
-                                        className={`
+                            <div className="flex justify-center pt-12 pb-8">
+                                <button
+                                    onClick={loadMorePosts}
+                                    disabled={isLoadingMore}
+                                    className={`
                                             border-2 border-[#EF3866] text-[#EF3866] 
                                             px-6 py-3 rounded-lg font-medium 
                                             hover:bg-[#EF3866] hover:text-white
@@ -308,25 +320,25 @@ const Page = () => {
                                             disabled:opacity-50 disabled:cursor-not-allowed
                                             min-w-[140px] flex items-center justify-center
                                         `}
-                                    >
-                                        {isLoadingMore ? (
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                                <span>Loading</span>
-                                            </div>
-                                        ) : (
-                                            <span>Load More</span>
-                                        )}
-                                    </button>
-                                </div>
-                            )}
+                                >
+                                    {isLoadingMore ? (
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                            <span>Loading</span>
+                                        </div>
+                                    ) : (
+                                        <span>Load More</span>
+                                    )}
+                                </button>
+                            </div>
+                        )}
 
-                            {/* End message when no more posts */}
-                            {!hasMorePosts && displayedPosts.length > 0 && (
-                                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                                    <p className="text-sm">You&#39;ve reached the end!</p>
-                                </div>
-                            )}
+                        {/* End message when no more posts */}
+                        {!hasMorePosts && displayedPosts.length > 0 && (
+                            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                                <p className="text-sm">You&#39;ve reached the end!</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
