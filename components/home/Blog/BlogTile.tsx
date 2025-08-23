@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Share2 } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { urlFor } from "@/sanity/lib/image";
 import { useAuth } from '@clerk/nextjs';
 import { notificationService } from '@/lib/notificationService';
@@ -116,6 +118,7 @@ const useEngagementData = (postId: string) => {
 
 const BlogTile = ({ post }: BlogTileProps) => {
   const { userId } = useAuth();
+  const router = useRouter();
   const {
     isLiked,
     isBookmarked,
@@ -158,6 +161,17 @@ const BlogTile = ({ post }: BlogTileProps) => {
     post.author.image ? urlFor(post.author.image).width(40).height(40).url() : '',
     [post.author.image]
   );
+
+  // Handle navigation to post page
+  const handleNavigateToPost = useCallback((e: React.MouseEvent) => {
+    // Don't navigate if clicking on interactive elements
+    const target = e.target as HTMLElement;
+    const isInteractiveElement = target.closest('button') || target.closest('a');
+    
+    if (!isInteractiveElement) {
+      router.push(`/home/post/${post._id}`);
+    }
+  }, [router, post._id]);
 
   // Optimized intersection observer with cleanup
   useEffect(() => {
@@ -338,12 +352,12 @@ const BlogTile = ({ post }: BlogTileProps) => {
         await navigator.share({
           title: post.title,
           text: post.description,
-          url: `${window.location.origin}/post/${post._id}`,
+          url: `${window.location.origin}/home/post/${post._id}`,
         });
         toast.success('Shared successfully!');
       } else {
         // Fallback: copy to clipboard
-        const url = `${window.location.origin}/post/${post._id}`;
+        const url = `${window.location.origin}/home/post/${post._id}`;
         await navigator.clipboard.writeText(url);
         toast.success('Link copied to clipboard!');
       }
@@ -361,7 +375,8 @@ const BlogTile = ({ post }: BlogTileProps) => {
   return (
     <article 
       ref={elementRef}
-      className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-lg mb-6 mx-auto"
+      onClick={handleNavigateToPost}
+      className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-lg mb-6 mx-auto cursor-pointer hover:shadow-md transition-shadow duration-200"
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4">
