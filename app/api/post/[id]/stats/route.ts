@@ -2,12 +2,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+interface RouteContext {
+  params: Promise<{ id: string }>;
+}
+
+export async function GET(req: NextRequest, context: RouteContext) {
   try {
-    const postId = params.id;
+    const { id } = await context.params;
+    const postId = id;
 
     // Get total views for this post
     const { count: totalViews, error: totalError } = await supabaseAdmin
