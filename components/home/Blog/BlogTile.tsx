@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Smile, ChevronUp, ChevronDown, Share2 } from 'lucide-react';
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Share2 } from 'lucide-react';
+import Image from 'next/image';
 import { urlFor } from "@/sanity/lib/image";
 import { useAuth } from '@clerk/nextjs';
 import { notificationService } from '@/lib/notificationService';
@@ -129,7 +130,6 @@ const BlogTile = ({ post }: BlogTileProps) => {
   } = useEngagementData(post._id);
 
   const [showComments, setShowComments] = useState(false);
-  const [comment, setComment] = useState('');
   const likeRef = useRef<HTMLButtonElement>(null);
   const bookmarkRef = useRef<HTMLButtonElement>(null);
   const commentRef = useRef<HTMLButtonElement>(null);
@@ -163,6 +163,8 @@ const BlogTile = ({ post }: BlogTileProps) => {
   useEffect(() => {
     if (!elementRef.current || isInitialized) return;
 
+    const currentElement = elementRef.current; // Copy to avoid stale reference
+
     observerRef.current = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !isInitialized) {
@@ -175,11 +177,11 @@ const BlogTile = ({ post }: BlogTileProps) => {
       }
     );
 
-    observerRef.current.observe(elementRef.current);
+    observerRef.current.observe(currentElement);
 
     return () => {
-      if (observerRef.current && elementRef.current) {
-        observerRef.current.unobserve(elementRef.current);
+      if (observerRef.current && currentElement) {
+        observerRef.current.unobserve(currentElement);
       }
     };
   }, [fetchEngagementData, isInitialized]);
@@ -364,10 +366,12 @@ const BlogTile = ({ post }: BlogTileProps) => {
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
-          <img
+          <Image
             src={authorImageUrl || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face'}
             alt={post.author.name}
-            className="w-8 h-8 rounded-full object-cover"
+            width={32}
+            height={32}
+            className="rounded-full object-cover"
           />
           <div className="flex flex-col">
             <span className="font-semibold text-sm text-gray-900 dark:text-white">
@@ -385,10 +389,11 @@ const BlogTile = ({ post }: BlogTileProps) => {
 
       {/* Image */}
       <div className="relative aspect-square bg-gray-100 dark:bg-gray-900">
-        <img
+        <Image
           src={mainImageUrl || 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&h=600&fit=crop'}
           alt={post.title}
-          className="w-full h-full object-cover"
+          fill
+          className="object-cover"
         />
       </div>
 
