@@ -15,7 +15,6 @@ import { useLikes } from '../../../../hooks/likes/useLikes';
 import { useUserLikes } from '../../../../hooks/user-likes/useUserLikes';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { useRouter } from 'next/navigation';
 import BackButton from '@/components/home/BackButton';
 
 // Register GSAP plugins
@@ -126,23 +125,28 @@ const markdownComponents: Components = {
       </p>
     );
   },
-  img: ({ src, alt, ...props }) => (
-    <div className="my-8 first:mt-0">
-      <div className="relative w-full">
-        <img
-          {...props}
-          src={src}
-          alt={alt || 'Content image'}
-          className="w-full h-auto rounded-lg shadow-sm"
-        />
-      </div>
-      {alt && (
-        <div className="text-sm text-gray-500 dark:text-gray-400 mt-3 text-center italic">
-          {alt}
+  img: ({ src, alt, ...props }) => {
+    if (!src || typeof src !== 'string') return null;
+    
+    return (
+      <div className="my-8 first:mt-0">
+        <div className="relative w-full">
+          <Image
+            src={src}
+            alt={alt || 'Content image'}
+            className="w-full h-auto rounded-lg shadow-sm"
+            width={800}
+            height={600}
+          />
         </div>
-      )}
-    </div>
-  ),
+        {alt && (
+          <div className="text-sm text-gray-500 dark:text-gray-400 mt-3 text-center italic">
+            {alt}
+          </div>
+        )}
+      </div>
+    );
+  },
   blockquote: ({ children, ...props }) => (
     <blockquote {...props} className="my-8 pl-6 border-l-4 border-[#EF3866] dark:border-[#ff7a9c] italic text-lg md:text-xl text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/30 py-4 pr-4 rounded-r-lg">
       {children}
@@ -310,7 +314,6 @@ const ptComponents: Partial<PortableTextReactComponents> = {
 };
 
 export default function PostClient({ id }: PostClientProps) {
-  const router = useRouter();
   const [post, setPost] = useState<Post | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -834,7 +837,7 @@ export default function PostClient({ id }: PostClientProps) {
           <div className="flex justify-between items-center">
             {post.prevPost ? (
               <Link
-                href={`/post/${post.prevPost._id}`}
+                href={`/home/post/${post.prevPost._id}`}
                 className="flex items-center gap-3 text-gray-600 dark:text-gray-400 hover:text-[#EF3866] dark:hover:text-[#ff7a9c] transition-colors group"
               >
                 <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
@@ -849,7 +852,7 @@ export default function PostClient({ id }: PostClientProps) {
 
             {post.nextPost ? (
               <Link
-                href={`/post/${post.nextPost._id}`}
+                href={`/home/post/${post.nextPost._id}`}
                 className="flex items-center gap-3 text-gray-600 dark:text-gray-400 hover:text-[#EF3866] dark:hover:text-[#ff7a9c] transition-colors group text-right"
               >
                 <div>
