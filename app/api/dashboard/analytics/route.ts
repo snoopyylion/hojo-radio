@@ -1,6 +1,6 @@
 
 // app/api/dashboard/analytics/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import {  NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { auth } from '@clerk/nextjs/server';
 
