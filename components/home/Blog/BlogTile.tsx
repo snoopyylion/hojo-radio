@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Share2 } from 'lucide-react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { urlFor } from "@/sanity/lib/image";
 import { useAuth } from '@clerk/nextjs';
