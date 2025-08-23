@@ -13,6 +13,7 @@ import CommentSection from '@/components/CommentSection';
 import type { PortableTextBlock } from '@portabletext/types';
 import { useLikes } from '../../../../hooks/likes/useLikes';
 import { useUserLikes } from '../../../../hooks/user-likes/useUserLikes';
+import { usePostView } from '../../../../hooks/usePostView';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import BackButton from '@/components/home/BackButton';
@@ -54,6 +55,7 @@ interface BookmarkState {
   bookmarkCount: number;
   isBookmarkLoading: boolean;
 }
+
 
 interface Post {
   _id: string;
@@ -327,6 +329,9 @@ export default function PostClient({ id }: PostClientProps) {
 
   const { likeCount, hasLiked, toggleLike, loading, isSignedIn } = useLikes(id);
   const { refreshUserLikes } = useUserLikes();
+  
+  // Record the view and get stats
+  const postStats = usePostView(id);
 
   // Animation refs
   const heroRef = useRef<HTMLDivElement>(null);
@@ -649,6 +654,18 @@ export default function PostClient({ id }: PostClientProps) {
               <Eye className="w-4 h-4" />
               {estimatedReadTime} min read
             </span>
+            {postStats && (
+              <>
+                <span className="flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
+                  {postStats.totalViews} views
+                </span>
+                <span className="flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
+                  {postStats.weeklyViews} this week
+                </span>
+              </>
+            )}
           </div>
 
           {/* Author */}

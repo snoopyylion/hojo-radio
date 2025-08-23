@@ -1,9 +1,16 @@
 // hooks/usePostView.ts
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
+
+interface PostStats {
+  totalViews: number;
+  uniqueViewers: number;
+  weeklyViews: number;
+}
 
 export const usePostView = (postId: string) => {
   const { isSignedIn } = useAuth();
+  const [stats, setStats] = useState<PostStats | null>(null);
 
   useEffect(() => {
     if (!isSignedIn || !postId) return;
@@ -26,6 +33,27 @@ export const usePostView = (postId: string) => {
 
     return () => clearTimeout(timer);
   }, [postId, isSignedIn]);
+
+  // Fetch post stats
+  useEffect(() => {
+    if (!postId) return;
+
+    const fetchStats = async () => {
+      try {
+        const response = await fetch(`/api/post/${postId}/stats`);
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch post stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, [postId]);
+
+  return stats;
 };
 
 // Example usage in a Post component

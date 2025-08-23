@@ -199,7 +199,7 @@ const Page = () => {
     if (isLoading) {
         return (
             <div className={darkMode ? 'dark' : ''}>
-                <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center px-4">
+                <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex  justify-center px-4">
                     <div className="w-full max-w-4xl space-y-6">
                         {[...Array(3)].map((_, i) => (
                             <div

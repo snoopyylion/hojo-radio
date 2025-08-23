@@ -34,6 +34,12 @@ const nextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'www.val9ja.com.ng',
+        port: '',
+        pathname: "/wp-content/uploads/**",
+      },
+      {
+        protocol: 'https',
         hostname: 'example.com',
         port: '',
         pathname: '/**',

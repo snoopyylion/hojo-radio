@@ -1,23 +1,11 @@
 import Image from 'next/image';
-import React from 'react'
-
-// Mock trending posts data
-const trendingPosts = [
-  { id: '1', title: 'AI Revolution in Healthcare', views: 45680, image: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=120&h=120&fit=crop' },
-  { id: '2', title: 'Sustainable Energy Solutions', views: 38920, image: 'https://images.unsplash.com/photo-1466611653911-95081537e5b7?w=120&h=120&fit=crop' },
-  { id: '3', title: 'Future of Transportation', views: 34567, image: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=120&h=120&fit=crop' },
-  { id: '4', title: 'Digital Privacy Rights', views: 29841, image: 'https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?w=120&h=120&fit=crop' },
-  { id: '5', title: 'Ocean Conservation Efforts', views: 27153, image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=120&h=120&fit=crop' }
-];
-
-interface TrendingPost {
-  id: string;
-  title: string;
-  views: number;
-  image: string;
-}
+import React from 'react';
+import { useTrendingPosts } from '@/hooks/useTrendingPosts';
+import Link from 'next/link';
 
 const TrendingSection = () => {
+  const { posts: trendingPosts, loading, error } = useTrendingPosts(5);
+
   return (
     <div className="h-full flex flex-col gap-4">
       {/* Ad Section - Fixed height */}
@@ -42,30 +30,57 @@ const TrendingSection = () => {
         
         {/* Scrollable posts container */}
         <div className="flex-1 overflow-y-auto">
-          <div className="space-y-3">
-            {trendingPosts.map((post: TrendingPost, index: number) => (
-              <div key={post.id} className="flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors cursor-pointer group">
-                <span className="text-sm font-bold text-[#EF3866] dark:text-[#EF3866] w-5 flex-shrink-0">
-                  {index + 1}
-                </span>
-                <Image
-                  src={post.image}
-                  alt={post.title}
-                  className="w-10 h-10 object-cover rounded-lg flex-shrink-0"
-                  width={40}
-                  height={40}
-                />
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-xs text-gray-900 dark:text-white truncate group-hover:text-[#EF3866] dark:group-hover:text-[#EF3866] transition-colors">
-                    {post.title}
-                  </h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {post.views.toLocaleString()} views
-                  </p>
+          {loading ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, index) => (
+                <div key={index} className="flex items-center gap-3 p-2 rounded-lg animate-pulse">
+                  <div className="w-5 h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-32 text-gray-500 dark:text-gray-400 text-sm">
+              Failed to load trending posts
+            </div>
+          ) : trendingPosts.length === 0 ? (
+            <div className="flex items-center justify-center h-32 text-gray-500 dark:text-gray-400 text-sm">
+              No trending posts yet
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {trendingPosts.map((post, index: number) => (
+                <Link 
+                  key={post._id} 
+                  href={`/post/${post.slug.current}`}
+                  className="flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors cursor-pointer group"
+                >
+                  <span className="text-sm font-bold text-[#EF3866] dark:text-[#EF3866] w-5 flex-shrink-0">
+                    {index + 1}
+                  </span>
+                  <Image
+                    src={post.mainImage?.asset.url || '/img/analyze.png'}
+                    alt={post.title}
+                    className="w-10 h-10 object-cover rounded-lg flex-shrink-0"
+                    width={40}
+                    height={40}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-xs text-gray-900 dark:text-white truncate group-hover:text-[#EF3866] dark:group-hover:text-[#EF3866] transition-colors">
+                      {post.title}
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {post.viewCount.toLocaleString()} views
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
         
         {/* View All Link */}

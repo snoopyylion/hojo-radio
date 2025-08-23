@@ -27,8 +27,25 @@ const isAuthRoute = createRouteMatcher([
 // API routes that should be excluded from middleware auth checks
 const isApiRoute = createRouteMatcher(['/api(.*)']);
 
+// Public API routes that don't require authentication
+const isPublicApiRoute = createRouteMatcher([
+  '/api/post/trending(.*)',
+  '/api/post/public(.*)',
+  '/api/post/top-weekly(.*)',
+  '/api/categories(.*)',
+  '/api/search(.*)',
+]);
+
+interface UserProfile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  username: string;
+  profile_completed: boolean;
+}
+
 // Helper function to check if profile is complete
-function isProfileComplete(userProfile: any): boolean {
+function isProfileComplete(userProfile: UserProfile | null): boolean {
   if (!userProfile) return false;
   
 // Use explicit boolean conversion to avoid null values
@@ -58,11 +75,17 @@ export default clerkMiddleware(async (auth, req) => {
   
   // For API routes, we need to ensure authentication context is available
   if (isApiRoute(req)) {
-    console.log('🔧 API route detected, ensuring auth context is available');
+    console.log('🔧 API route detected, checking if public or protected');
+    
+    // Allow public API routes without authentication
+    if (isPublicApiRoute(req)) {
+      console.log('🌐 Public API route detected, allowing access');
+      return NextResponse.next();
+    }
     
     // If no user is authenticated and trying to access protected API routes
     if (!userId) {
-      console.log('🚫 Unauthenticated access to API route');
+      console.log('🚫 Unauthenticated access to protected API route');
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

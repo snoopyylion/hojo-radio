@@ -1,0 +1,5 @@
+ERROR:  42P17: functions in index expression must be marked IMMUTABLE
+
+-- Create unique constraint to prevent duplicate views from same user to same post within 24 hours
+CREATE UNIQUE INDEX idx_unique_user_post_daily ON post_views(user_id, post_id, DATE(viewed_at));
+

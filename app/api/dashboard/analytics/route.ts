@@ -1,8 +1,23 @@
 
 // app/api/dashboard/analytics/route.ts
-import {  NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { auth } from '@clerk/nextjs/server';
+
+interface RecentlyViewedPost {
+  post_id: string;
+  post_title: string;
+  post_slug: string;
+  viewed_at: string;
+}
+
+interface DashboardAnalytics {
+  totalViews: number;
+  uniquePostsViewed: number;
+  weeklyViews: number;
+  recentlyViewed: RecentlyViewedPost[];
+  dailyViewCounts: Record<string, number>;
+}
 
 export async function GET() {
   try {
@@ -12,18 +27,18 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get total posts viewed by user
-    const { count: totalPostsViewed, error: totalError } = await supabaseAdmin
+    // Get total views for this user
+    const { count: totalViews, error: totalError } = await supabaseAdmin
       .from('post_views')
-      .select('post_id', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', userId);
 
     if (totalError) {
-      console.error('Error getting total posts viewed:', totalError);
-      return NextResponse.json({ error: "Failed to get total posts viewed" }, { status: 500 });
+      console.error('Error getting total views:', totalError);
+      return NextResponse.json({ error: "Failed to get total views" }, { status: 500 });
     }
 
-    // Get unique posts viewed by user
+    // Get unique posts viewed
     const { data: uniquePosts, error: uniqueError } = await supabaseAdmin
       .from('post_views')
       .select('post_id')
@@ -36,19 +51,19 @@ export async function GET() {
 
     const uniquePostsViewed = new Set(uniquePosts?.map(p => p.post_id)).size;
 
-    // Get posts viewed in last 7 days
+    // Get views for last 7 days
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const { count: weeklyPostsViewed, error: weeklyError } = await supabaseAdmin
+    const { count: weeklyViews, error: weeklyError } = await supabaseAdmin
       .from('post_views')
-      .select('post_id', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
       .gte('viewed_at', sevenDaysAgo.toISOString());
 
     if (weeklyError) {
-      console.error('Error getting weekly posts viewed:', weeklyError);
-      return NextResponse.json({ error: "Failed to get weekly posts viewed" }, { status: 500 });
+      console.error('Error getting weekly views:', weeklyError);
+      return NextResponse.json({ error: "Failed to get weekly views" }, { status: 500 });
     }
 
     // Get recently viewed posts (last 10)
@@ -64,33 +79,47 @@ export async function GET() {
       return NextResponse.json({ error: "Failed to get recently viewed" }, { status: 500 });
     }
 
-    // Get daily view counts for the last 7 days
+    // Get daily view counts for last 7 days
     const { data: dailyViews, error: dailyError } = await supabaseAdmin
       .from('post_views')
       .select('viewed_at')
       .eq('user_id', userId)
-      .gte('viewed_at', sevenDaysAgo.toISOString())
-      .order('viewed_at', { ascending: true });
+      .gte('viewed_at', sevenDaysAgo.toISOString());
 
     if (dailyError) {
       console.error('Error getting daily views:', dailyError);
       return NextResponse.json({ error: "Failed to get daily views" }, { status: 500 });
     }
 
-    // Process daily views into a chart-friendly format
-    const dailyViewCounts = dailyViews?.reduce((acc: Record<string, number>, view) => {
-      const date = new Date(view.viewed_at).toDateString();
-      acc[date] = (acc[date] || 0) + 1;
-      return acc;
-    }, {}) || {};
+    // Process daily view counts
+    const dailyViewCounts: Record<string, number> = {};
+    const today = new Date();
+    
+    // Initialize last 7 days with 0
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateKey = date.toISOString().split('T')[0];
+      dailyViewCounts[dateKey] = 0;
+    }
 
-    return NextResponse.json({
-      totalViews: totalPostsViewed || 0,
+    // Count views for each day
+    dailyViews?.forEach(view => {
+      const dateKey = new Date(view.viewed_at).toISOString().split('T')[0];
+      if (dailyViewCounts[dateKey] !== undefined) {
+        dailyViewCounts[dateKey]++;
+      }
+    });
+
+    const analytics: DashboardAnalytics = {
+      totalViews: totalViews || 0,
       uniquePostsViewed,
-      weeklyViews: weeklyPostsViewed || 0,
+      weeklyViews: weeklyViews || 0,
       recentlyViewed: recentlyViewed || [],
       dailyViewCounts
-    });
+    };
+
+    return NextResponse.json(analytics);
 
   } catch (error) {
     console.error('Error in dashboard analytics:', error);
