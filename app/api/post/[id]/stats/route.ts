@@ -1,14 +1,13 @@
-
 // app/api/post/[id]/stats/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const postId = params.id;
+    const postId = context.params.id;
 
     // Get total views for this post
     const { count: totalViews, error: totalError } = await supabaseAdmin
