@@ -1,12 +1,9 @@
-import UnderConstruction from '@/components/UnderConstruction';
+import { EnhancedNotificationList } from '@/components/EnhancedNotificationList';
 
 export default function NotificationsPage() {
   return (
-    <UnderConstruction
-      title="Notifications"
-      description="Stay updated with all your notifications. View alerts, updates, and important messages in one place."
-      backHref="/home"
-      backLabel="Back to Home"
-    />
+    <div className="min-h-screen w-full">
+      <EnhancedNotificationList />
+    </div>
   );
 }
