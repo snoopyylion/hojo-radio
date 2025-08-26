@@ -1,11 +1,46 @@
 // lib/supabase-realtime.ts
 import { createClient } from '@supabase/supabase-js';
 import { YouTubeLiveService } from './youtube-live';
+import { useUser } from '@clerk/nextjs';
+import { ChatMessage, SessionCallbacks } from '@/types/podcast';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+// Database ChatMessage interface (matching your Supabase schema)
+interface DatabaseChatMessage {
+  id: string;
+  session_id: string;
+  user_id: string;
+  username: string;
+  message: string;
+  created_at: string;
+  is_host?: boolean;
+}
+
+// YouTube Chat Message interface
+interface YouTubeChatMessage {
+  id: string;
+  snippet?: {
+    type: string;
+    publishedAt: string;
+    textMessageDetails?: {
+      messageText: string;
+    };
+  };
+  authorDetails?: {
+    displayName: string;
+  };
+}
+
+// YouTube Chat Response interface
+interface YouTubeChatResponse {
+  messages: YouTubeChatMessage[];
+  nextPageToken?: string | null;
+  pollingIntervalMillis: number;
+}
 
 export class RealtimeService {
   private youtubeService?: YouTubeLiveService;
@@ -17,11 +52,20 @@ export class RealtimeService {
     }
   }
 
-  async joinPodcastSession(sessionId: string, callbacks: {
-    onMessage?: (message: any) => void;
-    onListenerUpdate?: (count: number) => void;
-    onLike?: () => void;
-  }) {
+  // Convert database message to frontend ChatMessage format
+  private convertDatabaseMessage(dbMessage: DatabaseChatMessage): ChatMessage {
+    return {
+      id: dbMessage.id,
+      sessionId: dbMessage.session_id,
+      userId: dbMessage.user_id,
+      username: dbMessage.username,
+      message: dbMessage.message,
+      timestamp: new Date(dbMessage.created_at),
+      isHost: dbMessage.is_host || false
+    };
+  }
+
+  async joinPodcastSession(sessionId: string, callbacks: SessionCallbacks) {
     // Subscribe to Supabase real-time updates
     const channel = supabase
       .channel(`podcast_${sessionId}`)
@@ -35,7 +79,10 @@ export class RealtimeService {
         },
         (payload) => {
           if (callbacks.onMessage) {
-            callbacks.onMessage(payload.new);
+            // Convert database message format to frontend ChatMessage format
+            const dbMessage = payload.new as DatabaseChatMessage;
+            const frontendMessage = this.convertDatabaseMessage(dbMessage);
+            callbacks.onMessage(frontendMessage);
           }
         }
       )
@@ -48,8 +95,11 @@ export class RealtimeService {
           filter: `id=eq.${sessionId}`
         },
         (payload) => {
-          if (callbacks.onListenerUpdate && payload.new.listeners !== payload.old.listeners) {
-            callbacks.onListenerUpdate(payload.new.listeners);
+          const newData = payload.new as { listeners: number };
+          const oldData = payload.old as { listeners: number };
+          
+          if (callbacks.onListenerUpdate && newData.listeners !== oldData.listeners) {
+            callbacks.onListenerUpdate(newData.listeners);
           }
         }
       )
@@ -73,29 +123,33 @@ export class RealtimeService {
   }
 
   // Start polling YouTube Live Chat
-  async startYouTubeChatPolling(liveChatId: string, onYouTubeMessage: (message: any) => void) {
+  async startYouTubeChatPolling(liveChatId: string, onYouTubeMessage: (message: ChatMessage) => void) {
     if (!this.youtubeService || !liveChatId) return;
 
     let nextPageToken: string | undefined;
     
     const pollMessages = async () => {
       try {
-        const chatData = await this.youtubeService!.getChatMessages(liveChatId, nextPageToken);
+        const chatData = await this.youtubeService!.getChatMessages(liveChatId, nextPageToken) as YouTubeChatResponse;
         
         // Process new messages
-        chatData.messages.forEach((message: any) => {
+        chatData.messages.forEach((message: YouTubeChatMessage) => {
           if (message.snippet?.type === 'textMessageEvent') {
-            onYouTubeMessage({
+            const chatMessage: ChatMessage = {
               id: message.id,
-              user: message.authorDetails?.displayName || 'Anonymous',
+              sessionId: liveChatId, // Using liveChatId as sessionId for YouTube messages
+              userId: `youtube_${message.authorDetails?.displayName || 'anonymous'}`,
+              username: message.authorDetails?.displayName || 'Anonymous',
               message: message.snippet.textMessageDetails?.messageText || '',
               timestamp: new Date(message.snippet.publishedAt),
-              isYouTubeChat: true
-            });
+              isHost: false
+            };
+            onYouTubeMessage(chatMessage);
           }
         });
 
-        nextPageToken = chatData.nextPageToken;
+        // Handle null nextPageToken
+        nextPageToken = chatData.nextPageToken || undefined;
         
         // Schedule next poll
         this.youtubeChatInterval = setTimeout(pollMessages, chatData.pollingIntervalMillis);
@@ -125,7 +179,7 @@ export class RealtimeService {
       .eq('id', sessionId);
   }
 
-  async sendLike(sessionId: string, userId: string, username: string) {
+  async sendLike(sessionId: string, userId: string) {
     // Store like in database
     const { error } = await supabase
       .from('podcast_likes')
@@ -170,8 +224,6 @@ export class RealtimeService {
   }
 }
 
-import { useUser } from '@clerk/nextjs';
-
 // Hook for using realtime service with Clerk
 export const useRealtimeService = (youtubeAccessToken?: string) => {
   const { user } = useUser();
@@ -179,7 +231,7 @@ export const useRealtimeService = (youtubeAccessToken?: string) => {
   return {
     createService: () => new RealtimeService(youtubeAccessToken),
     
-    joinSession: (sessionId: string, callbacks: any) => {
+    joinSession: (sessionId: string, callbacks: SessionCallbacks) => {
       if (!user) return null;
       const service = new RealtimeService(youtubeAccessToken);
       return service.joinPodcastSession(sessionId, callbacks);
@@ -199,11 +251,7 @@ export const useRealtimeService = (youtubeAccessToken?: string) => {
     sendLike: async (sessionId: string) => {
       if (!user) return;
       const service = new RealtimeService(youtubeAccessToken);
-      await service.sendLike(
-        sessionId,
-        user.id,
-        user.firstName || user.username || 'Anonymous'
-      );
+      await service.sendLike(sessionId, user.id);
     }
   };
 };

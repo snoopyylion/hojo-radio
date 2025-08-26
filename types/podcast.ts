@@ -18,6 +18,12 @@ export interface PodcastSession {
   youtubeId?: string;
 }
 
+export type SessionCallbacks = {
+  onMessage?: (message: ChatMessage) => void;
+  onListenerUpdate?: (count: number) => void;
+  onLike?: () => void;
+}
+
 export interface ChatMessage {
   id: string;
   sessionId: string;

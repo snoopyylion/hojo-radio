@@ -72,24 +72,45 @@ export class YouTubeLiveService {
         watchUrl: `https://youtube.com/watch?v=${broadcast.id}`,
         embedUrl: `https://youtube.com/embed/${broadcast.id}`,
       };
-    } catch (error) {
-      // Surface detailed YouTube API error information so the API route can respond appropriately
-      const err: any = error;
-      const reason = err?.response?.data?.error?.errors?.[0]?.reason;
-      const message = err?.response?.data?.error?.message || err?.message;
-      const status = err?.response?.status || err?.code;
-      console.error('YouTube Live creation failed:', {
-        status,
-        reason,
-        message,
-      });
+    } catch (error: unknown) {
+  // Type guard for error response
+  const err = error as {
+    response?: {
+      data?: {
+        error?: {
+          message?: string;
+          errors?: { reason?: string }[];
+        };
+      };
+      status?: number;
+    };
+    message?: string;
+    code?: number;
+  };
 
-      const enrichedError = new Error(reason || message || 'YOUTUBE_API_ERROR');
-      (enrichedError as any).status = status;
-      (enrichedError as any).reason = reason;
-      (enrichedError as any).details = message;
-      throw enrichedError;
-    }
+  const reason = err?.response?.data?.error?.errors?.[0]?.reason;
+  const message = err?.response?.data?.error?.message || err?.message || 'Unknown YouTube API error';
+  const status = err?.response?.status || err?.code || 500;
+
+  console.error('YouTube Live creation failed:', {
+    status,
+    reason,
+    message,
+  });
+
+  const enrichedError = new Error(reason || message || 'YOUTUBE_API_ERROR') as Error & {
+    status?: number;
+    reason?: string;
+    details?: string;
+  };
+
+  enrichedError.status = status;
+  enrichedError.reason = reason;
+  enrichedError.details = message;
+
+  throw enrichedError;
+}
+
   }
 
   // Start the live broadcast
