@@ -199,13 +199,6 @@ export default function Sidebar() {
                             icon={<BrainCircuit size={14} />}
                             collapsed={!isOpen && isLargeScreen}
                         />
-                        <SidebarLink
-                            href="/sign-out"
-                            label={isOpen ? "Sign Out" : ""}
-                            icon={<LogOut size={18} />}
-                            collapsed={!isOpen && isLargeScreen}
-                        />
-
                         {/* User Profile Section */}
                         <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
                             {!isLoaded ? (
@@ -283,6 +276,13 @@ export default function Sidebar() {
                                 </div>
                             )}
                         </div>
+                        
+                        <SidebarLink
+                            href="/sign-out"
+                            label={isOpen ? "Sign Out" : ""}
+                            icon={<LogOut size={18} />}
+                            collapsed={!isOpen && isLargeScreen}
+                        />
                     </div>
                 </div>
             </aside>
