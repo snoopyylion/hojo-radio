@@ -34,6 +34,8 @@ const isPublicApiRoute = createRouteMatcher([
   '/api/post/top-weekly(.*)',
   '/api/categories(.*)',
   '/api/search(.*)',
+  '/api/auth/youtube/callback(.*)', // YouTube OAuth callback should be public
+  '/api/auth/youtube/complete(.*)', // YouTube OAuth completion should be public during flow
 ]);
 
 interface UserProfile {
@@ -83,16 +85,21 @@ export default clerkMiddleware(async (auth, req) => {
       return NextResponse.next();
     }
     
-    // If no user is authenticated and trying to access protected API routes
-    if (!userId) {
-      console.log('🚫 Unauthenticated access to protected API route');
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    // Special handling for YouTube OAuth callback
+    if (req.nextUrl.pathname.startsWith('/api/auth/youtube/callback')) {
+      console.log('🔄 YouTube OAuth callback detected, allowing access');
+      return NextResponse.next();
     }
     
-    // Allow authenticated requests to proceed
+    // Special handling for YouTube OAuth completion
+    if (req.nextUrl.pathname.startsWith('/api/auth/youtube/complete')) {
+      console.log('🔄 YouTube OAuth completion detected, allowing access');
+      return NextResponse.next();
+    }
+    
+    // For protected API routes, let Clerk handle authentication
+    // Don't block them here - let the API route's auth() function handle it
+    console.log('🔐 Protected API route detected, allowing Clerk to handle auth');
     return NextResponse.next();
   }
   
