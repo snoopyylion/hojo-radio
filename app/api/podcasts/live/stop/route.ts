@@ -21,49 +21,92 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { broadcastId, sessionId } = body;
+    const { broadcastId: bodyBroadcastId, sessionId } = body;
 
-    if (!broadcastId || !sessionId) {
+    if (!sessionId) {
       return NextResponse.json(
-        { success: false, error: 'Broadcast ID and Session ID are required' },
+        { success: false, error: 'Session ID is required' },
         { status: 400 }
       );
     }
 
-    // Get YouTube access token from database
-    const { data: tokenData, error: tokenError } = await supabase
-      .from('user_youtube_tokens')
-      .select('access_token')
-      .eq('user_id', userId)
+    // Load session to verify ownership and get broadcast id if missing
+    const { data: sessionRow, error: sessionErr } = await supabase
+      .from('podcast_sessions')
+      .select('id, user_id, youtube_broadcast_id')
+      .eq('id', sessionId)
       .single();
 
-    if (tokenError || !tokenData?.access_token) {
+    if (sessionErr || !sessionRow || sessionRow.user_id !== userId) {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: 'YouTube access token not found'
-        },
-        { status: 400 }
+        { success: false, error: 'No active live session to stop' },
+        { status: 404 }
       );
     }
 
-    // End the YouTube broadcast
-    const youtubeService = new YouTubeLiveService(tokenData.access_token);
-    await youtubeService.endBroadcast(broadcastId);
+    const broadcastId = bodyBroadcastId || sessionRow.youtube_broadcast_id || null;
+
+    // If we have a broadcastId, try to end the YouTube broadcast; otherwise, just end locally
+    if (broadcastId) {
+      // Get YouTube access token from database
+      const { data: tokenData, error: tokenError } = await supabase
+        .from('user_youtube_tokens')
+        .select('access_token')
+        .eq('user_id', userId)
+        .single();
+
+      if (tokenError || !tokenData?.access_token) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'YouTube access token not found'
+          },
+          { status: 400 }
+        );
+      }
+
+      const youtubeService = new YouTubeLiveService(tokenData.access_token);
+      try {
+        await youtubeService.endBroadcast(broadcastId);
+      } catch (error: any) {
+        const msg = String(error?.message || '');
+        const reason = (error?.reason || '').toString();
+        console.error('YouTube API error:', error);
+
+        const isReadyStateError = msg.includes('Cannot end broadcast from status: ready') || reason === 'invalidTransition';
+        const isNotFound = msg.toLowerCase().includes('not found') || reason === 'notFound';
+        const isForbidden = msg.toLowerCase().includes('forbidden') || reason === 'forbidden';
+
+        if (isForbidden) {
+          return NextResponse.json(
+            { success: false, error: 'Permission denied to access this broadcast' },
+            { status: 403 }
+          );
+        }
+
+        if (!(isReadyStateError || isNotFound)) {
+          return NextResponse.json(
+            { success: false, error: msg || 'Failed to end YouTube broadcast' },
+            { status: 500 }
+          );
+        }
+      }
+    }
 
     // Update the session status in database
     const { error: updateError } = await supabase
-      .from('podcasts')
+      .from('podcast_sessions')
       .update({ 
         status: 'ended',
-        ended_at: new Date().toISOString()
+        is_live: false,
+        end_time: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .eq('id', sessionId)
       .eq('user_id', userId);
 
     if (updateError) {
       console.error('Failed to update session status:', updateError);
-      // Don't fail the request if database update fails
     }
 
     return NextResponse.json({

@@ -1,6 +1,6 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import { Inter, Geist, Geist_Mono, Manrope, Sora } from "next/font/google";
+import { Inter, Manrope, Sora } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -23,15 +23,6 @@ const sora = Sora({
   variable: '--font-sora',
 });
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Hojo Media",
@@ -46,7 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${sora.variable} ${manrope.variable} antialiased`}
+        className={`${inter.variable} ${sora.variable} ${manrope.variable} antialiased`}
       >
         <Providers>
           {children}

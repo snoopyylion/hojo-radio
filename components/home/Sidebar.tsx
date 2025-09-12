@@ -22,6 +22,7 @@ import clsx from "clsx";
 import Image from "next/image";
 import { useAppContext } from '@/context/AppContext';
 import { UserButton } from '@clerk/nextjs';
+import { useClerk } from "@clerk/nextjs";
 
 // Create a context for sidebar state
 interface SidebarContextType {
@@ -78,6 +79,34 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
         <SidebarContext.Provider value={{ isOpen, toggleSidebar, isLargeScreen }}>
             {children}
         </SidebarContext.Provider>
+    );
+};
+
+// Integrated SignOut Component
+const SignOutButton: React.FC<{ collapsed: boolean }> = ({ collapsed }) => {
+    const { signOut } = useClerk();
+    const { clearSession } = useAppContext();
+
+    const handleSignOut = async () => {
+        clearSession(); // clear local app data
+        await signOut(); // Clerk sign-out
+    };
+
+    return (
+        <button
+            onClick={handleSignOut}
+            className={clsx(
+                "flex items-center w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-all duration-200 group text-sm font-medium",
+                {
+                    "justify-center": collapsed,
+                    "justify-start gap-3": !collapsed,
+                }
+            )}
+            title={collapsed ? "Sign Out" : undefined}
+        >
+            <LogOut size={18} className="flex-shrink-0" />
+            {!collapsed && <span>Sign Out</span>}
+        </button>
     );
 };
 
@@ -148,7 +177,7 @@ export default function Sidebar() {
                             collapsed={!isOpen && isLargeScreen}
                         />
                         <SidebarLink
-                            href="/home/podcasts"
+                            href="/home/podcast"
                             label={isOpen ? "Podcast Maker" : ""}
                             icon={<Mic size={18} />}
                             collapsed={!isOpen && isLargeScreen}
@@ -277,12 +306,8 @@ export default function Sidebar() {
                             )}
                         </div>
                         
-                        <SidebarLink
-                            href="/sign-out"
-                            label={isOpen ? "Sign Out" : ""}
-                            icon={<LogOut size={18} />}
-                            collapsed={!isOpen && isLargeScreen}
-                        />
+                        {/* Replace SidebarLink with SignOutButton */}
+                        <SignOutButton collapsed={!isOpen && isLargeScreen} />
                     </div>
                 </div>
             </aside>

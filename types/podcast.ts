@@ -1,75 +1,40 @@
-// types/podcast.ts
-export interface PodcastSession {
+export interface User {
   id: string;
+  name: string;
+  role: 'author' | 'listener';
+}
+
+export interface LiveSession {
+  id: string;
+  authorId: string;
+  authorName: string;
   title: string;
   description?: string;
-  userId: string; // Clerk user ID as text
-  username: string; // User's display name
-  isLive: boolean;
-  startTime: Date;
-  endTime?: Date;
-  duration: number;
-  listeners: number;
-  likes: number;
-  comments: ChatMessage[];
-  audioUrl?: string;
-  thumbnailUrl?: string;
-  status: 'draft' | 'live' | 'ended' | 'published';
-  youtubeId?: string;
+  roomName: string;
+  startedAt: string;
+  listenerCount: number;
+  isActive: boolean;
 }
 
-export type SessionCallbacks = {
-  onMessage?: (message: ChatMessage) => void;
-  onListenerUpdate?: (count: number) => void;
-  onLike?: () => void;
-}
-
-export interface ChatMessage {
+export interface DatabaseLiveSession {
   id: string;
-  sessionId: string;
-  userId: string; // Clerk user ID as text
-  username: string; // User's display name
-  message: string;
-  timestamp: Date;
-  isHost?: boolean;
-}
-
-export interface PodcastEpisode {
-  id: string;
+  author_id: string;
+  author_name: string;
   title: string;
   description?: string;
-  userId: string; // Clerk user ID as text
-  username: string; // User's display name
-  audioUrl?: string;
-  thumbnailUrl?: string;
-  duration: number;
-  fileSize: number;
-  waveformData?: number[];
-  tags: string[];
-  isPublic: boolean;
-  playCount: number;
-  likeCount: number;
-  status: 'draft' | 'processing' | 'published' | 'archived';
-  scheduledFor?: Date;
-  createdAt: Date;
-  updatedAt: Date;
+  room_name: string;
+  started_at: string;
+  listener_count: number;
+  is_active: boolean;
 }
 
-export interface LiveAnalytics {
-  currentListeners: number;
-  peakListeners: number;
-  totalLikes: number;
-  totalComments: number;
-  avgWatchTime: number;
-  countries: string[];
-  deviceTypes: { mobile: number; desktop: number; tablet: number };
-}
-
-export interface PodcastUpload {
-  file: File;
-  title: string;
-  description?: string;
-  tags?: string[];
-  isPublic?: boolean;
-  scheduledFor?: Date;
+/**
+ * Generic Supabase realtime payload type.
+ * You can reuse this for other tables, not just live_sessions.
+ */
+export interface SupabaseRealtimePayload<T> {
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+  new: T;
+  old: T;
+  errors?: string[];
 }

@@ -131,7 +131,7 @@ export function SignInForm() {
   };
 
   // Show redirect destination if not default
-  const showRedirectInfo = redirectUrl && redirectUrl !== '/blog';
+  const showRedirectInfo = redirectUrl && redirectUrl !== '/home';
   
   // Show processing indicator
   const showProcessingInfo = isProcessingSignIn;

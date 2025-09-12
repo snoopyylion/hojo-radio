@@ -113,6 +113,42 @@ export class YouTubeLiveService {
 
   }
 
+  // Get broadcast status
+  async getBroadcastStatus(broadcastId: string) {
+    try {
+      const response = await this.youtube.liveBroadcasts.list({
+        part: ['status'],
+        id: [broadcastId],
+      });
+      
+      if (response.data.items && response.data.items.length > 0) {
+        return response.data.items[0].status?.lifeCycleStatus;
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to get broadcast status:', error);
+      throw error;
+    }
+  }
+
+  // Get detailed broadcast information
+  async getBroadcastInfo(broadcastId: string) {
+    try {
+      const response = await this.youtube.liveBroadcasts.list({
+        part: ['snippet', 'status', 'contentDetails'],
+        id: [broadcastId],
+      });
+      
+      if (response.data.items && response.data.items.length > 0) {
+        return response.data.items[0];
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to get broadcast info:', error);
+      throw error;
+    }
+  }
+
   // Start the live broadcast
   async startBroadcast(broadcastId: string) {
     try {
@@ -131,15 +167,87 @@ export class YouTubeLiveService {
   // End the live broadcast
   async endBroadcast(broadcastId: string) {
     try {
-      await this.youtube.liveBroadcasts.transition({
-        part: ['status'],
-        id: broadcastId,
-        broadcastStatus: 'complete',
-      });
+      // First, get the current status and info of the broadcast
+      const broadcastInfo = await this.getBroadcastInfo(broadcastId);
+      
+      if (!broadcastInfo) {
+        throw new Error(`Broadcast with ID ${broadcastId} not found`);
+      }
+      
+      const currentStatus = broadcastInfo.status?.lifeCycleStatus;
+      console.log(`Current broadcast status: ${currentStatus}`);
+      console.log(`Broadcast title: ${broadcastInfo.snippet?.title}`);
+      
+      // Handle different status transitions
+      if (currentStatus === 'live') {
+        // If currently live, transition to complete
+        await this.youtube.liveBroadcasts.transition({
+          part: ['status'],
+          id: broadcastId,
+          broadcastStatus: 'complete',
+        });
+        console.log('Successfully transitioned from live to complete');
+      } else if (currentStatus === 'testing') {
+        // If in testing, transition to complete
+        await this.youtube.liveBroadcasts.transition({
+          part: ['status'],
+          id: broadcastId,
+          broadcastStatus: 'complete',
+        });
+        console.log('Successfully transitioned from testing to complete');
+      } else if (currentStatus === 'created') {
+        // If just created, transition to complete
+        await this.youtube.liveBroadcasts.transition({
+          part: ['status'],
+          id: broadcastId,
+          broadcastStatus: 'complete',
+        });
+        console.log('Successfully transitioned from created to complete');
+      } else if (currentStatus === 'complete') {
+        // Already completed, no action needed
+        console.log('Broadcast is already completed');
+        return true;
+      } else {
+        throw new Error(`Cannot end broadcast from status: ${currentStatus}`);
+      }
+      
       return true;
     } catch (error) {
       console.error('Failed to end broadcast:', error);
       throw error;
+    }
+  }
+
+  // Force end broadcast - handles edge cases
+  async forceEndBroadcast(broadcastId: string) {
+    try {
+      const broadcastInfo = await this.getBroadcastInfo(broadcastId);
+      
+      if (!broadcastInfo) {
+        console.log(`Broadcast ${broadcastId} not found, may already be deleted`);
+        return true;
+      }
+      
+      const currentStatus = broadcastInfo.status?.lifeCycleStatus;
+      console.log(`Force ending broadcast from status: ${currentStatus}`);
+      
+      // Try to transition to complete regardless of current status
+      try {
+        await this.youtube.liveBroadcasts.transition({
+          part: ['status'],
+          id: broadcastId,
+          broadcastStatus: 'complete',
+        });
+        console.log('Force transition to complete successful');
+        return true;
+      } catch (transitionError: any) {
+        console.log('Transition failed, broadcast may already be ended:', transitionError.message);
+        return true; // Consider it successful if we can't transition
+      }
+    } catch (error) {
+      console.error('Force end broadcast failed:', error);
+      // Don't throw error, just log it
+      return false;
     }
   }
 

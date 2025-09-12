@@ -532,18 +532,18 @@ export default function ConversationList({
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-950">
       {/* Search Section */}
-      <div className="flex-shrink-0 p-4 bg-white dark:bg-gray-950 border-b border-gray-100 dark:border-gray-800">
+      <div className="flex-shrink-0 p-2 bg-white dark:bg-gray-950 border-b border-gray-100 dark:border-gray-800">
         <div className="relative">
           <Search 
             className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" 
-            size={18} 
+            size={16} 
           />
           <input
             type="text"
-            placeholder="Search conversations..."
+            placeholder="Search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#EF3866] focus:border-transparent transition-all duration-200 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm"
+            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#EF3866] focus:border-transparent"
           />
         </div>
       </div>

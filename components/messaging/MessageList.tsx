@@ -133,7 +133,7 @@ const MessagesList: React.FC<MessagesListProps> = ({
   return (
     <div className={`flex flex-col h-full relative bg-white dark:bg-black ${className}`}>
       {/* Enhanced gradient background with better visibility */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-950 dark:via-black dark:to-gray-900 pointer-events-none z-0"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-white-50 via-white to-purple-50 dark:from-gray-950 dark:via-black dark:to-gray-900 pointer-events-none z-0"></div>
       
       {/* Enhanced animated pattern overlay with better opacity */}
       <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.06] pointer-events-none z-0">

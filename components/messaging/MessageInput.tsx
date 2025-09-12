@@ -552,8 +552,8 @@ const MessageInput: React.FC<MessageInputProps> = ({
   }, []);
 
   return (
-    <div className="relative bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 p-4 sm:p-6 max-h-[50vh] overflow-hidden">
-      <div ref={containerRef} className="space-y-4">
+    <div className="relative bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 p-2 sm:p-2 max-h-[20vh] overflow-hidden">
+      <div ref={containerRef} className="space-y-2">
         {/* Upload error message */}
         {uploadError && (
           <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">

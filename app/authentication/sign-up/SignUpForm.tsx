@@ -92,7 +92,7 @@ export default function SignUpForm({ onVerificationNeeded }: SignUpFormProps) {
             
             // Redirect to sign-in after a short delay
             setTimeout(() => {
-              const signInUrl = `/authentication/sign-in${redirectUrl && redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+              const signInUrl = `/authentication/sign-in${redirectUrl && redirectUrl !== '/home' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
               window.location.href = signInUrl;
             }, 3000);
             return;

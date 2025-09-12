@@ -270,8 +270,8 @@ const SearchResultsPage = () => {
 
     switch (result.type) {
       case 'article':
-        let postId = result.url.includes('/post/')
-          ? result.url.split('/post/')[1].split('/')[0]
+        let postId = result.url.includes('/home/post/')
+          ? result.url.split('/home/post/')[1].split('/')[0]
           : result.id;
 
         // If prefixed with "sanity_post_", strip it
@@ -279,7 +279,7 @@ const SearchResultsPage = () => {
           postId = postId.replace('sanity_post_', '');
         }
 
-        return `/post/${postId}`;
+        return `/home/post/${postId}`;
 
        case 'user':
       case 'author':
@@ -302,7 +302,7 @@ const SearchResultsPage = () => {
         return `/user/${userId}`;
 
       case 'category':
-        return `/blog/category/${getDatabaseId(result)}`;
+        return `/home/blog/category/${getDatabaseId(result)}`;
 
       default:
         return result.url || '#';
@@ -515,7 +515,7 @@ const SearchResultsPage = () => {
   const handleSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (newQuery.trim()) {
-      const newUrl = `/search?q=${encodeURIComponent(newQuery)}`;
+      const newUrl = `/home/search?q=${encodeURIComponent(newQuery)}`;
       if (window.location.pathname + window.location.search !== newUrl) {
         router.push(newUrl);
       }
@@ -543,7 +543,7 @@ const SearchResultsPage = () => {
     setSearchResults(emptyResults);
     setOriginalResults(emptyResults);
     setActiveFilter('all');
-    router.push('/search');
+    router.push('/home/search');
   };
 
   // Get result counts for each category from original results
@@ -581,7 +581,7 @@ const SearchResultsPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black pt-24 sm:pt-20 font-sora mb-[24px] transition-colors duration-300">
+    <div className="min-h-screen bg-white dark:bg-black  font-sora mb-[24px] transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8">
         {/* Search Header */}
         <div className="mb-6 lg:mb-8">
@@ -592,47 +592,6 @@ const SearchResultsPage = () => {
           >
             Search Results
           </motion.h1>
-
-          {/* Enhanced Search Form */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="mb-4 sm:mb-6"
-          >
-            <form onSubmit={handleSearch} className="relative max-w-2xl">
-              <div className="relative">
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={newQuery}
-                  onChange={(e) => setNewQuery(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Search users, articles, authors, categories..."
-                  className="w-full h-12 sm:h-14 pl-10 sm:pl-12 pr-16 sm:pr-20 text-base sm:text-lg bg-white dark:bg-black border-2 border-gray-200 dark:border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-[#EF3866] focus:border-[#EF3866] dark:focus:border-[#EF3866] transition-all shadow-sm hover:shadow-md text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                />
-                <Search size={20} className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 sm:w-6 sm:h-6" />
-
-                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1 sm:gap-2">
-                  {newQuery && (
-                    <button
-                      type="button"
-                      onClick={clearSearch}
-                      className="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-                    >
-                      <X size={16} className="text-gray-400 dark:text-gray-500 sm:w-5 sm:h-5" />
-                    </button>
-                  )}
-                  <button
-                    type="submit"
-                    className="bg-[#EF3866] hover:bg-[#d7325a] text-white px-4 sm:px-6 py-2 rounded-full transition-all font-medium text-sm sm:text-base"
-                  >
-                    Search
-                  </button>
-                </div>
-              </div>
-            </form>
-          </motion.div>
 
           {/* Results Summary and Controls */}
           {query && (
@@ -683,6 +642,47 @@ const SearchResultsPage = () => {
             </motion.div>
           )}
         </div>
+
+        {/* Enhanced Search Form */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mb-4 sm:mb-6"
+          >
+            <form onSubmit={handleSearch} className="relative max-w-2xl">
+              <div className="relative">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={newQuery}
+                  onChange={(e) => setNewQuery(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Search users, articles, authors, categories..."
+                  className="w-full h-12 sm:h-14 pl-10 sm:pl-12 pr-16 sm:pr-20 text-base sm:text-lg bg-white dark:bg-black border-2 border-gray-200 dark:border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-[#EF3866] focus:border-[#EF3866] dark:focus:border-[#EF3866] transition-all shadow-sm hover:shadow-md text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                />
+                <Search size={20} className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 sm:w-6 sm:h-6" />
+
+                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1 sm:gap-2">
+                  {newQuery && (
+                    <button
+                      type="button"
+                      onClick={clearSearch}
+                      className="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                    >
+                      <X size={16} className="text-gray-400 dark:text-gray-500 sm:w-5 sm:h-5" />
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    className="bg-[#EF3866] hover:bg-[#d7325a] text-white px-4 sm:px-6 py-2 rounded-full transition-all font-medium text-sm sm:text-base"
+                  >
+                    Search
+                  </button>
+                </div>
+              </div>
+            </form>
+          </motion.div>
 
         {/* Mobile Filters Overlay */}
         <AnimatePresence>

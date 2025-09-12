@@ -5,8 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useRealtimeMessaging } from '@/hooks/useRealTimeMessaging';
-import { useSidebar } from '@/components/messaging/MessagingLayout';
-import { MessageCircle, Users, Search, Plus, ArrowRight, Menu } from 'lucide-react';
+import { MessageCircle, Users, Search, Plus, ArrowRight } from 'lucide-react';
 import { Conversation } from '@/types/messaging';
 import Image from 'next/image';
 
@@ -15,7 +14,6 @@ export default function MessagesPage() {
     const { user, isLoaded } = useUser();
     const { conversations, loadConversations, loading, error } = useRealtimeMessaging();
     const [, setSelectedConversation] = useState<Conversation | null>(null);
-    const { toggleSidebar } = useSidebar();
 
     useEffect(() => {
         if (isLoaded && !user) {
@@ -81,13 +79,6 @@ export default function MessagesPage() {
                 <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center justify-between space-x-3">
-                            <button
-                                onClick={toggleSidebar}
-                                className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                                title="Toggle sidebar"
-                            >
-                                <Menu size={20} />
-                            </button>
                             <div className="w-10 h-10 rounded-xl relative overflow-hidden flex-shrink-0 shadow-md border border-gray-200/60 dark:border-gray-300/20 group-hover:shadow-lg transition-shadow">
                                 <Image
                                     src="/img/logo.jpg"

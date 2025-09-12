@@ -38,7 +38,7 @@ function OAuthCallbackContent() {
     if (redirectFromUrl && redirectFromUrl !== '/') {
       return redirectFromUrl;
     }
-    return '/blog'; // Default fallback
+    return '/home'; // Default fallback
   }, [searchParams]);
 
   // Fixed session activation with proper timing and error handling
@@ -132,7 +132,7 @@ function OAuthCallbackContent() {
   const forceCompleteProfile = useCallback((reason: string) => {
     console.log(`📝 Forcing profile completion: ${reason}`);
     const redirectUrl = getRedirectUrl();
-    const completeProfileUrl = `/authentication/complete-profile${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+    const completeProfileUrl = `/authentication/complete-profile${redirectUrl !== '/home' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
 
     setAuthStatus({
       stage: 'completing',
@@ -346,7 +346,7 @@ function OAuthCallbackContent() {
         
         setTimeout(() => {
           const redirectUrl = getRedirectUrl();
-          const signInUrl = `/authentication/sign-in${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+          const signInUrl = `/authentication/sign-in${redirectUrl !== '/home' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
           router.replace(signInUrl);
         }, 1000);
         return;
@@ -411,7 +411,7 @@ function OAuthCallbackContent() {
         if (!isSignedIn && !pendingSessionId && source !== 'existing-session') {
           console.log('⚠️ User not signed in and no pending session, redirecting to sign-in');
           const redirectUrl = getRedirectUrl();
-          const signInUrl = `/authentication/sign-in${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+          const signInUrl = `/authentication/sign-in${redirectUrl !== '/home' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
           router.replace(signInUrl);
           return;
         }
@@ -483,7 +483,7 @@ function OAuthCallbackContent() {
             // For non-OAuth flows, redirect to sign-in instead of showing error
             console.log('🔄 Redirecting to sign-in for non-authenticated user');
             const redirectUrl = getRedirectUrl();
-            const signInUrl = `/authentication/sign-in${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+            const signInUrl = `/authentication/sign-in${redirectUrl !== '/home' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
             router.replace(signInUrl);
             return;
           }
@@ -535,7 +535,7 @@ function OAuthCallbackContent() {
 
         setTimeout(() => {
           const redirectUrl = getRedirectUrl();
-          const signInUrl = `/authentication/sign-in${redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+          const signInUrl = `/authentication/sign-in${redirectUrl !== '/home' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
           const errorParam = errorMessage.includes('activation') ? 'activation_failed' : 'auth_failed';
           router.replace(signInUrl + (signInUrl.includes('?') ? '&' : '?') + `error=${errorParam}`);
         }, 3000);

@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 
 const isProtectedRoute = createRouteMatcher([
   '/blog(.*)',
+  '/home(.*)',
   '/post(.*)',
   '/verify-news(.*)',
   '/hashedpage(.*)',
@@ -36,6 +37,7 @@ const isPublicApiRoute = createRouteMatcher([
   '/api/search(.*)',
   '/api/auth/youtube/callback(.*)', // YouTube OAuth callback should be public
   '/api/auth/youtube/complete(.*)', // YouTube OAuth completion should be public during flow
+  '/api/podcasts/rtmp-bridge(.*)',
 ]);
 
 interface UserProfile {
@@ -132,7 +134,7 @@ export default clerkMiddleware(async (auth, req) => {
 
     if (error && error.code !== 'PGRST116') {
       console.error('❌ Database error checking user profile:', error);
-      const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/blog';
+      const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/home';
       console.log('🔄 Database error, redirecting to:', redirectUrl);
       return NextResponse.redirect(new URL(redirectUrl, req.url));
     }
@@ -142,20 +144,20 @@ export default clerkMiddleware(async (auth, req) => {
       console.log('📝 User profile needs completion, redirecting to complete-profile');
       const completeProfileUrl = new URL('/authentication/complete-profile', req.url);
       const redirectUrl = req.nextUrl.searchParams.get('redirect_url');
-      if (redirectUrl && redirectUrl !== '/blog') {
+      if (redirectUrl && redirectUrl !== '/home') {
         completeProfileUrl.searchParams.set('redirect_url', redirectUrl);
       }
       return NextResponse.redirect(completeProfileUrl);
     }
 
     // Profile is complete, redirect to intended destination
-    const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/blog';
+    const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/home';
     console.log('✅ Profile complete, redirecting to:', redirectUrl);
     return NextResponse.redirect(new URL(redirectUrl, req.url));
     
   } catch (error) {
     console.error('❌ Error in middleware profile check:', error);
-    const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/blog';
+    const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/home';
     return NextResponse.redirect(new URL(redirectUrl, req.url));
   }
 }
@@ -176,7 +178,7 @@ export default clerkMiddleware(async (auth, req) => {
       // If profile is complete, redirect away from completion route
       if (!error && userProfile && isProfileComplete(userProfile)) {
         console.log('✅ Profile already complete, redirecting away from completion route');
-        const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/blog';
+        const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/home';
         return NextResponse.redirect(new URL(redirectUrl, req.url));
       }
 
@@ -204,19 +206,19 @@ export default clerkMiddleware(async (auth, req) => {
 
     if (error && error.code !== 'PGRST116') {
       console.error('❌ Database error checking user profile:', error);
-      const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/blog';
+      const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/home';
       console.log('🔄 Database error, redirecting to:', redirectUrl);
       return NextResponse.redirect(new URL(redirectUrl, req.url));
     }
 
     // Determine redirect URL
-    const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/blog';
+    const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/home';
 
     // If user doesn't exist in database or profile is incomplete
     if (!userProfile || !isProfileComplete(userProfile)) {
       console.log('📝 User profile needs completion, redirecting to complete-profile');
       const completeProfileUrl = new URL('/authentication/complete-profile', req.url);
-      if (redirectUrl && redirectUrl !== '/blog') {
+      if (redirectUrl && redirectUrl !== '/home') {
         completeProfileUrl.searchParams.set('redirect_url', redirectUrl);
       }
       return NextResponse.redirect(completeProfileUrl);
@@ -228,7 +230,7 @@ export default clerkMiddleware(async (auth, req) => {
     
   } catch (error) {
     console.error('❌ Error in middleware profile check:', error);
-    const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/blog';
+    const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/home';
     return NextResponse.redirect(new URL(redirectUrl, req.url));
   }
 }
@@ -256,7 +258,7 @@ export default clerkMiddleware(async (auth, req) => {
         console.log('📝 Incomplete profile detected, redirecting to complete-profile');
         const completeProfileUrl = new URL('/authentication/complete-profile', req.url);
         const currentPath = req.nextUrl.pathname + req.nextUrl.search;
-        if (currentPath !== '/blog') {
+        if (currentPath !== '/home') {
           completeProfileUrl.searchParams.set('redirect_url', currentPath);
         }
         return NextResponse.redirect(completeProfileUrl);

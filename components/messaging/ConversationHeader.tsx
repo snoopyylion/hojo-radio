@@ -1,20 +1,20 @@
 // Updated ConversationHeader.tsx
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Conversation } from '@/types/messaging';
-import { useSidebar } from '@/components/messaging/MessagingLayout';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import {
-  Menu,
   Settings,
   MoreVertical,
   Phone,
   Video,
   Users,
-  ChevronRight
+  ChevronRight,
+  ArrowLeft
 } from 'lucide-react';
+import Image from 'next/image';
 
 interface ConversationHeaderProps {
   conversation: Conversation;
@@ -32,8 +32,19 @@ export const ConversationHeader = ({
   additionalActions 
 }: ConversationHeaderProps) => {
   const [showCallMenu, setShowCallMenu] = useState(false);
-  const { toggleSidebar } = useSidebar();
+  const [, setIsMobile] = useState(false);
   const router = useRouter();
+
+  // Handle responsive design
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
 
   // Get the other participant for direct messages
   const otherParticipant = conversation.type === 'direct' 
@@ -79,11 +90,11 @@ export const ConversationHeader = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3 flex-1 min-w-0">
             <button
-              onClick={toggleSidebar}
+              onClick={() => router.push('/home/messaging')}
               className="p-2 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 shrink-0"
-              title="Toggle sidebar"
+              title="Back to conversations"
             >
-              <Menu size={20} />
+              <ArrowLeft size={20} />
             </button>
 
             <div className="flex items-center space-x-3 flex-1 min-w-0">
@@ -104,7 +115,8 @@ export const ConversationHeader = ({
                     className="relative focus:outline-none focus:ring-2 focus:ring-[#EF3866]/50 rounded-full transition-all duration-200 hover:scale-105"
                     title="View profile"
                   >
-                    <img
+                    <Image
+                      width={44}
                       src={imageUrl}
                       alt={getConversationTitle()}
                       className="w-11 h-11 rounded-full ring-2 ring-[#EF3866]/20 object-cover shadow-sm"

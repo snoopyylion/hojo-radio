@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Search, X, User, BookOpen, ArrowRight } from 'lucide-react';
+import { Search,  User, BookOpen, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -452,16 +452,22 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
     }
   }, [isMobile, isSearchExpanded, searchResults.length]);
 
-  // Render search results
+  // Render search results with dashboard theme
   const renderSearchResults = () => (
     <AnimatePresence>
       {showSearchResults && searchResults.length > 0 && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 10 }}
+          exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2 }}
-          className={`absolute ${isMobile ? 'top-16 left-0 right-0' : 'top-full mt-2 left-0 right-0'} bg-white border border-gray-200 rounded-xl shadow-lg z-[10001] max-h-96 overflow-y-auto pointer-events-auto`}
+          className={`absolute ${isMobile ? 'top-16 left-0 right-0' : 'top-full mt-2 left-0 right-0'} 
+            bg-white dark:bg-black border border-gray-200 dark:border-gray-700 
+            rounded-lg shadow-xl z-[9999] max-h-96 overflow-y-auto pointer-events-auto
+            min-w-full`}
+          style={{
+            boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+          }}
         >
           <div className="p-2">
             {searchResults.map((result) => (
@@ -469,10 +475,14 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
                 key={result.id}
                 onClick={(e) => handleResultClick(result, e)}
                 onTouchEnd={(e) => handleResultClick(result, e)}
-                className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left group cursor-pointer"
+                className="w-full flex items-center gap-3 p-3 
+                  hover:bg-gray-50 dark:hover:bg-gray-800 
+                  rounded-lg transition-colors text-left group cursor-pointer"
                 type="button"
               >
-                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-gray-300 transition-colors">
+                <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full 
+                  flex items-center justify-center flex-shrink-0 
+                  group-hover:bg-gray-300 dark:group-hover:bg-gray-600 transition-colors">
                   {result.image ? (
                     <Image
                       width={40}
@@ -483,25 +493,26 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
                     />
                   ) : (
                     <>
-                      {result.type === 'user' && <User size={20} className="text-gray-600" />}
-                      {result.type === 'article' && <BookOpen size={20} className="text-gray-600" />}
-                      {result.type === 'author' && <User size={20} className="text-gray-600" />}
-                      {result.type === 'category' && <div className="text-gray-600 text-sm font-semibold">#</div>}
+                      {result.type === 'user' && <User size={20} className="text-gray-600 dark:text-gray-400" />}
+                      {result.type === 'article' && <BookOpen size={20} className="text-gray-600 dark:text-gray-400" />}
+                      {result.type === 'author' && <User size={20} className="text-gray-600 dark:text-gray-400" />}
+                      {result.type === 'category' && <div className="text-gray-600 dark:text-gray-400 text-sm font-semibold">#</div>}
                     </>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 truncate group-hover:text-[#EF3866] transition-colors">
+                  <p className="font-medium text-gray-900 dark:text-white truncate 
+                    group-hover:text-[#EF3866] transition-colors">
                     {result.title}
                   </p>
                   {result.subtitle && (
-                    <p className="text-sm text-gray-500 truncate">{result.subtitle}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{result.subtitle}</p>
                   )}
                   {result.excerpt && (
-                    <p className="text-xs text-gray-400 truncate mt-1">{result.excerpt}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-1">{result.excerpt}</p>
                   )}
                 </div>
-                <div className="flex flex-col items-end text-xs text-gray-400">
+                <div className="flex flex-col items-end text-xs text-gray-400 dark:text-gray-500">
                   <span className="capitalize">{result.type}</span>
                   {result.likes && (
                     <span className="text-pink-500">♥ {result.likes}</span>
@@ -513,18 +524,25 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
             {searchQuery && (
               <button
                 onClick={handleSearchSubmit}
-                className="w-full flex items-center gap-3 p-3 hover:bg-pink-50 rounded-lg transition-colors text-left border-t border-gray-100 mt-2 group"
+                className="w-full flex items-center gap-3 p-3 
+                  hover:bg-pink-50 dark:hover:bg-pink-950/20 
+                  rounded-lg transition-colors text-left border-t 
+                  border-gray-100 dark:border-gray-700 mt-2 group"
               >
-                <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-pink-200 transition-colors">
+                <div className="w-10 h-10 bg-pink-100 dark:bg-pink-900/30 rounded-full 
+                  flex items-center justify-center flex-shrink-0 
+                  group-hover:bg-pink-200 dark:group-hover:bg-pink-900/50 transition-colors">
                   <Search size={20} className="text-pink-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-gray-900 group-hover:text-[#EF3866] transition-colors">
+                  <p className="font-medium text-gray-900 dark:text-white 
+                    group-hover:text-[#EF3866] transition-colors">
                     See all results for &quot;{searchQuery}&quot;
                   </p>
-                  <p className="text-sm text-gray-500">View complete search results</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">View complete search results</p>
                 </div>
-                <ArrowRight size={16} className="text-gray-400 group-hover:text-[#EF3866] transition-colors" />
+                <ArrowRight size={16} className="text-gray-400 dark:text-gray-500 
+                  group-hover:text-[#EF3866] transition-colors" />
               </button>
             )}
           </div>
@@ -539,7 +557,9 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
         {/* Mobile Search Button */}
         <button
           onClick={handleSearchToggle}
-          className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-[#EF3866] transition-all"
+          className="p-2 rounded-lg bg-white dark:bg-black border border-gray-300 dark:border-gray-700 
+            text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 
+            hover:text-[#EF3866] transition-all"
         >
           <Search size={20} />
         </button>
@@ -552,7 +572,8 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
-              className="absolute top-full left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 p-4 z-40"
+              className="absolute top-full left-0 right-0 bg-white/95 dark:bg-black/95 
+                backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 p-4 z-40"
               ref={searchResultsRef}
             >
               <form onSubmit={handleSearchSubmit} className="relative">
@@ -570,7 +591,10 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
                     }
                   }}
                   placeholder="Search users, articles, news..."
-                  className="w-full h-12 pl-4 pr-12 text-sm bg-gray-100 border border-pink-200 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-200 transition-all"
+                  className="w-full h-12 pl-4 pr-12 text-sm bg-white dark:bg-black 
+                    border border-gray-300 dark:border-gray-700 rounded-lg 
+                    text-gray-900 dark:text-white focus:outline-none 
+                    focus:ring-2 focus:ring-[#EF3866] transition-all"
                   autoFocus
                   onFocus={() => {
                     if (searchResults.length > 0) setShowSearchResults(true);
@@ -590,65 +614,47 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
     );
   }
 
-  // Desktop Search Component
+  // Desktop Search Component - Always visible, no expansion needed
   return (
-    <div className={`relative z-[10000] flex items-center ${className}`} ref={searchResultsRef}>
-      <AnimatePresence>
-        {isSearchExpanded && (
-          <motion.form
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 280, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            onSubmit={handleSearchSubmit}
-            className="relative"
-          >
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                const value = e.target.value;
-                setSearchQuery(value);
-                if (value.trim().length > 0) {
-                  setShowSearchResults(true);
-                } else {
-                  setShowSearchResults(false);
-                }
-              }}
-              placeholder="Search users, articles, news..."
-              className="w-full h-10 pl-4 pr-12 text-sm bg-gray-100 border border-pink-200 rounded-full focus:outline-none focus:ring-pink-200 transition-all"
-              onFocus={() => {
-                if (searchResults.length > 0) setShowSearchResults(true);
-              }}
-            />
-            {isSearching && (
-              <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pink-500"></div>
-              </div>
-            )}
-          </motion.form>
-        )}
-      </AnimatePresence>
-
-      <button
-        onClick={handleSearchToggle}
-        className={`p-2 rounded-full transition-all duration-300 ${isSearchExpanded
-          ? 'bg-[#EF3866] text-white hover:bg-[#d7325a] ml-2'
-          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-[#EF3866]'
-          }`}
-        disabled={isNavigating}
-        aria-busy={isNavigating}
+    <div className={`relative flex items-center w-full ${className}`} ref={searchResultsRef} style={{ zIndex: 9998 }}>
+      <form
+        onSubmit={handleSearchSubmit}
+        className="relative w-full"
       >
-        {isSearchExpanded ? (
-          <X size={20} />
-        ) : (
-          <Search size={20} />
-        )}
-      </button>
+        <input
+          ref={searchInputRef}
+          type="text"
+          value={searchQuery}
+          onChange={(e) => {
+            const value = e.target.value;
+            setSearchQuery(value);
+            if (value.trim().length > 0) {
+              setShowSearchResults(true);
+            } else {
+              setShowSearchResults(false);
+            }
+          }}
+          placeholder="Search..."
+          className="w-full px-4 py-2 pr-10 rounded-lg border
+            border-gray-300 dark:border-gray-700
+            bg-white dark:bg-black
+            text-gray-900 dark:text-white
+            focus:outline-none focus:ring-2 focus:ring-[#EF3866] transition"
+          onFocus={() => {
+            if (searchResults.length > 0) setShowSearchResults(true);
+          }}
+        />
+        {/* Search Icon */}
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+          {isSearching ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-pink-500"></div>
+          ) : (
+            <Search className="text-gray-400 dark:text-gray-400 w-5 h-5" />
+          )}
+        </div>
+      </form>
 
-      {/* Only show results if expanded on desktop to avoid flicker */}
-      {((!isMobile && isSearchExpanded) || isMobile) ? renderSearchResults() : null}
+      {renderSearchResults()}
     </div>
   );
 };

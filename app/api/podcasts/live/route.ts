@@ -212,19 +212,19 @@ export async function POST(request: NextRequest) {
 
     // Save the live session to your database
     const { data: podcastData, error: podcastError } = await supabase
-      .from('podcasts') // Adjust table name as needed
+      .from('podcast_sessions')
       .insert({
         title,
         description,
         user_id: userId,
         username,
+        is_live: true,
+        status: 'live',
         youtube_broadcast_id: liveSession.broadcastId,
         youtube_stream_id: liveSession.streamId,
         rtmp_url: liveSession.rtmpUrl,
         stream_key: liveSession.streamKey,
-        watch_url: liveSession.watchUrl,
-        embed_url: liveSession.embedUrl,
-        status: 'created',
+        youtube_watch_url: liveSession.watchUrl,
         created_at: new Date().toISOString()
       })
       .select()
