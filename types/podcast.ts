@@ -1,3 +1,5 @@
+// types/podcast.ts
+
 export interface User {
   id: string;
   name: string;
@@ -30,11 +32,32 @@ export interface DatabaseLiveSession {
 
 /**
  * Generic Supabase realtime payload type.
- * You can reuse this for other tables, not just live_sessions.
  */
 export interface SupabaseRealtimePayload<T> {
   eventType: 'INSERT' | 'UPDATE' | 'DELETE';
   new: T;
   old: T;
   errors?: string[];
+}
+
+/**
+ * Frontend ChatMessage type (used in RealtimeService)
+ */
+export interface ChatMessage {
+  id: string;
+  sessionId: string;
+  userId: string;
+  username: string;
+  message: string;
+  timestamp: Date;
+  isHost: boolean;
+}
+
+/**
+ * Callbacks for podcast session events
+ */
+export interface SessionCallbacks {
+  onMessage?: (message: ChatMessage) => void;
+  onListenerUpdate?: (count: number) => void;
+  onLike?: () => void;
 }
