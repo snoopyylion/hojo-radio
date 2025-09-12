@@ -49,9 +49,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Convert file to buffer
-    const arrayBuffer = await audioFile.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
 
     // Store audio metadata in database
     const { data: audioTrack, error: trackError } = await supabase
