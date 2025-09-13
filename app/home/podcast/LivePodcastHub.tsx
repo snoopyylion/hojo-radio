@@ -6,7 +6,7 @@ import { LiveSession, User, DatabaseLiveSession } from "@/types/podcast";
 import AuthorStudioView from "./author/PodcastStudio";
 import ListenerView from "./ListenerView";
 import SessionCreationForm from "./author/SessionCreationForm";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseClient } from "@/lib/supabase/client";
 
 interface Props {
   user: User;
@@ -20,10 +20,7 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
   const [userSession, setUserSession] = useState<LiveSession | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = supabaseClient;
 
   // Real-time subscription to live sessions
   useEffect(() => {
@@ -127,7 +124,7 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
       console.log('Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
-  }, [supabase]);
+  }, []);
 
   // Periodic refresh as fallback
   useEffect(() => {
