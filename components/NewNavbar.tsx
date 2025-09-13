@@ -23,14 +23,14 @@ interface NavItem {
 
 const baseNavItems: NavItem[] = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/verify-news", label: "Verify News", icon: Shield },
-  { href: "/podcast", label: "Podcast", icon: Mic },
-  { href: "/blog", label: "Blog", icon: BookOpen },
+  { href: "/home/verifications", label: "Verify News", icon: Shield },
+  { href: "/home/podcast", label: "Podcast", icon: Mic },
+  { href: "/home/blog", label: "Blog", icon: BookOpen },
   { href: "/aboutus", label: "About Us", icon: Users },
 ];
 
 const messagesNavItem: NavItem = {
-  href: "/messages",
+  href: "/home/messaging",
   label: "Messages",
   icon: MessageCircle,
   showNotification: true
