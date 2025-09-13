@@ -7,7 +7,9 @@ import {
   RoomAudioRenderer,
   useLocalParticipant,
   useMaybeRoomContext,
+  TrackToggle,
 } from "@livekit/components-react";
+import { Track } from "livekit-client";
 import { LiveSession, User } from "@/types/podcast";
 import { 
   Mic, 
@@ -180,6 +182,13 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
               )}
               {isMicEnabled ? 'Live' : 'Muted'}
             </button>
+
+            <TrackToggle
+              source={Track.Source.Microphone}
+              className="px-6 flex py-3 gap-2 border border-black dark:border-white rounded-full hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all duration-200 text-black dark:text-white text-sm"
+            >
+              Toggle
+            </TrackToggle>
           </div>
 
           <div className="text-sm text-black dark:text-white opacity-60">

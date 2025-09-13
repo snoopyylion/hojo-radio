@@ -2,6 +2,7 @@
 "use client";
 import { useState } from "react";
 import { LiveSession, User } from "@/types/podcast";
+import { Radio, Mic, Users, Clock, Lightbulb, AlertCircle } from "lucide-react";
 
 interface Props {
   user: User;
@@ -68,28 +69,58 @@ export default function SessionCreationForm({ user, onCancel, onSessionCreated }
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <div className="text-6xl mb-4">🎙️</div>
-          <h1 className="text-3xl font-bold mb-2">Start Your Live Podcast</h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            Fill out the details below to go live and connect with your audience
-          </p>
+    <div className="max-w-2xl mx-auto space-y-8">
+      {/* Header Section */}
+      <div className="text-center border border-black dark:border-white rounded-3xl p-8">
+        <div className="w-20 h-20 bg-[#EF3866] bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Radio className="w-10 h-10 text-[#EF3866]" />
         </div>
+        
+        <h1 className="text-3xl font-bold text-black dark:text-white mb-3">
+          Start Your Live Podcast
+        </h1>
+        
+        <p className="text-black dark:text-white opacity-70 max-w-md mx-auto">
+          Set up your broadcast details and go live to connect with your audience instantly
+        </p>
 
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
-            <div className="flex items-center">
-              <div className="text-red-400 mr-3">⚠️</div>
-              <div className="text-red-700 dark:text-red-300 text-sm">{error}</div>
-            </div>
+        <div className="flex items-center justify-center space-x-8 text-sm text-black dark:text-white opacity-60 mt-6">
+          <div className="flex items-center space-x-2">
+            <Mic className="w-4 h-4" />
+            <span>Professional Audio</span>
           </div>
-        )}
+          <div className="flex items-center space-x-2">
+            <Users className="w-4 h-4" />
+            <span>Live Audience</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Clock className="w-4 h-4" />
+            <span>Instant Start</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="border border-[#EF3866] rounded-3xl p-4 bg-[#EF3866] bg-opacity-5">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 text-[#EF3866] mr-3 flex-shrink-0" />
+            <div className="text-[#EF3866] text-sm font-medium">{error}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Form Section */}
+      <div className="border border-black dark:border-white rounded-3xl p-8">
+        <h3 className="text-lg font-semibold text-black dark:text-white mb-6 flex items-center">
+          <Radio className="w-5 h-5 mr-3" />
+          Session Details
+        </h3>
 
         <div className="space-y-6">
+          {/* Title Input */}
           <div>
-            <label htmlFor="title" className="block text-sm font-medium mb-2">
+            <label htmlFor="title" className="block text-sm font-medium text-black dark:text-white mb-3">
               Session Title *
             </label>
             <input
@@ -97,85 +128,122 @@ export default function SessionCreationForm({ user, onCancel, onSessionCreated }
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="What will you be talking about today?"
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              placeholder="What will you be discussing today?"
+              className="w-full px-6 py-4 border border-black dark:border-white border-opacity-20 dark:border-opacity-20 rounded-2xl focus:border-[#EF3866] focus:outline-none bg-transparent text-black dark:text-white placeholder-black placeholder-opacity-40 dark:placeholder-white dark:placeholder-opacity-40 transition-all duration-200"
               maxLength={100}
               disabled={isCreating}
             />
-            <div className="text-xs text-gray-500 mt-1">
-              {title.length}/100 characters
+            <div className="flex justify-between items-center mt-2">
+              <div className="text-xs text-black dark:text-white opacity-40">
+                Make it engaging and descriptive
+              </div>
+              <div className="text-xs text-black dark:text-white opacity-60">
+                {title.length}/100
+              </div>
             </div>
           </div>
 
+          {/* Description Input */}
           <div>
-            <label htmlFor="description" className="block text-sm font-medium mb-2">
+            <label htmlFor="description" className="block text-sm font-medium text-black dark:text-white mb-3">
               Description (Optional)
             </label>
             <textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Give your listeners a preview of what to expect..."
+              placeholder="Give your listeners a preview of what to expect in this session..."
               rows={4}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
+              className="w-full px-6 py-4 border border-black dark:border-white border-opacity-20 dark:border-opacity-20 rounded-2xl focus:border-[#EF3866] focus:outline-none bg-transparent text-black dark:text-white placeholder-black placeholder-opacity-40 dark:placeholder-white dark:placeholder-opacity-40 transition-all duration-200 resize-none"
               maxLength={500}
               disabled={isCreating}
             />
-            <div className="text-xs text-gray-500 mt-1">
-              {description.length}/500 characters
-            </div>
-          </div>
-
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <div className="flex items-start">
-              <div className="text-blue-500 mr-3 mt-0.5">💡</div>
-              <div className="text-sm">
-                <div className="font-medium text-blue-800 dark:text-blue-200 mb-1">
-                  Tips for a great live session:
-                </div>
-                <ul className="text-blue-700 dark:text-blue-300 space-y-1">
-                  <li>• Use a clear, engaging title that describes your topic</li>
-                  <li>• Test your microphone before going live</li>
-                  <li>• Have a rough outline of what you want to discuss</li>
-                  <li>• Engage with your listeners through the chat</li>
-                </ul>
+            <div className="flex justify-between items-center mt-2">
+              <div className="text-xs text-black dark:text-white opacity-40">
+                Optional but recommended for better engagement
+              </div>
+              <div className="text-xs text-black dark:text-white opacity-60">
+                {description.length}/500
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div className="flex space-x-4 pt-4">
-            <button
-              onClick={onCancel}
-              disabled={isCreating}
-              className="flex-1 px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleCreateSession}
-              disabled={isCreating || !title.trim()}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-lg hover:from-pink-700 hover:to-purple-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
-            >
-              {isCreating ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
-                  Creating...
-                </>
-              ) : (
-                <>
-                  🔴 Go Live
-                </>
-              )}
-            </button>
+      {/* Tips Section */}
+      <div className="border border-black dark:border-white border-opacity-20 dark:border-opacity-20 rounded-3xl p-6">
+        <div className="flex items-start space-x-4">
+          <div className="w-12 h-12 bg-[#EF3866] bg-opacity-10 rounded-full flex items-center justify-center flex-shrink-0">
+            <Lightbulb className="w-6 h-6 text-[#EF3866]" />
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-black dark:text-white mb-3">
+              Tips for a Successful Live Session
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-black dark:text-white opacity-70">
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-[#EF3866] rounded-full mt-2 flex-shrink-0"></div>
+                <span>Use clear, engaging titles</span>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-[#EF3866] rounded-full mt-2 flex-shrink-0"></div>
+                <span>Test audio before going live</span>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-[#EF3866] rounded-full mt-2 flex-shrink-0"></div>
+                <span>Prepare talking points</span>
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-1.5 h-1.5 bg-[#EF3866] rounded-full mt-2 flex-shrink-0"></div>
+                <span>Upload intro music/jingles</span>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-          <div className="text-center text-sm text-gray-500">
-            <p>Host: <span className="font-medium">{user.name}</span></p>
-            <p className="mt-1">Once you go live, listeners can join your session instantly</p>
+      {/* Host Info */}
+      <div className="border border-black dark:border-white border-opacity-10 dark:border-opacity-10 rounded-3xl p-6">
+        <div className="text-center">
+          <div className="text-sm font-medium text-black dark:text-white mb-2">
+            Broadcasting as
+          </div>
+          <div className="text-lg font-bold text-black dark:text-white">
+            {user.name}
+          </div>
+          <div className="text-sm text-black dark:text-white opacity-60 mt-2">
+            Listeners will see this as the host name
           </div>
         </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex space-x-4">
+        <button
+          onClick={onCancel}
+          disabled={isCreating}
+          className="flex-1 px-8 py-4 border border-black dark:border-white rounded-full font-semibold text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+        >
+          Cancel
+        </button>
+        
+        <button
+          onClick={handleCreateSession}
+          disabled={isCreating || !title.trim()}
+          className="flex-1 px-8 py-4 bg-[#EF3866] hover:bg-[#d12b56] text-white rounded-full font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
+        >
+          {isCreating ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-3"></div>
+              Setting up studio...
+            </>
+          ) : (
+            <>
+              <div className="w-3 h-3 bg-white rounded-full mr-3"></div>
+              Go Live
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
