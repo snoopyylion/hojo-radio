@@ -203,11 +203,11 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
   // Show session creation form
   if (mode === 'create') {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="p-4">
+      <div className="min-h-screen bg-white dark:bg-black">
+        <div className="p-8">
           <button
             onClick={backToBrowse}
-            className="mb-4 text-blue-600 hover:text-blue-800 flex items-center"
+            className="mb-8 text-black dark:text-white hover:text-[#EF3866] dark:hover:text-[#EF3866] flex items-center text-sm font-medium transition-colors"
           >
             ← Back to Live Sessions
           </button>
@@ -223,11 +223,11 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
 
   if (mode === 'manage' && selectedSession && selectedSession.authorId === user.id) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="p-4">
+      <div className="min-h-screen bg-white dark:bg-black">
+        <div className="p-8">
           <button
             onClick={backToBrowse}
-            className="mb-4 text-blue-600 hover:text-blue-800 flex items-center"
+            className="mb-8 text-black dark:text-white hover:text-[#EF3866] dark:hover:text-[#EF3866] flex items-center text-sm font-medium transition-colors"
           >
             ← Back to Live Sessions
           </button>
@@ -243,11 +243,11 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
 
   if (mode === 'listen' && selectedSession) {
     return (
-      <div className="min-h-screen bg-white dark:bg-gray-900">
-        <div className="p-4">
+      <div className="min-h-screen bg-white dark:bg-black">
+        <div className="p-8">
           <button
             onClick={backToBrowse}
-            className="mb-4 text-blue-600 hover:text-blue-800 flex items-center"
+            className="mb-8 text-black dark:text-white hover:text-[#EF3866] dark:hover:text-[#EF3866] flex items-center text-sm font-medium transition-colors"
           >
             ← Back to Live Sessions
           </button>
@@ -261,130 +261,139 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">🎙️ Live Podcasts</h1>
-            {/* Connection Status Indicator */}
-            <div className="flex items-center space-x-2 mt-1">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-              <span className="text-sm text-gray-500">
-                {isConnected ? 'Real-time connected' : 'Refreshing manually...'}
+    <div className="min-h-screen bg-white dark:bg-black">
+      <div className="max-w-7xl mx-auto px-8 py-12">
+        {/* Header */}
+        <div className="flex justify-between items-start mb-12">
+          <div className="space-y-3">
+            <h1 className="text-4xl md:text-5xl font-bold text-black dark:text-white">
+              Live Podcasts
+            </h1>
+            <div className="flex items-center space-x-3">
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#EF3866]' : 'bg-black dark:bg-white'} ${isConnected && 'animate-pulse'}`}></div>
+              <span className="text-sm text-black dark:text-white opacity-60">
+                {isConnected ? 'Live' : 'Reconnecting...'}
               </span>
             </div>
           </div>
           {user.role === 'author' && !userSession && (
             <button
               onClick={createNewSession}
-              className="bg-pink-600 text-white px-6 py-3 rounded-xl hover:bg-pink-700 font-medium"
+              className="bg-[#EF3866] hover:bg-[#d12b56] text-white px-8 py-4 rounded-full font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg"
             >
-              🔴 Start Broadcasting
+              Start Broadcasting
             </button>
           )}
         </div>
 
-        {/* Debug Info */}
-        <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded text-xs text-gray-600 dark:text-gray-400">
-          Debug: Found {liveSessions.length} active sessions • User: {user.id} • Role: {user.role}
-        </div>
-
         {/* User's Active Session */}
         {userSession && (
-          <div className="bg-gradient-to-r from-pink-100 to-purple-100 dark:from-pink-900 dark:to-purple-900 p-6 rounded-xl border-l-4 border-pink-500">
+          <div className="bg-[#EF3866] text-white p-8 rounded-3xl mb-12 shadow-2xl">
             <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-pink-800 dark:text-pink-200 text-lg">
-                  🔴 Your Live Session
-                </h3>
-                <p className="text-pink-700 dark:text-pink-300 font-medium">{userSession.title}</p>
-                <div className="flex items-center space-x-4 mt-2">
-                  <p className="text-sm text-pink-600 dark:text-pink-400">
-                    👥 {userSession.listenerCount} listeners
-                  </p>
-                  <p className="text-sm text-pink-600 dark:text-pink-400">
-                    ⏰ Started {new Date(userSession.startedAt).toLocaleTimeString()}
-                  </p>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-4 h-4 bg-white rounded-full animate-pulse"></div>
+                  <span className="text-sm font-bold uppercase tracking-wider">Your Live Session</span>
+                </div>
+                <h3 className="text-2xl font-bold">{userSession.title}</h3>
+                <div className="flex items-center space-x-8 text-sm opacity-90">
+                  <span>{userSession.listenerCount} listeners</span>
+                  <span>Started {new Date(userSession.startedAt).toLocaleTimeString()}</span>
                 </div>
               </div>
               <button
                 onClick={() => joinSession(userSession)}
-                className="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 font-medium"
+                className="bg-white text-[#EF3866] px-6 py-3 rounded-full font-semibold hover:bg-black hover:text-white transition-all duration-200"
               >
-                🎙️ Manage Studio
+                Manage Studio
               </button>
             </div>
           </div>
         )}
 
         {/* Live Sessions Grid */}
-        <div className="space-y-4">
+        <div className="space-y-8">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">
-              🔴 Live Now ({liveSessions.length})
+            <h2 className="text-2xl font-bold text-black dark:text-white">
+              Live Now ({liveSessions.length})
             </h2>
             {liveSessions.length > 0 && (
-              <div className="text-sm text-gray-500">
-                Click any session to join as a listener
+              <div className="text-sm text-black dark:text-white opacity-60">
+                Click any session to join
               </div>
             )}
           </div>
 
           {liveSessions.length === 0 ? (
-            <div className="text-center py-16 text-gray-500">
-              <div className="text-6xl mb-4">🎙️</div>
-              <p className="text-xl mb-2">No live podcasts right now</p>
-              <p className="text-sm">Be the first to go live and share your voice!</p>
+            <div className="text-center py-24 space-y-6">
+              <div className="w-24 h-24 mx-auto bg-black dark:bg-white rounded-full flex items-center justify-center">
+                <svg className="w-12 h-12 text-white dark:text-black" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM15.657 6.343a1 1 0 011.414 0A9.972 9.972 0 0119 12a9.972 9.972 0 01-1.929 5.657 1 1 0 11-1.414-1.414A7.971 7.971 0 0017 12a7.971 7.971 0 00-1.343-4.243 1 1 0 010-1.414z" clipRule="evenodd" />
+                  <path fillRule="evenodd" d="M13.828 7.172a1 1 0 011.414 0A5.983 5.983 0 0117 12a5.983 5.983 0 01-1.758 4.828 1 1 0 11-1.414-1.414A3.983 3.983 0 0015 12a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xl font-semibold text-black dark:text-white">No live podcasts right now</p>
+                <p className="text-black dark:text-white opacity-60">Be the first to go live and share your voice</p>
+              </div>
               {user.role === 'author' && (
                 <button
                   onClick={createNewSession}
-                  className="mt-6 bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 font-medium"
+                  className="bg-black dark:bg-white text-white dark:text-black px-8 py-4 rounded-full font-semibold hover:bg-[#EF3866] hover:text-white transition-all duration-200 transform hover:scale-105"
                 >
-                  🎤 Start Your First Live Session
+                  Start Your First Live Session
                 </button>
               )}
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {liveSessions.map((session) => (
                 <div
                   key={session.id}
-                  className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border hover:shadow-xl transition-all duration-200 hover:scale-105"
+                  className="group bg-white dark:bg-black border-2 border-black dark:border-white p-6 rounded-3xl transition-all duration-200 hover:border-[#EF3866] hover:shadow-2xl cursor-pointer"
+                  onClick={() => joinSession(session)}
                 >
-                  <div className="flex items-start justify-between mb-4">
+                  {/* Live indicator */}
+                  <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                      <span className="text-sm font-bold text-red-600">LIVE</span>
+                      <div className="w-3 h-3 bg-[#EF3866] rounded-full animate-pulse"></div>
+                      <span className="text-xs font-bold text-[#EF3866] uppercase tracking-wider">Live</span>
                     </div>
-                    <span className="text-sm text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
-                      👥 {session.listenerCount}
-                    </span>
+                    <div className="flex items-center space-x-1 text-xs text-black dark:text-white opacity-60">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
+                      </svg>
+                      <span>{session.listenerCount}</span>
+                    </div>
                   </div>
 
-                  <h3 className="font-bold text-lg mb-2 line-clamp-2">{session.title}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-                    🎙️ by {session.authorName}
-                  </p>
-
-                  {session.description && (
-                    <p className="text-sm text-gray-500 mb-4 line-clamp-3">
-                      {session.description}
+                  {/* Content */}
+                  <div className="space-y-4 mb-6">
+                    <h3 className="font-bold text-xl text-black dark:text-white line-clamp-2 group-hover:text-[#EF3866] transition-colors">
+                      {session.title}
+                    </h3>
+                    <p className="text-sm text-black dark:text-white opacity-60">
+                      by {session.authorName}
                     </p>
-                  )}
+                    {session.description && (
+                      <p className="text-sm text-black dark:text-white opacity-80 line-clamp-3">
+                        {session.description}
+                      </p>
+                    )}
+                  </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
-                    <span className="text-xs text-gray-400">
-                      ⏰ {new Date(session.startedAt).toLocaleTimeString()}
+                  {/* Footer */}
+                  <div className="flex items-center justify-between pt-4 border-t border-black dark:border-white border-opacity-10 dark:border-opacity-10">
+                    <span className="text-xs text-black dark:text-white opacity-40">
+                      {new Date(session.startedAt).toLocaleTimeString()}
                     </span>
-                    <button
-                      onClick={() => joinSession(session)}
-                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${session.authorId === user.id
-                        ? 'bg-pink-600 text-white hover:bg-pink-700'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                        }`}
-                    >
-                      {session.authorId === user.id ? '🎙️ Manage' : '🎧 Listen'}
-                    </button>
+                    <div className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 ${
+                      session.authorId === user.id
+                        ? 'bg-[#EF3866] text-white group-hover:bg-black group-hover:text-white'
+                        : 'bg-black dark:bg-white text-white dark:text-black group-hover:bg-[#EF3866] group-hover:text-white'
+                    }`}>
+                      {session.authorId === user.id ? 'Manage' : 'Listen'}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -392,25 +401,25 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
           )}
         </div>
 
-        {/* Quick Stats */}
+        {/* Stats Footer */}
         {liveSessions.length > 0 && (
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900 dark:to-purple-900 p-6 rounded-xl">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold text-blue-600">{liveSessions.length}</div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">Live Sessions</div>
+          <div className="mt-16 pt-12 border-t border-black dark:border-white border-opacity-10 dark:border-opacity-10">
+            <div className="grid grid-cols-3 gap-8 text-center">
+              <div className="space-y-2">
+                <div className="text-3xl font-bold text-[#EF3866]">{liveSessions.length}</div>
+                <div className="text-sm text-black dark:text-white opacity-60">Live Sessions</div>
               </div>
-              <div>
-                <div className="text-2xl font-bold text-purple-600">
+              <div className="space-y-2">
+                <div className="text-3xl font-bold text-black dark:text-white">
                   {liveSessions.reduce((total, session) => total + session.listenerCount, 0)}
                 </div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">Total Listeners</div>
+                <div className="text-sm text-black dark:text-white opacity-60">Total Listeners</div>
               </div>
-              <div>
-                <div className="text-2xl font-bold text-green-600">
+              <div className="space-y-2">
+                <div className="text-3xl font-bold text-black dark:text-white">
                   {liveSessions.filter(s => s.authorId !== user.id).length}
                 </div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">Available to Join</div>
+                <div className="text-sm text-black dark:text-white opacity-60">Available to Join</div>
               </div>
             </div>
           </div>

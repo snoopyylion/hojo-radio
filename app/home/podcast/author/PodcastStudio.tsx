@@ -7,14 +7,24 @@ import {
   RoomAudioRenderer,
   useLocalParticipant,
   useMaybeRoomContext,
-  TrackToggle,
 } from "@livekit/components-react";
-import { Track } from "livekit-client";
 import { LiveSession, User } from "@/types/podcast";
-import { Mic, MicOff, Music, Play, Pause, Volume2 } from "lucide-react";
+import { 
+  Mic, 
+  MicOff, 
+  Music, 
+  Play, 
+  Pause, 
+  Volume2, 
+  Upload,
+  Users,
+  Clock,
+  Radio,
+  Square
+} from "lucide-react";
 
 interface Props {
-  session: LiveSession; // Now required
+  session: LiveSession;
   user: User;
   onEndSession?: () => void;
 }
@@ -58,7 +68,6 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
           setIsPlayingJingle(false);
           setCurrentTrack("");
           
-          // Unpublish the current music track
           if (musicTrack) {
             localParticipant.unpublishTrack(musicTrack);
             setMusicTrack(null);
@@ -68,7 +77,6 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
           setIsPlayingJingle(true);
           setCurrentTrack(file.name);
 
-          // Create audio track from the audio element and publish it
           const stream = audioRef.current.captureStream();
           const audioTrack = stream.getAudioTracks()[0];
 
@@ -93,7 +101,6 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
       setCurrentTrack("");
     }
 
-    // Unpublish the music track if it exists
     if (musicTrack && localParticipant) {
       localParticipant.unpublishTrack(musicTrack);
       setMusicTrack(null);
@@ -109,10 +116,8 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
 
   const handleEndSession = async () => {
     try {
-      // Stop any playing music
       stopMusic();
 
-      // End session on server
       const response = await fetch('/api/podcast/end-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -123,7 +128,6 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
         console.error('Failed to end session on server');
       }
 
-      // Disconnect from room
       if (room) {
         room.disconnect();
       }
@@ -131,7 +135,6 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
       onEndSession?.();
     } catch (error) {
       console.error("Error ending session:", error);
-      // Still call onEndSession to update UI even if server call fails
       onEndSession?.();
     }
   };
@@ -152,114 +155,174 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
       />
 
       {/* Microphone Controls */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
-        <h3 className="font-semibold mb-3 flex items-center">
-          <Mic className="w-4 h-4 mr-2" />
-          Microphone
-        </h3>
+      <div className="border border-black dark:border-white rounded-3xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-black dark:text-white flex items-center">
+            <Radio className="w-5 h-5 mr-3" />
+            Audio Control
+          </h3>
+        </div>
 
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={toggleMicrophone}
-            className={`flex items-center px-4 py-2 rounded-lg font-medium ${isMicEnabled
-              ? 'bg-green-600 text-white hover:bg-green-700'
-              : 'bg-red-600 text-white hover:bg-red-700'
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={toggleMicrophone}
+              className={`flex items-center px-6 py-3 rounded-full font-medium transition-all duration-200 transform hover:scale-105 ${
+                isMicEnabled
+                  ? 'bg-[#EF3866] text-white shadow-lg'
+                  : 'bg-black dark:bg-white text-white dark:text-black border border-black dark:border-white'
               }`}
-          >
-            {isMicEnabled ? <Mic className="w-4 h-4 mr-2" /> : <MicOff className="w-4 h-4 mr-2" />}
-            {isMicEnabled ? 'Mic On' : 'Mic Off'}
-          </button>
+            >
+              {isMicEnabled ? (
+                <Mic className="w-4 h-4 mr-2" />
+              ) : (
+                <MicOff className="w-4 h-4 mr-2" />
+              )}
+              {isMicEnabled ? 'Live' : 'Muted'}
+            </button>
+          </div>
 
-          <TrackToggle
-            source={Track.Source.Microphone}
-            className="px-3 py-1 bg-gray-200 rounded-lg hover:bg-gray-300"
-          >
-            Toggle Mic
-          </TrackToggle>
+          <div className="text-sm text-black dark:text-white opacity-60">
+            {isMicEnabled ? 'Broadcasting' : 'Audio Off'}
+          </div>
         </div>
       </div>
 
-      {/* Music & Jingle Controls */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
-        <h3 className="font-semibold mb-3 flex items-center">
-          <Music className="w-4 h-4 mr-2" />
-          Music & Jingles
-        </h3>
-
-        {/* Upload Music */}
-        <div className="mb-4">
-          <input
-            type="file"
-            accept="audio/*"
-            multiple
-            onChange={handleMusicUpload}
-            className="hidden"
-            id="music-upload"
-          />
-          <label
-            htmlFor="music-upload"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer"
-          >
-            <Music className="w-4 h-4 mr-2" />
-            Upload Music/Jingles
+      {/* Music & Audio Library */}
+      <div className="border border-black dark:border-white rounded-3xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-black dark:text-white flex items-center">
+            <Music className="w-5 h-5 mr-3" />
+            Audio Library
+          </h3>
+          
+          <label className="cursor-pointer">
+            <input
+              type="file"
+              accept="audio/*"
+              multiple
+              onChange={handleMusicUpload}
+              className="hidden"
+            />
+            <div className="flex items-center px-4 py-2 border border-black dark:border-white rounded-full hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all duration-200 text-black dark:text-white">
+              <Upload className="w-4 h-4 mr-2" />
+              Upload
+            </div>
           </label>
         </div>
 
         {/* Current Track */}
         {currentTrack && (
-          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900 rounded-lg">
+          <div className="mb-6 p-4 border border-[#EF3866] rounded-2xl bg-[#EF3866] bg-opacity-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse mr-2"></div>
-                <span className="text-sm font-medium">Now Playing: {currentTrack}</span>
+                <div className="w-3 h-3 bg-[#EF3866] rounded-full animate-pulse mr-3"></div>
+                <div>
+                  <div className="text-sm font-medium text-black dark:text-white">Now Playing</div>
+                  <div className="text-xs text-black dark:text-white opacity-60 truncate max-w-48">
+                    {currentTrack}
+                  </div>
+                </div>
               </div>
               <button
                 onClick={stopMusic}
-                className="text-red-600 hover:text-red-800"
+                className="p-2 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-full transition-all duration-200"
               >
-                <Pause className="w-4 h-4" />
+                <Square className="w-4 h-4" />
               </button>
             </div>
           </div>
         )}
 
         {/* Volume Control */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-2 flex items-center">
-            <Volume2 className="w-4 h-4 mr-2" />
-            Music Volume: {Math.round(audioVolume * 100)}%
-          </label>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.1"
-            value={audioVolume}
-            onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-            className="w-full"
-          />
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm font-medium text-black dark:text-white flex items-center">
+              <Volume2 className="w-4 h-4 mr-2" />
+              Volume
+            </label>
+            <span className="text-sm text-black dark:text-white opacity-60">
+              {Math.round(audioVolume * 100)}%
+            </span>
+          </div>
+          <div className="relative">
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={audioVolume}
+              onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+              className="w-full h-2 bg-black dark:bg-white bg-opacity-10 dark:bg-opacity-10 rounded-full appearance-none cursor-pointer slider"
+            />
+            <style jsx>{`
+              .slider::-webkit-slider-thumb {
+                appearance: none;
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                background: #EF3866;
+                cursor: pointer;
+                border: 2px solid white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+              }
+              .slider::-moz-range-thumb {
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                background: #EF3866;
+                cursor: pointer;
+                border: 2px solid white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+              }
+            `}</style>
+          </div>
         </div>
 
         {/* Music Library */}
         {uploadedMusic.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">Your Music Library:</h4>
-            <div className="max-h-32 overflow-y-auto space-y-1">
+          <div>
+            <h4 className="text-sm font-medium text-black dark:text-white mb-3">
+              Your Tracks ({uploadedMusic.length})
+            </h4>
+            <div className="space-y-2 max-h-32 overflow-y-auto">
               {uploadedMusic.map((file, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                  <span className="text-sm truncate">{file.name}</span>
+                <div 
+                  key={index} 
+                  className={`flex items-center justify-between p-3 rounded-2xl border transition-all duration-200 ${
+                    currentTrack === file.name
+                      ? 'border-[#EF3866] bg-[#EF3866] bg-opacity-5'
+                      : 'border-black dark:border-white border-opacity-10 dark:border-opacity-10 hover:border-opacity-30 dark:hover:border-opacity-30'
+                  }`}
+                >
+                  <span className="text-sm text-black dark:text-white truncate mr-4">
+                    {file.name.replace(/\.[^/.]+$/, "")}
+                  </span>
                   <button
                     onClick={() => playMusic(file)}
-                    className={`p-1 rounded ${currentTrack === file.name
-                      ? 'text-blue-600'
-                      : 'text-gray-600 hover:text-blue-600'
-                      }`}
+                    className={`p-2 rounded-full transition-all duration-200 ${
+                      currentTrack === file.name
+                        ? 'bg-[#EF3866] text-white'
+                        : 'hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black'
+                    }`}
                   >
-                    <Play className="w-4 h-4" />
+                    {currentTrack === file.name ? (
+                      <Pause className="w-4 h-4" />
+                    ) : (
+                      <Play className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {uploadedMusic.length === 0 && (
+          <div className="text-center py-8 text-black dark:text-white opacity-60">
+            <Music className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">No audio files uploaded yet</p>
+            <p className="text-xs mt-1">Upload music, jingles, or sound effects</p>
           </div>
         )}
       </div>
@@ -267,8 +330,9 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
       {/* End Session */}
       <button
         onClick={handleEndSession}
-        className="w-full bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 font-medium"
+        className="w-full bg-[#EF3866] hover:bg-[#d12b56] text-white py-4 rounded-full font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center justify-center"
       >
+        <Square className="w-4 h-4 mr-2" />
         End Live Session
       </button>
     </div>
@@ -311,11 +375,15 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
 
   if (isConnecting) {
     return (
-      <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Setting up your studio...</p>
-          <p className="text-sm text-gray-500 mt-2">Connecting to audio room</p>
+      <div className="max-w-2xl mx-auto">
+        <div className="border border-black dark:border-white rounded-3xl p-12 text-center">
+          <div className="w-16 h-16 border-4 border-[#EF3866] border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+          <h3 className="text-xl font-semibold text-black dark:text-white mb-2">
+            Setting up your studio
+          </h3>
+          <p className="text-sm text-black dark:text-white opacity-60">
+            Connecting to live audio room...
+          </p>
         </div>
       </div>
     );
@@ -323,13 +391,20 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
 
   if (error || !token) {
     return (
-      <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-        <div className="text-center text-red-600">
-          <p className="font-semibold">Studio Setup Failed</p>
-          <p className="text-sm mt-2">{error || "Unable to get access token"}</p>
+      <div className="max-w-2xl mx-auto">
+        <div className="border border-[#EF3866] rounded-3xl p-12 text-center">
+          <div className="w-16 h-16 bg-[#EF3866] rounded-full flex items-center justify-center mx-auto mb-6">
+            <Radio className="w-8 h-8 text-white" />
+          </div>
+          <h3 className="text-xl font-semibold text-black dark:text-white mb-2">
+            Studio Setup Failed
+          </h3>
+          <p className="text-sm text-black dark:text-white opacity-60 mb-6">
+            {error || "Unable to get access token"}
+          </p>
           <button 
             onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="bg-[#EF3866] hover:bg-[#d12b56] text-white px-6 py-3 rounded-full font-semibold transition-all duration-200"
           >
             Retry Setup
           </button>
@@ -339,26 +414,39 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Session Info */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-        <div className="text-center mb-4">
-          <h2 className="text-2xl font-bold mb-1">{session.title}</h2>
-          <div className="flex items-center justify-center space-x-2">
-            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-            <span className="text-red-600 font-medium">LIVE</span>
-            <span className="text-sm text-gray-500">• {session.listenerCount} listening</span>
-          </div>
+    <div className="max-w-2xl mx-auto space-y-8">
+      {/* Session Header */}
+      <div className="text-center border border-black dark:border-white rounded-3xl p-8">
+        <div className="flex items-center justify-center space-x-3 mb-4">
+          <div className="w-4 h-4 bg-[#EF3866] rounded-full animate-pulse"></div>
+          <span className="text-[#EF3866] font-bold uppercase tracking-wider text-sm">
+            Live Broadcasting
+          </span>
         </div>
-
+        
+        <h1 className="text-3xl font-bold text-black dark:text-white mb-3">
+          {session.title}
+        </h1>
+        
         {session.description && (
-          <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg mb-4">
-            <p className="text-sm">{session.description}</p>
-          </div>
+          <p className="text-black dark:text-white opacity-70 mb-4 max-w-md mx-auto">
+            {session.description}
+          </p>
         )}
 
-        <div className="text-center text-xs text-gray-500">
-          Room: {session.roomName} • Started: {new Date(session.startedAt).toLocaleTimeString()}
+        <div className="flex items-center justify-center space-x-8 text-sm text-black dark:text-white opacity-60">
+          <div className="flex items-center space-x-2">
+            <Users className="w-4 h-4" />
+            <span>{session.listenerCount} listening</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Clock className="w-4 h-4" />
+            <span>Started {new Date(session.startedAt).toLocaleTimeString()}</span>
+          </div>
+        </div>
+        
+        <div className="mt-4 text-xs text-black dark:text-white opacity-40">
+          Room: {session.roomName}
         </div>
       </div>
 
@@ -378,7 +466,6 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
           console.error("LiveKit room error:", error);
           setError(error.message);
         }}
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6"
       >
         <RoomAudioRenderer />
         <AudioControls onEndSession={onEndSession} />
