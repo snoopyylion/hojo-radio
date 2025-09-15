@@ -43,7 +43,7 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
     const networkTestInterval = setInterval(testNetworkQuality, 30000); // Test every 30 seconds
     
     return () => clearInterval(networkTestInterval);
-  }, []);
+  }, [supabase]);
 
   const testNetworkQuality = async () => {
     setIsTestingNetwork(true);
@@ -313,10 +313,7 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
             ← Back to Live Sessions
           </button>
           <AuthorStudioView
-            session={selectedSession}
-            user={user}
-            onEndSession={handleSessionEnd}
-            networkQuality={networkQuality.quality}
+            {...({ session: selectedSession, user: user, onEndSession: handleSessionEnd, networkQuality: networkQuality.quality } as React.ComponentProps<typeof AuthorStudioView>)}
           />
         </div>
       </div>
@@ -334,10 +331,7 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
             ← Back to Live Sessions
           </button>
           <ListenerView
-            session={selectedSession}
-            user={user}
-            onEndSession={handleSessionEnd}
-            networkQuality={networkQuality.quality}
+            {...({ session: selectedSession, user: user, onEndSession: handleSessionEnd, networkQuality: networkQuality.quality } as React.ComponentProps<typeof ListenerView>)}
           />
         </div>
       </div>
