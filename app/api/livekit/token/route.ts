@@ -1,4 +1,4 @@
-// app/api/livekit/token/route.ts - NETWORK OPTIMIZED
+// app/api/livekit/token/route.ts - NETWORK + MOBILE OPTIMIZED
 import { NextResponse, NextRequest } from "next/server";
 import { AccessToken, VideoGrant, TrackSource } from "livekit-server-sdk";
 import { auth } from "@clerk/nextjs/server";
@@ -15,55 +15,74 @@ const supabase = createClient(
 // Token configurations based on network quality
 const TOKEN_CONFIGS = {
   low: {
-    ttl: 60 * 30, // 30 minutes (shorter for poor connections)
+    ttl: 60 * 30, // 30 minutes
     reconnectAttempts: 5,
     reconnectDelay: 2000,
-    adaptiveStreaming: true
+    adaptiveStreaming: true,
   },
   medium: {
     ttl: 60 * 60, // 1 hour
     reconnectAttempts: 3,
     reconnectDelay: 1000,
-    adaptiveStreaming: true
+    adaptiveStreaming: true,
   },
   high: {
     ttl: 60 * 120, // 2 hours
     reconnectAttempts: 3,
     reconnectDelay: 500,
-    adaptiveStreaming: false
-  }
+    adaptiveStreaming: false,
+  },
+};
+
+// Mobile-specific configurations
+const MOBILE_CONFIGS = {
+  ios: {
+    ttl: 60 * 20, // 20 minutes for iOS
+    adaptiveStreaming: true,
+    audioOnly: true, // iOS stability
+    bufferOptimization: true,
+  },
+  android: {
+    ttl: 60 * 30,
+    adaptiveStreaming: true,
+    audioOnly: false,
+    bufferOptimization: true,
+  },
+  default: {
+    ttl: 60 * 60,
+    adaptiveStreaming: false,
+    audioOnly: false,
+    bufferOptimization: false,
+  },
 };
 
 export async function GET(req: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" }, 
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const url = new URL(req.url);
     const roomName = url.searchParams.get("room");
     const identity = url.searchParams.get("identity");
     const role = url.searchParams.get("role") || "listener";
-    const networkQuality = url.searchParams.get("networkQuality") || "medium";
+    const networkQuality =
+      (url.searchParams.get("networkQuality") as keyof typeof TOKEN_CONFIGS) ||
+      "medium";
     const deviceType = url.searchParams.get("deviceType") || "desktop";
     const connectionType = url.searchParams.get("connectionType") || "wifi";
+    const isIOS = url.searchParams.get("isIOS") === "true";
 
     if (!roomName || !identity) {
       return NextResponse.json(
-        { error: "Missing room or identity" }, 
+        { error: "Missing room or identity" },
         { status: 400 }
       );
     }
 
     if (identity !== userId) {
-      return NextResponse.json(
-        { error: "Identity mismatch" }, 
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Identity mismatch" }, { status: 403 });
     }
 
     // Get session info for additional context
@@ -74,19 +93,26 @@ export async function GET(req: NextRequest) {
       .eq("is_active", true)
       .single();
 
-    const config = TOKEN_CONFIGS[networkQuality as keyof typeof TOKEN_CONFIGS] || TOKEN_CONFIGS.medium;
+    // Merge configs: network + mobile
+    const baseConfig =
+      TOKEN_CONFIGS[networkQuality as keyof typeof TOKEN_CONFIGS] ||
+      TOKEN_CONFIGS.medium;
 
-    const at = new AccessToken(
-      LIVEKIT_API_KEY,
-      LIVEKIT_API_SECRET,
-      { 
-        identity, 
-        ttl: config.ttl,
-        name: `User-${identity.slice(-6)}` // Shorter name for efficiency
-      }
-    );
+    const mobileConfig =
+      isIOS && deviceType === "mobile"
+        ? MOBILE_CONFIGS.ios
+        : deviceType === "mobile"
+        ? MOBILE_CONFIGS.android
+        : MOBILE_CONFIGS.default;
 
-    // Configure grants based on network quality and role
+    const config = { ...baseConfig, ...mobileConfig };
+
+    const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+      identity,
+      ttl: config.ttl,
+      name: `User-${identity.slice(-6)}`, // Shorter name
+    });
+
     const grant: VideoGrant = {
       room: roomName,
       roomJoin: true,
@@ -99,16 +125,17 @@ export async function GET(req: NextRequest) {
     if (role === "author") {
       if (networkQuality === "low") {
         grant.canPublishSources = [TrackSource.MICROPHONE];
-        // Disable video for poor connections
-        grant.canPublish = true;
       } else {
-        grant.canPublishSources = [TrackSource.MICROPHONE, TrackSource.SCREEN_SHARE];
+        grant.canPublishSources = [
+          TrackSource.MICROPHONE,
+          TrackSource.SCREEN_SHARE,
+        ];
       }
     }
 
     at.addGrant(grant);
-    
-    // Add comprehensive metadata for server-side optimizations
+
+    // Metadata with mobile-aware optimizations
     at.metadata = JSON.stringify({
       networkQuality,
       deviceType,
@@ -116,37 +143,37 @@ export async function GET(req: NextRequest) {
       clientType: role === "author" ? "broadcaster" : "listener",
       joinTime: new Date().toISOString(),
       sessionId: session?.id,
+      isMobile: deviceType === "mobile",
+      isIOS,
       optimizations: {
-        lowLatency: networkQuality === "high",
+        lowLatency: networkQuality === "high" && !isIOS,
         adaptiveStreaming: config.adaptiveStreaming,
-        audioOnly: networkQuality === "low",
+        audioOnly: config.audioOnly,
+        bufferOptimization: config.bufferOptimization,
+        mobileOptimized: deviceType === "mobile",
         reconnectConfig: {
           attempts: config.reconnectAttempts,
-          delay: config.reconnectDelay
-        }
-      }
+          delay: config.reconnectDelay,
+        },
+      },
     });
 
     const token = await at.toJwt();
 
-    // Log connection attempt for analytics
+    // Log connection attempt
     if (session) {
-      await supabase
-        .from("session_connections")
-        .insert({
-          session_id: session.id,
-          user_id: userId,
-          network_quality: networkQuality,
-          device_type: deviceType,
-          connection_type: connectionType,
-          role,
-          connected_at: new Date().toISOString()
-        })
-        .select()
-        .single();
+      await supabase.from("session_connections").insert({
+        session_id: session.id,
+        user_id: userId,
+        network_quality: networkQuality,
+        device_type: deviceType,
+        connection_type: connectionType,
+        role,
+        connected_at: new Date().toISOString(),
+      });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       token,
       room: roomName,
       identity,
@@ -156,25 +183,27 @@ export async function GET(req: NextRequest) {
         quickJoin: networkQuality === "low",
         adaptiveQuality: config.adaptiveStreaming,
         reconnectEnabled: true,
-        audioOnlyMode: networkQuality === "low",
-        bufferOptimization: networkQuality === "low"
+        audioOnlyMode: config.audioOnly,
+        bufferOptimization: config.bufferOptimization,
       },
       connectionConfig: {
-        iceServers: networkQuality === "low" ? 
-          // Use additional TURN servers for poor connections
-          [
-            { urls: "stun:stun.l.google.com:19302" },
-            { urls: "stun:stun1.l.google.com:19302" }
-          ] : 
-          [{ urls: "stun:stun.l.google.com:19302" }],
+        iceServers:
+          networkQuality === "low"
+            ? [
+                { urls: "stun:stun.l.google.com:19302" },
+                { urls: "stun:stun1.l.google.com:19302" },
+              ]
+            : [{ urls: "stun:stun.l.google.com:19302" }],
         reconnectAttempts: config.reconnectAttempts,
-        reconnectDelay: config.reconnectDelay
+        reconnectDelay: config.reconnectDelay,
       },
-      sessionInfo: session ? {
-        id: session.id,
-        title: session.title,
-        isAuthor: session.author_id === userId
-      } : null
+      sessionInfo: session
+        ? {
+            id: session.id,
+            title: session.title,
+            isAuthor: session.author_id === userId,
+          }
+        : null,
     });
   } catch (error) {
     console.error("Token generation error:", error);
@@ -193,10 +222,19 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { roomName, networkQuality, connectionStats, action } = body;
+    const {
+      roomName,
+      networkQuality,
+      connectionStats,
+      action,
+    }: {
+      roomName: string;
+      networkQuality: keyof typeof TOKEN_CONFIGS;
+      connectionStats?: Record<string, unknown>;
+      action: string;
+    } = body;
 
     if (action === "update_network_quality") {
-      // Log network quality changes for session optimization
       const { data: session } = await supabase
         .from("live_sessions")
         .select("id")
@@ -209,14 +247,16 @@ export async function POST(req: NextRequest) {
           .from("session_connections")
           .update({
             network_quality: networkQuality,
-            connection_stats: JSON.stringify(connectionStats),
-            last_updated: new Date().toISOString()
+            connection_stats: JSON.stringify(connectionStats ?? {}),
+            last_updated: new Date().toISOString(),
           })
           .eq("session_id", session.id)
           .eq("user_id", userId);
       }
 
-      const newConfig = TOKEN_CONFIGS[networkQuality as keyof typeof TOKEN_CONFIGS] || TOKEN_CONFIGS.medium;
+      const newConfig =
+        TOKEN_CONFIGS[networkQuality as keyof typeof TOKEN_CONFIGS] ||
+        TOKEN_CONFIGS.medium;
 
       return NextResponse.json({
         success: true,
@@ -224,8 +264,8 @@ export async function POST(req: NextRequest) {
           networkQuality,
           reconnectAttempts: newConfig.reconnectAttempts,
           reconnectDelay: newConfig.reconnectDelay,
-          adaptiveStreaming: newConfig.adaptiveStreaming
-        }
+          adaptiveStreaming: newConfig.adaptiveStreaming,
+        },
       });
     }
 
