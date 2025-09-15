@@ -8,7 +8,7 @@ import {
   useTracks,
   useParticipants,
 } from "@livekit/components-react";
-import { Track } from "livekit-client";
+import { Track, AudioPresets } from "livekit-client";
 import { LiveSession, User } from "@/types/podcast";
 import { 
   Volume2, 
@@ -25,6 +25,8 @@ import {
 interface Props {
   session: LiveSession;
   user: User;
+  onEndSession: () => void;
+  networkQuality: "high" | "medium" | "low";
 }
 
 function AudioVisualizer() {
@@ -192,16 +194,33 @@ function ListenerControls() {
   );
 }
 
-export default function ListenerView({ session, user }: Props) {
+export default function ListenerView({ session, user, networkQuality }: Props) {
   const [token, setToken] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  const monitorNetworkQuality = async (stats: any) => {
+    try {
+      await fetch('/api/podcast/network-monitor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: session.id,
+          networkStats: stats,
+          deviceInfo: { userAgent: navigator.userAgent },
+          connectionType: 'wifi'
+        })
+      });
+    } catch (error) {
+      console.error('Network monitoring failed:', error);
+    }
+  };
 
   useEffect(() => {
     async function getListenerToken() {
       try {
         const res = await fetch(
-          `/api/livekit/token?room=${session.roomName}&identity=${user.id}&role=listener`
+          `/api/livekit/token?room=${session.roomName}&identity=${user.id}&role=listener&networkQuality=${networkQuality}&deviceType=${/Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop'}&connectionType=wifi`
         );
         
         if (!res.ok) {
@@ -224,7 +243,7 @@ export default function ListenerView({ session, user }: Props) {
     }
 
     getListenerToken();
-  }, [session.roomName, user.id]);
+  }, [session.roomName, user.id, networkQuality]);
 
   if (isConnecting) {
     return (
@@ -310,6 +329,13 @@ export default function ListenerView({ session, user }: Props) {
         token={token}
         serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL!}
         connect={true}
+        options={{
+          adaptiveStream: networkQuality === 'low',
+          dynacast: networkQuality !== 'low',
+          publishDefaults: {
+            audioPreset: networkQuality === 'low' ? AudioPresets.speech : AudioPresets.music
+          }
+        }}
         onConnected={() => {
           console.log("Connected to live session");
           // Update listener count when someone joins
@@ -318,6 +344,16 @@ export default function ListenerView({ session, user }: Props) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sessionId: session.id, increment: 1 }),
           }).catch(console.error);
+
+          // Monitor network quality every 10 seconds
+          const interval = setInterval(() => {
+            monitorNetworkQuality({
+              latency: performance.now(), // Simple latency measurement
+              bandwidth: 1, // You'd get this from WebRTC stats
+              packetLoss: 0
+            });
+          }, 10000);
+          return () => clearInterval(interval);
         }}
         onDisconnected={() => {
           console.log("Disconnected from live session");

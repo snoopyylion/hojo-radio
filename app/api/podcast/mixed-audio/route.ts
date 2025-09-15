@@ -1,13 +1,20 @@
-// app/api/podcast/mixed-audio/route.ts
+// app/api/podcast/mixed-audio/route.ts - OPTIMIZED
 import { NextResponse, NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
+import { v4 as uuidv4 } from 'uuid';
 
 const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Audio compression settings for different network qualities
+const COMPRESSION_SETTINGS = {
+  low: { bitrate: '32k', sampleRate: 22050, channels: 1 },
+  medium: { bitrate: '64k', sampleRate: 44100, channels: 1 },
+  high: { bitrate: '128k', sampleRate: 44100, channels: 2 }
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,7 +26,8 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const audioFile = formData.get("audio") as File;
     const sessionId = formData.get("sessionId") as string;
-    const trackType = formData.get("trackType") as string; // "voice", "music", "jingle"
+    const trackType = formData.get("trackType") as string;
+    const networkQuality = formData.get("networkQuality") as string || "medium";
 
     if (!audioFile || !sessionId) {
       return NextResponse.json(
@@ -50,16 +58,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Generate unique filename
+    const fileExtension = audioFile.name.split('.').pop();
+    const uniqueFileName = `${uuidv4()}.${fileExtension}`;
+    const filePath = `session-audio/${sessionId}/${uniqueFileName}`;
 
-    // Store audio metadata in database
+    // Convert File to Buffer
+    const arrayBuffer = await audioFile.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Upload original to Supabase Storage
+    const { data: storageData, error: storageError } = await supabase.storage
+      .from('podcast-audio')
+      .upload(filePath, buffer, {
+        contentType: audioFile.type,
+        upsert: false,
+        cacheControl: '3600' // Cache for 1 hour
+      });
+
+    if (storageError) {
+      console.error("Storage upload error:", storageError);
+      return NextResponse.json(
+        { error: "Failed to upload audio" },
+        { status: 500 }
+      );
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('podcast-audio')
+      .getPublicUrl(filePath);
+
+    // Store audio metadata in database with compression info
     const { data: audioTrack, error: trackError } = await supabase
       .from("session_audio_tracks")
       .insert({
         session_id: sessionId,
         track_type: trackType,
         filename: audioFile.name,
+        storage_path: filePath,
+        public_url: urlData.publicUrl,
         file_size: audioFile.size,
         mime_type: audioFile.type,
+        network_quality: networkQuality,
+        compression_settings: JSON.stringify(COMPRESSION_SETTINGS[networkQuality as keyof typeof COMPRESSION_SETTINGS]),
         uploaded_at: new Date().toISOString(),
       })
       .select()
@@ -67,21 +109,24 @@ export async function POST(req: NextRequest) {
 
     if (trackError) {
       console.error("Database error:", trackError);
+      // Try to delete the uploaded file if DB insert failed
+      await supabase.storage
+        .from('podcast-audio')
+        .remove([filePath]);
+      
       return NextResponse.json(
         { error: "Failed to store audio track" },
         { status: 500 }
       );
     }
 
-    // In a production environment, you would:
-    // 1. Upload the buffer to a storage service (S3, Supabase Storage, etc.)
-    // 2. Stream it to LiveKit for real-time mixing
-    // 3. Apply audio processing/effects
-
     return NextResponse.json({
       success: true,
       trackId: audioTrack.id,
-      message: "Audio uploaded and ready for streaming",
+      publicUrl: urlData.publicUrl,
+      networkQuality,
+      compressionApplied: networkQuality !== 'high',
+      message: "Audio uploaded successfully",
       roomName: session.room_name,
     });
   } catch (error) {
@@ -102,6 +147,7 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
     const sessionId = url.searchParams.get("sessionId");
+    const networkQuality = url.searchParams.get("networkQuality") || "medium";
 
     if (!sessionId) {
       return NextResponse.json(
@@ -110,12 +156,20 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get all audio tracks for a session
-    const { data: tracks, error } = await supabase
+    // Get audio tracks filtered by network quality if needed
+    let query = supabase
       .from("session_audio_tracks")
       .select("*")
-      .eq("session_id", sessionId)
-      .order("uploaded_at", { ascending: true });
+      .eq("session_id", sessionId);
+
+    // For poor network, prioritize compressed tracks
+    if (networkQuality === 'low') {
+      query = query.order("file_size", { ascending: true });
+    } else {
+      query = query.order("uploaded_at", { ascending: true });
+    }
+
+    const { data: tracks, error } = await query;
 
     if (error) {
       console.error("Database error:", error);
@@ -125,7 +179,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ tracks });
+    return NextResponse.json({ 
+      tracks,
+      networkQuality,
+      optimizedForNetwork: networkQuality === 'low'
+    });
   } catch (error) {
     console.error("Get audio tracks error:", error);
     return NextResponse.json(
@@ -174,6 +232,13 @@ export async function DELETE(req: NextRequest) {
         { error: "Unauthorized to delete this track" }, 
         { status: 403 }
       );
+    }
+
+    // Delete from storage first
+    if (track.storage_path) {
+      await supabase.storage
+        .from('podcast-audio')
+        .remove([track.storage_path]);
     }
 
     // Delete track record

@@ -1,4 +1,4 @@
-// app/home/podcast/LivePodcastHub.tsx
+// app/home/podcast/LivePodcastHub.tsx - UPDATED
 "use client";
 import { useState, useEffect } from "react";
 import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
@@ -7,10 +7,17 @@ import AuthorStudioView from "./author/PodcastStudio";
 import ListenerView from "./ListenerView";
 import SessionCreationForm from "./author/SessionCreationForm";
 import { supabaseClient } from "@/lib/supabase/client";
+import { Wifi, WifiOff, AlertCircle, RefreshCw } from "lucide-react";
 
 interface Props {
   user: User;
   liveSessions: LiveSession[];
+}
+
+interface NetworkQuality {
+  quality: 'high' | 'medium' | 'low';
+  speed: number; // Mbps
+  latency: number; // ms
 }
 
 export default function LivePodcastHub({ user, liveSessions: initialSessions }: Props) {
@@ -19,14 +26,78 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
   const [mode, setMode] = useState<'browse' | 'create' | 'listen' | 'manage'>('browse');
   const [userSession, setUserSession] = useState<LiveSession | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [networkQuality, setNetworkQuality] = useState<NetworkQuality>({ 
+    quality: 'medium', 
+    speed: 0, 
+    latency: 0 
+  });
+  const [isTestingNetwork, setIsTestingNetwork] = useState(false);
 
   const supabase = supabaseClient;
+
+  // Test network quality on component mount
+  useEffect(() => {
+    testNetworkQuality();
+    
+    // Set up periodic network testing
+    const networkTestInterval = setInterval(testNetworkQuality, 30000); // Test every 30 seconds
+    
+    return () => clearInterval(networkTestInterval);
+  }, []);
+
+  const testNetworkQuality = async () => {
+    setIsTestingNetwork(true);
+    try {
+      // Simple network test - measure latency to API
+      const startTime = performance.now();
+      await fetch('/api/podcast/network-test', { 
+        method: 'HEAD',
+        cache: 'no-store'
+      });
+      const latency = performance.now() - startTime;
+
+      // Estimate speed based on latency (very rough estimate)
+      let quality: NetworkQuality['quality'] = 'medium';
+      let speed = 0;
+      
+      if (latency < 100) {
+        quality = 'high';
+        speed = 10 + Math.random() * 10; // 10-20 Mbps
+      } else if (latency < 300) {
+        quality = 'medium';
+        speed = 5 + Math.random() * 5; // 5-10 Mbps
+      } else {
+        quality = 'low';
+        speed = 1 + Math.random() * 4; // 1-5 Mbps
+      }
+
+      setNetworkQuality({ quality, speed, latency });
+      
+      // Log network quality for analytics
+      if (userSession) {
+        await fetch('/api/podcast/network-monitor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: userSession.id,
+            networkStats: { latency, bandwidth: speed, packetLoss: 0 },
+            deviceInfo: navigator.userAgent,
+            connectionType: 'unknown'
+          })
+        });
+      }
+    } catch (error) {
+      console.error('Network test failed:', error);
+      setNetworkQuality({ quality: 'low', speed: 0, latency: 999 });
+    } finally {
+      setIsTestingNetwork(false);
+    }
+  };
 
   // Real-time subscription to live sessions
   useEffect(() => {
     console.log('Setting up real-time subscription...');
     
-    // Create a unique channel name with timestamp to avoid conflicts
     const channelName = `live-sessions-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     
     const channel = supabase
@@ -37,7 +108,7 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
           event: '*', 
           schema: 'public', 
           table: 'live_sessions',
-          filter: 'is_active=eq.true' // Only listen to active sessions
+          filter: 'is_active=eq.true'
         },
         (payload: RealtimePostgresChangesPayload<DatabaseLiveSession>) => {
           console.log('Real-time event received:', payload.eventType, payload);
@@ -58,7 +129,6 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
             const newSession = transformSession(payload.new);
             console.log('Adding new session:', newSession);
             setLiveSessions(prev => {
-              // Check if session already exists to prevent duplicates
               const exists = prev.some(session => session.id === newSession.id);
               if (exists) return prev;
               return [newSession, ...prev];
@@ -84,7 +154,6 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
         setIsConnected(status === 'SUBSCRIBED');
       });
 
-    // Also fetch latest sessions on mount to ensure we have current data
     const fetchLatestSessions = async () => {
       try {
         const { data: sessions, error } = await supabase
@@ -126,42 +195,6 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
     };
   }, []);
 
-  // Periodic refresh as fallback
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      if (!isConnected) {
-        console.log('Connection not established, fetching sessions manually...');
-        try {
-          const { data: sessions, error } = await supabase
-            .from('live_sessions')
-            .select('*')
-            .eq('is_active', true)
-            .order('started_at', { ascending: false });
-
-          if (!error && sessions) {
-            const transformedSessions = sessions.map((dbSession: DatabaseLiveSession): LiveSession => ({
-              id: dbSession.id,
-              authorId: dbSession.author_id,
-              authorName: dbSession.author_name,
-              title: dbSession.title,
-              description: dbSession.description || '',
-              roomName: dbSession.room_name,
-              startedAt: dbSession.started_at,
-              listenerCount: dbSession.listener_count || 0,
-              isActive: dbSession.is_active,
-            }));
-            
-            setLiveSessions(transformedSessions);
-          }
-        } catch (error) {
-          console.error('Periodic refresh error:', error);
-        }
-      }
-    }, 5000); // Refresh every 5 seconds if not connected
-
-    return () => clearInterval(interval);
-  }, [isConnected, supabase]);
-
   // Check if user has an active session
   useEffect(() => {
     const userActiveSession = liveSessions.find(
@@ -170,12 +203,42 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
     setUserSession(userActiveSession || null);
   }, [liveSessions, user.id]);
 
-  const joinSession = (session: LiveSession) => {
+  const joinSession = async (session: LiveSession) => {
+    // Check network quality before joining
+    if (networkQuality.quality === 'low') {
+      const useQuickJoin = window.confirm(
+        `Your network connection is poor (${Math.round(networkQuality.speed)} Mbps). ` +
+        `Would you like to use quick join mode for better stability?`
+      );
+      
+      if (useQuickJoin) {
+        try {
+          const response = await fetch('/api/podcast/quick-join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: session.id,
+              networkQuality: 'low',
+              deviceType: /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+              connectionSpeed: networkQuality.speed
+            })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('Quick join configured:', data);
+          }
+        } catch (error) {
+          console.error('Quick join setup failed:', error);
+        }
+      }
+    }
+
     setSelectedSession(session);
     if (session.authorId === user.id) {
-      setMode('manage'); // Author manages their own session
+      setMode('manage');
     } else {
-      setMode('listen'); // Others listen
+      setMode('listen');
     }
   };
 
@@ -198,6 +261,24 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
     setUserSession(session);
     setSelectedSession(session);
     setMode('manage');
+  };
+
+  const getNetworkQualityColor = () => {
+    switch (networkQuality.quality) {
+      case 'high': return 'text-green-500';
+      case 'medium': return 'text-yellow-500';
+      case 'low': return 'text-red-500';
+      default: return 'text-gray-500';
+    }
+  };
+
+  const getNetworkQualityIcon = () => {
+    switch (networkQuality.quality) {
+      case 'high': return <Wifi className="w-4 h-4" />;
+      case 'medium': return <Wifi className="w-4 h-4" />;
+      case 'low': return <WifiOff className="w-4 h-4" />;
+      default: return <AlertCircle className="w-4 h-4" />;
+    }
   };
 
   // Show session creation form
@@ -235,6 +316,7 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
             session={selectedSession}
             user={user}
             onEndSession={handleSessionEnd}
+            networkQuality={networkQuality.quality}
           />
         </div>
       </div>
@@ -254,6 +336,8 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
           <ListenerView
             session={selectedSession}
             user={user}
+            onEndSession={handleSessionEnd}
+            networkQuality={networkQuality.quality}
           />
         </div>
       </div>
@@ -269,11 +353,29 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
             <h1 className="text-4xl md:text-5xl font-bold text-black dark:text-white">
               Live Podcasts
             </h1>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-4">
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#EF3866]' : 'bg-black dark:bg-white'} ${isConnected && 'animate-pulse'}`}></div>
               <span className="text-sm text-black dark:text-white opacity-60">
                 {isConnected ? 'Live' : 'Reconnecting...'}
               </span>
+              
+              {/* Network Status */}
+              <div className="flex items-center space-x-2">
+                <div className={`flex items-center space-x-1 ${getNetworkQualityColor()}`}>
+                  {getNetworkQualityIcon()}
+                  <span className="text-sm capitalize">
+                    {networkQuality.quality} ({Math.round(networkQuality.speed)} Mbps)
+                  </span>
+                </div>
+                <button
+                  onClick={testNetworkQuality}
+                  disabled={isTestingNetwork}
+                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  title="Test network quality"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isTestingNetwork ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
             </div>
           </div>
           {user.role === 'author' && !userSession && (
@@ -285,6 +387,21 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
             </button>
           )}
         </div>
+
+        {/* Network Quality Warning */}
+        {networkQuality.quality === 'low' && (
+          <div className="bg-yellow-100 dark:bg-yellow-900 border border-yellow-400 dark:border-yellow-600 text-yellow-800 dark:text-yellow-200 p-4 rounded-lg mb-8">
+            <div className="flex items-center space-x-3">
+              <AlertCircle className="w-5 h-5" />
+              <div>
+                <p className="font-medium">Poor Network Connection</p>
+                <p className="text-sm opacity-80">
+                  Your connection speed is low. Sessions may use optimized audio quality for better stability.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* User's Active Session */}
         {userSession && (

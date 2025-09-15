@@ -8,29 +8,35 @@ import {
   useLocalParticipant,
   useMaybeRoomContext,
   TrackToggle,
+  useRoomContext,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { LiveSession, User } from "@/types/podcast";
-import { 
-  Mic, 
-  MicOff, 
-  Music, 
-  Play, 
-  Pause, 
-  Volume2, 
+import {
+  Mic,
+  MicOff,
+  Music,
+  Play,
+  Pause,
+  Volume2,
   VolumeX,
   Upload,
   Users,
   Clock,
   Radio,
   Square,
-  SlidersVertical
+  SlidersVertical,
+  Wifi,
+  WifiOff,
+  CheckCircle,
+  AlertCircle
 } from "lucide-react";
 
 interface Props {
   session: LiveSession;
   user: User;
-  onEndSession?: () => void;
+  onEndSession: () => void;
+  networkQuality: "high" | "medium" | "low";
 }
 
 interface AudioTrack {
@@ -41,14 +47,22 @@ interface AudioTrack {
   type: 'mic' | 'music' | 'sfx';
 }
 
-function AudioMixer({ 
-  onVolumeChange, 
-  micVolume, 
-  musicVolume, 
+interface NetworkQualityStats {
+  quality: 'excellent' | 'good' | 'medium' | 'poor' | 'offline';
+  latency: number;
+  jitter: number;
+  packetLoss: number;
+  bandwidth: number;
+}
+
+function AudioMixer({
+  onVolumeChange,
+  micVolume,
+  musicVolume,
   isMicMuted,
   isMusicMuted,
   onMicMute,
-  onMusicMute 
+  onMusicMute
 }: {
   onVolumeChange: (type: string, volume: number) => void;
   micVolume: number;
@@ -78,10 +92,10 @@ function AudioMixer({
   }, [micVolume, musicVolume, isMicMuted, isMusicMuted]);
 
   const updateTrackVolume = (id: number, volume: number) => {
-    setTracks(prev => prev.map(track => 
+    setTracks(prev => prev.map(track =>
       track.id === id ? { ...track, volume } : track
     ));
-    
+
     // Apply volume changes to actual audio tracks
     const track = tracks.find(t => t.id === id);
     if (track) {
@@ -93,7 +107,7 @@ function AudioMixer({
     const track = tracks.find(t => t.id === id);
     if (!track) return;
 
-    setTracks(prev => prev.map(t => 
+    setTracks(prev => prev.map(t =>
       t.id === id ? { ...t, muted: !t.muted } : t
     ));
 
@@ -107,7 +121,7 @@ function AudioMixer({
 
   const applyPreset = (presetName: string) => {
     let newTracks = [...tracks];
-    
+
     switch (presetName) {
       case 'Interview':
         newTracks = newTracks.map(track => {
@@ -134,9 +148,9 @@ function AudioMixer({
         });
         break;
     }
-    
+
     setTracks(newTracks);
-    
+
     // Apply preset changes
     newTracks.forEach(track => {
       onVolumeChange(track.type, track.volume);
@@ -149,25 +163,24 @@ function AudioMixer({
         <SlidersVertical className="w-5 h-5 mr-3" />
         Audio Mixer
       </h3>
-      
+
       <div className="space-y-4">
         {tracks.map(track => (
           <div key={track.id} className="flex items-center space-x-4">
             <div className="w-24 text-sm text-black dark:text-white">
               {track.name}
             </div>
-            
+
             <button
               onClick={() => toggleMute(track.id)}
-              className={`p-2 rounded-full transition-all duration-200 ${
-                track.muted 
-                  ? 'bg-[#EF3866] text-white' 
-                  : 'bg-black dark:bg-white bg-opacity-10 dark:bg-opacity-10 hover:bg-opacity-20 dark:hover:bg-opacity-20'
-              }`}
+              className={`p-2 rounded-full transition-all duration-200 ${track.muted
+                ? 'bg-[#EF3866] text-white'
+                : 'bg-black dark:bg-white bg-opacity-10 dark:bg-opacity-10 hover:bg-opacity-20 dark:hover:bg-opacity-20'
+                }`}
             >
               {track.muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
-            
+
             <div className="flex-1 relative">
               <input
                 type="range"
@@ -201,31 +214,31 @@ function AudioMixer({
                 }
               `}</style>
             </div>
-            
+
             <div className="w-12 text-right text-sm text-black dark:text-white opacity-60">
               {track.muted ? 'MUTE' : `${Math.round(track.volume * 100)}%`}
             </div>
           </div>
         ))}
       </div>
-      
+
       {/* Presets */}
       <div className="mt-6 pt-4 border-t border-black dark:border-white border-opacity-10 dark:border-opacity-10">
         <h4 className="text-sm font-medium text-black dark:text-white mb-3">Presets</h4>
         <div className="flex space-x-3">
-          <button 
+          <button
             onClick={() => applyPreset('Interview')}
             className="px-3 py-1 text-xs border border-black dark:border-white rounded-full hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all duration-200"
           >
             Interview
           </button>
-          <button 
+          <button
             onClick={() => applyPreset('Music Focus')}
             className="px-3 py-1 text-xs border border-black dark:border-white rounded-full hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all duration-200"
           >
             Music Focus
           </button>
-          <button 
+          <button
             onClick={() => applyPreset('Voice Only')}
             className="px-3 py-1 text-xs border border-black dark:border-white rounded-full hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all duration-200"
           >
@@ -237,7 +250,69 @@ function AudioMixer({
   );
 }
 
-function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
+function NetworkQualityIndicator({ networkQuality }: { networkQuality: NetworkQualityStats | null }) {
+  if (!networkQuality) return null;
+
+  const getQualityColor = (quality: string) => {
+    switch (quality) {
+      case 'excellent': return 'text-green-500';
+      case 'good': return 'text-green-400';
+      case 'medium': return 'text-yellow-500';
+      case 'poor': return 'text-orange-500';
+      case 'offline': return 'text-red-500';
+      default: return 'text-gray-500';
+    }
+  };
+
+  const getQualityIcon = (quality: string) => {
+    if (quality === 'offline') {
+      return <WifiOff className="w-4 h-4" />;
+    }
+    return <Wifi className="w-4 h-4" />;
+  };
+
+  return (
+    <div className="border border-black dark:border-white rounded-3xl p-4">
+      <h4 className="text-sm font-medium text-black dark:text-white mb-3 flex items-center">
+        {getQualityIcon(networkQuality.quality)}
+        <span className="ml-2">Network Quality</span>
+      </h4>
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <div className={`w-3 h-3 rounded-full ${networkQuality.quality === 'excellent' ? 'bg-green-500 animate-pulse' : networkQuality.quality === 'good' ? 'bg-green-400' : networkQuality.quality === 'medium' ? 'bg-yellow-500' : networkQuality.quality === 'poor' ? 'bg-orange-500' : 'bg-red-500'}`}></div>
+          <span className={`text-sm font-medium capitalize ${getQualityColor(networkQuality.quality)}`}>
+            {networkQuality.quality}
+          </span>
+        </div>
+
+        <div className="text-xs text-black dark:text-white opacity-60">
+          {networkQuality.latency}ms | {networkQuality.packetLoss.toFixed(1)}% loss
+        </div>
+      </div>
+
+      {networkQuality.quality === 'poor' && (
+        <div className="mt-2 p-2 bg-orange-500 bg-opacity-10 rounded-lg">
+          <p className="text-xs text-orange-600 dark:text-orange-400">
+            Poor connection detected. Consider moving closer to your router.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AudioControls({
+  onEndSession,
+  session,
+  networkQuality,
+  onNetworkStatsUpdate
+}: {
+  onEndSession?: () => void;
+  session: LiveSession;
+  networkQuality: NetworkQualityStats | null;
+  onNetworkStatsUpdate: (stats: NetworkQualityStats) => void;
+}) {
   const { localParticipant } = useLocalParticipant();
   const room = useMaybeRoomContext();
   const [isMicEnabled, setIsMicEnabled] = useState(true);
@@ -248,6 +323,118 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
   const [uploadedMusic, setUploadedMusic] = useState<File[]>([]);
   const [currentTrack, setCurrentTrack] = useState<string>("");
   const [musicTrack, setMusicTrack] = useState<MediaStreamTrack | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const networkMonitorRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Network quality monitoring
+  const monitorNetworkQuality = async (stats: any) => {
+    try {
+      await fetch('/api/podcast/network-monitor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: session.id,
+          networkStats: stats,
+          deviceInfo: { userAgent: navigator.userAgent },
+          connectionType: navigator.onLine ? 'wifi' : 'offline'
+        })
+      });
+    } catch (error) {
+      console.error('Network monitoring failed:', error);
+    }
+  };
+
+  // Upload mixed audio functionality
+  const uploadMixedAudio = async (file: File, trackType: string = 'music') => {
+    try {
+      const formData = new FormData();
+      formData.append('audio', file);
+      formData.append('sessionId', session.id);
+      formData.append('trackType', trackType);
+      formData.append('networkQuality', networkQuality?.quality || 'medium');
+
+      const response = await fetch('/api/podcast/mixed-audio', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Audio uploaded:', data);
+        return data;
+      }
+    } catch (error) {
+      console.error('Audio upload failed:', error);
+      throw error;
+    }
+  };
+
+  // Start network monitoring when component mounts
+  useEffect(() => {
+    const startNetworkMonitoring = () => {
+      networkMonitorRef.current = setInterval(async () => {
+        if (room && localParticipant) {
+          try {
+            // Use LiveKit's connection quality API
+            let quality: NetworkQualityStats['quality'] = 'medium';
+            let latency = 0;
+            let jitter = 0;
+            let packetLoss = 0;
+            let bandwidth = 0;
+
+            // LiveKit provides connection quality as a string enum: 'excellent', 'good', 'poor', etc.
+            const connectionQuality = localParticipant.connectionQuality;
+            switch (connectionQuality) {
+              case 'excellent':
+                quality = 'excellent';
+                break;
+              case 'good':
+                quality = 'good';
+                break;
+              case 'poor':
+                quality = 'poor';
+                break;
+              case 'unknown':
+                quality = 'offline';
+                break;
+              default:
+                quality = 'medium';
+            }
+
+            // Optionally, you can try to get stats from the browser WebRTC API for more details
+            // but LiveKit does not expose getStats directly on the engine.
+            // Here we just set dummy values for latency, jitter, packetLoss, bandwidth.
+            // For production, you may want to use RTCPeerConnection.getStats() if needed.
+
+            if (!navigator.onLine) quality = 'offline';
+
+            const networkStats: NetworkQualityStats = {
+              quality,
+              latency: Math.round(latency),
+              jitter: Math.round(jitter * 1000),
+              packetLoss,
+              bandwidth
+            };
+
+            onNetworkStatsUpdate(networkStats);
+            await monitorNetworkQuality(networkStats);
+          } catch (error) {
+            console.error('Network monitoring error:', error);
+          }
+        }
+      }, 5000); // Monitor every 5 seconds
+    };
+
+    if (room && localParticipant) {
+      startNetworkMonitoring();
+    }
+
+    return () => {
+      if (networkMonitorRef.current) {
+        clearInterval(networkMonitorRef.current);
+      }
+    };
+  }, [room, localParticipant, session.id, networkQuality, onNetworkStatsUpdate]);
 
   const toggleMicrophone = async () => {
     if (localParticipant) {
@@ -256,10 +443,26 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
     }
   };
 
-  const handleMusicUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Updated handleMusicUpload function
+  const handleMusicUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     const audioFiles = files.filter(file => file.type.startsWith('audio/'));
-    setUploadedMusic(prev => [...prev, ...audioFiles]);
+
+    if (audioFiles.length === 0) return;
+
+    setIsUploading(true);
+
+    try {
+      // Upload files to backend
+      const uploadPromises = audioFiles.map(file => uploadMixedAudio(file, 'music'));
+      await Promise.all(uploadPromises);
+
+      setUploadedMusic(prev => [...prev, ...audioFiles]);
+    } catch (error) {
+      console.error('Failed to upload audio files:', error);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const playMusic = async (file: File) => {
@@ -276,7 +479,7 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
           audioRef.current.pause();
           setIsPlayingJingle(false);
           setCurrentTrack("");
-          
+
           if (musicTrack) {
             localParticipant.unpublishTrack(musicTrack);
             setMusicTrack(null);
@@ -339,10 +542,18 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
     try {
       stopMusic();
 
+      // Clear network monitoring
+      if (networkMonitorRef.current) {
+        clearInterval(networkMonitorRef.current);
+      }
+
       const response = await fetch('/api/podcast/end-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ authorId: localParticipant?.identity }),
+        body: JSON.stringify({
+          authorId: localParticipant?.identity,
+          sessionId: session.id
+        }),
       });
 
       if (!response.ok) {
@@ -375,8 +586,11 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
         hidden
       />
 
+      {/* Network Quality Indicator */}
+      <NetworkQualityIndicator networkQuality={networkQuality} />
+
       {/* Audio Mixer */}
-      <AudioMixer 
+      <AudioMixer
         onVolumeChange={handleMixerVolumeChange}
         micVolume={micVolume}
         musicVolume={audioVolume}
@@ -393,17 +607,32 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
             <Radio className="w-5 h-5 mr-3" />
             Audio Control
           </h3>
+
+          {/* Connection Status */}
+          <div className="flex items-center space-x-2">
+            {room?.state === 'connected' ? (
+              <div className="flex items-center space-x-1 text-green-500">
+                <CheckCircle className="w-4 h-4" />
+                <span className="text-xs">Connected</span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-1 text-orange-500">
+                <AlertCircle className="w-4 h-4" />
+                <span className="text-xs">Connecting...</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
               onClick={toggleMicrophone}
-              className={`flex items-center px-6 py-3 rounded-full font-medium transition-all duration-200 transform hover:scale-105 ${
-                isMicEnabled
-                  ? 'bg-[#EF3866] text-white shadow-lg'
-                  : 'bg-black dark:bg-white text-white dark:text-black border border-black dark:border-white'
-              }`}
+              className={`flex items-center px-6 py-3 rounded-full font-medium transition-all duration-200 transform hover:scale-105 ${isMicEnabled
+                ? 'bg-[#EF3866] text-white shadow-lg'
+                : 'bg-black dark:bg-white text-white dark:text-black border border-black dark:border-white'
+                }`}
+              disabled={room?.state !== 'connected'}
             >
               {isMicEnabled ? (
                 <Mic className="w-4 h-4 mr-2" />
@@ -434,7 +663,7 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
             <Music className="w-5 h-5 mr-3" />
             Audio Library
           </h3>
-          
+
           <label className="cursor-pointer">
             <input
               type="file"
@@ -442,10 +671,11 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
               multiple
               onChange={handleMusicUpload}
               className="hidden"
+              disabled={isUploading}
             />
-            <div className="flex items-center px-4 py-2 border border-black dark:border-white rounded-full hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all duration-200 text-black dark:text-white">
+            <div className={`flex items-center px-4 py-2 border border-black dark:border-white rounded-full hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all duration-200 text-black dark:text-white ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <Upload className="w-4 h-4 mr-2" />
-              Upload
+              {isUploading ? 'Uploading...' : 'Upload'}
             </div>
           </label>
         </div>
@@ -526,24 +756,23 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
             </h4>
             <div className="space-y-2 max-h-32 overflow-y-auto">
               {uploadedMusic.map((file, index) => (
-                <div 
-                  key={index} 
-                  className={`flex items-center justify-between p-3 rounded-2xl border transition-all duration-200 ${
-                    currentTrack === file.name
-                      ? 'border-[#EF3866] bg-[#EF3866] bg-opacity-5'
-                      : 'border-black dark:border-white border-opacity-10 dark:border-opacity-10 hover:border-opacity-30 dark:hover:border-opacity-30'
-                  }`}
+                <div
+                  key={index}
+                  className={`flex items-center justify-between p-3 rounded-2xl border transition-all duration-200 ${currentTrack === file.name
+                    ? 'border-[#EF3866] bg-[#EF3866] bg-opacity-5'
+                    : 'border-black dark:border-white border-opacity-10 dark:border-opacity-10 hover:border-opacity-30 dark:hover:border-opacity-30'
+                    }`}
                 >
                   <span className="text-sm text-black dark:text-white truncate mr-4">
                     {file.name.replace(/\.[^/.]+$/, "")}
                   </span>
                   <button
                     onClick={() => playMusic(file)}
-                    className={`p-2 rounded-full transition-all duration-200 ${
-                      currentTrack === file.name
-                        ? 'bg-[#EF3866] text-white'
-                        : 'hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black'
-                    }`}
+                    className={`p-2 rounded-full transition-all duration-200 ${currentTrack === file.name
+                      ? 'bg-[#EF3866] text-white'
+                      : 'hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black'
+                      }`}
+                    disabled={room?.state !== 'connected'}
                   >
                     {currentTrack === file.name ? (
                       <Pause className="w-4 h-4" />
@@ -564,12 +793,30 @@ function AudioControls({ onEndSession }: { onEndSession?: () => void }) {
             <p className="text-xs mt-1">Upload music, jingles, or sound effects</p>
           </div>
         )}
+
+        {/* Quick reconnect for better experience */}
+        {room?.state === 'disconnected' && (
+          <div className="mt-4 p-4 bg-orange-500 bg-opacity-10 rounded-2xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                  Connection Lost
+                </p>
+                <p className="text-xs text-orange-600 dark:text-orange-400 opacity-80">
+                  Attempting to reconnect...
+                </p>
+              </div>
+              <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* End Session */}
       <button
         onClick={handleEndSession}
         className="w-full bg-[#EF3866] hover:bg-[#d12b56] text-white py-4 rounded-full font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center justify-center"
+        disabled={room?.state === 'connecting'}
       >
         <Square className="w-4 h-4 mr-2" />
         End Live Session
@@ -582,24 +829,30 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
   const [token, setToken] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [networkQuality, setNetworkQuality] = useState<NetworkQualityStats | null>(null);
+
+  // Detect device type and initial network quality
+  const deviceType = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+  const initialNetworkQuality = navigator.onLine ? 'good' : 'offline';
 
   useEffect(() => {
     async function getAuthorToken() {
       try {
+        // Updated token request with network quality and device type
         const res = await fetch(
-          `/api/livekit/token?room=${session.roomName}&identity=${user.id}&role=author`
+          `/api/livekit/token?room=${session.roomName}&identity=${user.id}&role=author&networkQuality=${initialNetworkQuality}&deviceType=${deviceType}`
         );
-        
+
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         }
-        
+
         const data = await res.json();
-        
+
         if (data.error) {
           throw new Error(data.error);
         }
-        
+
         setToken(data.token);
       } catch (error) {
         console.error("Failed to get author token:", error);
@@ -610,7 +863,31 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
     }
 
     getAuthorToken();
-  }, [session.roomName, user.id]);
+  }, [session.roomName, user.id, initialNetworkQuality, deviceType]);
+
+  // Network quality update handler
+  const handleNetworkStatsUpdate = (stats: NetworkQualityStats) => {
+    setNetworkQuality(stats);
+  };
+
+  // Handle connection state changes
+  const handleRoomConnected = () => {
+    console.log("Connected to room as author");
+    setError(null);
+  };
+
+  const handleRoomDisconnected = () => {
+    console.log("Disconnected from room");
+    // Don't immediately call onEndSession to allow for reconnection attempts
+    setTimeout(() => {
+      onEndSession?.();
+    }, 5000); // Wait 5 seconds before ending session
+  };
+
+  const handleRoomError = (roomError: Error) => {
+    console.error("LiveKit room error:", roomError);
+    setError(roomError.message);
+  };
 
   if (isConnecting) {
     return (
@@ -623,6 +900,9 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
           <p className="text-sm text-black dark:text-white opacity-60">
             Connecting to live audio room...
           </p>
+          <div className="mt-4 text-xs text-black dark:text-white opacity-40">
+            Device: {deviceType} | Network: {initialNetworkQuality}
+          </div>
         </div>
       </div>
     );
@@ -641,12 +921,17 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
           <p className="text-sm text-black dark:text-white opacity-60 mb-6">
             {error || "Unable to get access token"}
           </p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="bg-[#EF3866] hover:bg-[#d12b56] text-white px-6 py-3 rounded-full font-semibold transition-all duration-200"
-          >
-            Retry Setup
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-[#EF3866] hover:bg-[#d12b56] text-white px-6 py-3 rounded-full font-semibold transition-all duration-200"
+            >
+              Retry Setup
+            </button>
+            <div className="text-xs text-black dark:text-white opacity-40">
+              If problems persist, check your internet connection
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -662,11 +947,11 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
             Live Broadcasting
           </span>
         </div>
-        
+
         <h1 className="text-3xl font-bold text-black dark:text-white mb-3">
           {session.title}
         </h1>
-        
+
         {session.description && (
           <p className="text-black dark:text-white opacity-70 mb-4 max-w-md mx-auto">
             {session.description}
@@ -683,9 +968,19 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
             <span>Started {new Date(session.startedAt).toLocaleTimeString()}</span>
           </div>
         </div>
-        
-        <div className="mt-4 text-xs text-black dark:text-white opacity-40">
-          Room: {session.roomName}
+
+        <div className="mt-4 flex items-center justify-center space-x-4 text-xs text-black dark:text-white opacity-40">
+          <span>Room: {session.roomName}</span>
+          <span>•</span>
+          <span>Device: {deviceType}</span>
+          {networkQuality && (
+            <>
+              <span>•</span>
+              <span className={`capitalize ${networkQuality.quality === 'excellent' ? 'text-green-500' : networkQuality.quality === 'good' ? 'text-green-400' : networkQuality.quality === 'medium' ? 'text-yellow-500' : networkQuality.quality === 'poor' ? 'text-orange-500' : 'text-red-500'}`}>
+                {networkQuality.quality} connection
+              </span>
+            </>
+          )}
         </div>
       </div>
 
@@ -694,20 +989,26 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
         token={token}
         serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL!}
         connect={true}
-        onConnected={() => {
-          console.log("Connected to room as author");
-        }}
-        onDisconnected={() => {
-          console.log("Disconnected from room");
-          onEndSession?.();
-        }}
-        onError={(error) => {
-          console.error("LiveKit room error:", error);
-          setError(error.message);
+        onConnected={handleRoomConnected}
+        onDisconnected={handleRoomDisconnected}
+        onError={handleRoomError}
+        options={{
+          adaptiveStream: true,
+          dynacast: true,
+          publishDefaults: {
+            audioPreset: {
+              maxBitrate: networkQuality?.quality === 'poor' ? 32000 : 64000,
+            },
+          },
         }}
       >
         <RoomAudioRenderer />
-        <AudioControls onEndSession={onEndSession} />
+        <AudioControls
+          onEndSession={onEndSession}
+          session={session}
+          networkQuality={networkQuality}
+          onNetworkStatsUpdate={handleNetworkStatsUpdate}
+        />
       </LiveKitRoom>
     </div>
   );
