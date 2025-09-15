@@ -8,7 +8,6 @@ import {
   useLocalParticipant,
   useMaybeRoomContext,
   TrackToggle,
-  useRoomContext,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { LiveSession, User } from "@/types/podcast";
@@ -327,7 +326,7 @@ function AudioControls({
   const networkMonitorRef = useRef<NodeJS.Timeout | null>(null);
 
   // Network quality monitoring
-  const monitorNetworkQuality = async (stats: any) => {
+  const monitorNetworkQuality = async (stats: NetworkQualityStats) => {
     try {
       await fetch('/api/podcast/network-monitor', {
         method: 'POST',
@@ -377,10 +376,10 @@ function AudioControls({
           try {
             // Use LiveKit's connection quality API
             let quality: NetworkQualityStats['quality'] = 'medium';
-            let latency = 0;
-            let jitter = 0;
-            let packetLoss = 0;
-            let bandwidth = 0;
+            const latency = 0;
+            const jitter = 0;
+            const packetLoss = 0;
+            const bandwidth = 0;
 
             // LiveKit provides connection quality as a string enum: 'excellent', 'good', 'poor', etc.
             const connectionQuality = localParticipant.connectionQuality;

@@ -1,4 +1,4 @@
-// app/api/podcast/network-monitor/route.ts - NEW
+// app/api/podcast/network-monitor/route.ts - FIXED
 import { NextResponse, NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
@@ -8,30 +8,42 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Define the expected shape of network stats
+interface NetworkStats {
+  latency: number;
+  jitter: number;
+  packetLoss: number;
+  bandwidth?: number;
+}
+
 // Network quality thresholds
 const QUALITY_THRESHOLDS = {
   excellent: { latency: 50, jitter: 10, packetLoss: 0.1 },
   good: { latency: 100, jitter: 20, packetLoss: 0.5 },
   fair: { latency: 200, jitter: 50, packetLoss: 1.0 },
-  poor: { latency: 500, jitter: 100, packetLoss: 3.0 }
+  poor: { latency: 500, jitter: 100, packetLoss: 3.0 },
 };
 
-function analyzeNetworkQuality(stats: any) {
-  const { latency, jitter, packetLoss, bandwidth } = stats;
-  
-  if (latency <= QUALITY_THRESHOLDS.excellent.latency && 
-      jitter <= QUALITY_THRESHOLDS.excellent.jitter && 
-      packetLoss <= QUALITY_THRESHOLDS.excellent.packetLoss) {
-    return 'high';
+function analyzeNetworkQuality(stats: NetworkStats): "high" | "medium" | "low" {
+  const { latency, jitter, packetLoss } = stats;
+
+  if (
+    latency <= QUALITY_THRESHOLDS.excellent.latency &&
+    jitter <= QUALITY_THRESHOLDS.excellent.jitter &&
+    packetLoss <= QUALITY_THRESHOLDS.excellent.packetLoss
+  ) {
+    return "high";
   }
-  
-  if (latency <= QUALITY_THRESHOLDS.good.latency && 
-      jitter <= QUALITY_THRESHOLDS.good.jitter && 
-      packetLoss <= QUALITY_THRESHOLDS.good.packetLoss) {
-    return 'medium';
+
+  if (
+    latency <= QUALITY_THRESHOLDS.good.latency &&
+    jitter <= QUALITY_THRESHOLDS.good.jitter &&
+    packetLoss <= QUALITY_THRESHOLDS.good.packetLoss
+  ) {
+    return "medium";
   }
-  
-  return 'low';
+
+  return "low";
 }
 
 export async function POST(req: NextRequest) {
@@ -42,13 +54,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { 
-      sessionId, 
-      networkStats, 
-      deviceInfo, 
-      connectionType,
-      timestamp 
-    } = body;
+    const { sessionId, networkStats, deviceInfo, connectionType, timestamp } = body;
 
     if (!sessionId || !networkStats) {
       return NextResponse.json(
@@ -58,10 +64,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Analyze network quality
-    const detectedQuality = analyzeNetworkQuality(networkStats);
-    
+    const detectedQuality = analyzeNetworkQuality(networkStats as NetworkStats);
+
     // Store network monitoring data
-    const { data: monitoringData, error: monitorError } = await supabase
+    const { error: monitorError } = await supabase
       .from("network_monitoring")
       .insert({
         session_id: sessionId,
@@ -70,7 +76,7 @@ export async function POST(req: NextRequest) {
         device_info: JSON.stringify(deviceInfo),
         connection_type: connectionType,
         detected_quality: detectedQuality,
-        timestamp: timestamp || new Date().toISOString()
+        timestamp: timestamp || new Date().toISOString(),
       })
       .select()
       .single();
@@ -79,37 +85,41 @@ export async function POST(req: NextRequest) {
       console.error("Network monitoring storage error:", monitorError);
     }
 
-    // Get session info to determine if optimizations are needed
+    // Get session info
     const { data: session } = await supabase
       .from("live_sessions")
       .select("id, listener_count, network_optimization_enabled")
       .eq("id", sessionId)
       .single();
 
-    // Determine recommended optimizations
+    // Recommendations
     const recommendations = {
       quality: detectedQuality,
-      adaptiveStreaming: detectedQuality !== 'high',
-      audioOnlyMode: detectedQuality === 'low',
-      bufferOptimization: detectedQuality === 'low',
+      adaptiveStreaming: detectedQuality !== "high",
+      audioOnlyMode: detectedQuality === "low",
+      bufferOptimization: detectedQuality === "low",
       reconnectOptimization: networkStats.packetLoss > 1.0,
-      bandwidthLimit: detectedQuality === 'low' ? '64k' : detectedQuality === 'medium' ? '128k' : '256k'
+      bandwidthLimit:
+        detectedQuality === "low"
+          ? "64k"
+          : detectedQuality === "medium"
+          ? "128k"
+          : "256k",
     };
 
-    // Check if immediate action is needed
-    const needsImmediateOptimization = 
-      detectedQuality === 'low' || 
-      networkStats.packetLoss > 2.0 || 
+    // Immediate optimization check
+    const needsImmediateOptimization =
+      detectedQuality === "low" ||
+      networkStats.packetLoss > 2.0 ||
       networkStats.latency > 300;
 
     if (needsImmediateOptimization && session) {
-      // Auto-apply critical optimizations
       await supabase
         .from("live_sessions")
         .update({
           network_optimization_enabled: true,
           auto_quality_adjustment: true,
-          last_optimization: new Date().toISOString()
+          last_optimization: new Date().toISOString(),
         })
         .eq("id", sessionId);
     }
@@ -123,11 +133,10 @@ export async function POST(req: NextRequest) {
         latency: networkStats.latency,
         jitter: networkStats.jitter,
         packetLoss: networkStats.packetLoss,
-        bandwidth: networkStats.bandwidth
+        bandwidth: networkStats.bandwidth ?? null,
       },
-      thresholds: QUALITY_THRESHOLDS
+      thresholds: QUALITY_THRESHOLDS,
     });
-
   } catch (error) {
     console.error("Network monitoring error:", error);
     return NextResponse.json(
@@ -157,15 +166,16 @@ export async function GET(req: NextRequest) {
 
     // Calculate time range
     const now = new Date();
-    const timeRangeMs = {
-      '1h': 60 * 60 * 1000,
-      '24h': 24 * 60 * 60 * 1000,
-      '7d': 7 * 24 * 60 * 60 * 1000
-    }[timeRange] || 60 * 60 * 1000;
+    const timeRangeMs =
+      {
+        "1h": 60 * 60 * 1000,
+        "24h": 24 * 60 * 60 * 1000,
+        "7d": 7 * 24 * 60 * 60 * 1000,
+      }[timeRange] || 60 * 60 * 1000;
 
     const startTime = new Date(now.getTime() - timeRangeMs);
 
-    // Get network monitoring history
+    // Fetch history
     const { data: networkHistory, error: historyError } = await supabase
       .from("network_monitoring")
       .select("*")
@@ -181,33 +191,40 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Analyze trends
-    const qualityTrend = networkHistory?.map(record => ({
-      timestamp: record.timestamp,
-      quality: record.detected_quality,
-      stats: JSON.parse(record.network_stats || '{}')
-    })) || [];
+    // Trend analysis
+    const qualityTrend =
+      networkHistory?.map((record) => ({
+        timestamp: record.timestamp,
+        quality: record.detected_quality,
+        stats: JSON.parse(record.network_stats || "{}") as NetworkStats,
+      })) || [];
 
-    // Calculate averages
-    const avgStats = qualityTrend.reduce((acc, record) => {
-      const stats = record.stats;
-      acc.latency += stats.latency || 0;
-      acc.jitter += stats.jitter || 0;
-      acc.packetLoss += stats.packetLoss || 0;
-      acc.bandwidth += stats.bandwidth || 0;
-      return acc;
-    }, { latency: 0, jitter: 0, packetLoss: 0, bandwidth: 0 });
+    // Averages
+    const avgStats = qualityTrend.reduce(
+      (acc, record) => {
+        const stats = record.stats;
+        acc.latency += stats.latency || 0;
+        acc.jitter += stats.jitter || 0;
+        acc.packetLoss += stats.packetLoss || 0;
+        acc.bandwidth += stats.bandwidth || 0;
+        return acc;
+      },
+      { latency: 0, jitter: 0, packetLoss: 0, bandwidth: 0 }
+    );
 
     const recordCount = qualityTrend.length || 1;
-    Object.keys(avgStats).forEach(key => {
+    Object.keys(avgStats).forEach((key) => {
       avgStats[key as keyof typeof avgStats] /= recordCount;
     });
 
-    // Quality distribution
-    const qualityDistribution = qualityTrend.reduce((acc, record) => {
-      acc[record.quality] = (acc[record.quality] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    // Distribution
+    const qualityDistribution = qualityTrend.reduce(
+      (acc, record) => {
+        acc[record.quality] = (acc[record.quality] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     return NextResponse.json({
       success: true,
@@ -216,16 +233,19 @@ export async function GET(req: NextRequest) {
       averageStats: avgStats,
       qualityTrend,
       qualityDistribution,
-      currentQuality: qualityTrend[qualityTrend.length - 1]?.quality || 'unknown',
+      currentQuality:
+        qualityTrend[qualityTrend.length - 1]?.quality || "unknown",
       recommendations: {
-        overallQuality: Object.keys(qualityDistribution).reduce((a, b) => 
+        overallQuality: Object.keys(qualityDistribution).reduce((a, b) =>
           qualityDistribution[a] > qualityDistribution[b] ? a : b
         ),
-        stabilityScore: recordCount > 0 ? (1 - (Object.keys(qualityDistribution).length - 1) / recordCount) : 0,
-        needsOptimization: avgStats.latency > 200 || avgStats.packetLoss > 1.0
-      }
+        stabilityScore:
+          recordCount > 0
+            ? 1 - (Object.keys(qualityDistribution).length - 1) / recordCount
+            : 0,
+        needsOptimization: avgStats.latency > 200 || avgStats.packetLoss > 1.0,
+      },
     });
-
   } catch (error) {
     console.error("Network monitoring GET error:", error);
     return NextResponse.json(

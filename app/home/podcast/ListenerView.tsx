@@ -29,6 +29,12 @@ interface Props {
   networkQuality: "high" | "medium" | "low";
 }
 
+interface NetworkStats {
+  latency: number;
+  bandwidth: number;
+  packetLoss: number;
+}
+
 function AudioVisualizer() {
   const tracks = useTracks([Track.Source.Microphone], { onlySubscribed: true });
   const participants = useParticipants();
@@ -199,7 +205,7 @@ export default function ListenerView({ session, user, networkQuality }: Props) {
   const [isConnecting, setIsConnecting] = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  const monitorNetworkQuality = async (stats: any) => {
+  const monitorNetworkQuality = async (stats: NetworkStats) => {
     try {
       await fetch('/api/podcast/network-monitor', {
         method: 'POST',

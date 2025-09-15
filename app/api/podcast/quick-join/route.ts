@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
       sessionId, 
       networkQuality = 'low', 
       deviceType = 'mobile',
-      connectionSpeed,
       skipPreload = true 
     } = body;
 

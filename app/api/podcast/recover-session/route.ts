@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
 
     if (!activeSession) {
       // Check for recent disconnected sessions that can be resumed
-      const { data: recentSession, error: recentError } = await supabase
+      const { data: recentSession } = await supabase
         .from("live_sessions")
         .select("*")
         .eq("author_id", userId)

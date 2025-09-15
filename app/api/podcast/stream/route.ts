@@ -47,7 +47,6 @@ export async function GET(req: NextRequest) {
     const sessionId = url.searchParams.get("sessionId");
     const quality = url.searchParams.get("quality") || "auto";
     const networkSpeed = url.searchParams.get("networkSpeed"); // in mbps
-    const deviceType = url.searchParams.get("deviceType") || "desktop";
 
     if (!sessionId) {
       return NextResponse.json(
