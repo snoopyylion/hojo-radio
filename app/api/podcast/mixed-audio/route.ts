@@ -1,20 +1,19 @@
-// app/api/podcast/mixed-audio/route.ts - OPTIMIZED
+// app/api/podcast/mixed-audio/route.ts
 import { NextResponse, NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Audio compression settings for different network qualities
 const COMPRESSION_SETTINGS = {
-  low: { bitrate: '32k', sampleRate: 22050, channels: 1 },
-  medium: { bitrate: '64k', sampleRate: 44100, channels: 1 },
-  high: { bitrate: '128k', sampleRate: 44100, channels: 2 }
-};
+  low: { bitrate: "32k", sampleRate: 22050, channels: 1 },
+  medium: { bitrate: "64k", sampleRate: 44100, channels: 1 },
+  high: { bitrate: "128k", sampleRate: 44100, channels: 2 },
+} as const;
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,14 +23,16 @@ export async function POST(req: NextRequest) {
     }
 
     const formData = await req.formData();
-    const audioFile = formData.get("audio") as File;
-    const sessionId = formData.get("sessionId") as string;
-    const trackType = formData.get("trackType") as string;
-    const networkQuality = formData.get("networkQuality") as string || "medium";
+    const audioFile = formData.get("audio") as File | null;
+    const sessionId = formData.get("sessionId") as string | null;
+    const trackType = formData.get("trackType") as string | null;
+    const networkQuality =
+      (formData.get("networkQuality") as keyof typeof COMPRESSION_SETTINGS) ??
+      "medium";
 
-    if (!audioFile || !sessionId) {
+    if (!audioFile || !sessionId || !trackType) {
       return NextResponse.json(
-        { error: "Missing audio file or session ID" }, 
+        { error: "Missing audio file, session ID, or track type" },
         { status: 400 }
       );
     }
@@ -45,21 +46,18 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (sessionError || !session) {
-      return NextResponse.json(
-        { error: "Session not found" }, 
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
     if (session.author_id !== userId) {
       return NextResponse.json(
-        { error: "Only session author can upload audio" }, 
+        { error: "Only session author can upload audio" },
         { status: 403 }
       );
     }
 
     // Generate unique filename
-    const fileExtension = audioFile.name.split('.').pop();
+    const fileExtension = audioFile.name.split(".").pop() ?? "mp3";
     const uniqueFileName = `${uuidv4()}.${fileExtension}`;
     const filePath = `session-audio/${sessionId}/${uniqueFileName}`;
 
@@ -69,11 +67,11 @@ export async function POST(req: NextRequest) {
 
     // Upload original to Supabase Storage
     const { error: storageError } = await supabase.storage
-      .from('podcast-audio')
+      .from("podcast-audio")
       .upload(filePath, buffer, {
         contentType: audioFile.type,
         upsert: false,
-        cacheControl: '3600' // Cache for 1 hour
+        cacheControl: "3600",
       });
 
     if (storageError) {
@@ -86,34 +84,33 @@ export async function POST(req: NextRequest) {
 
     // Get public URL
     const { data: urlData } = supabase.storage
-      .from('podcast-audio')
+      .from("podcast-audio")
       .getPublicUrl(filePath);
 
-    // Store audio metadata in database with compression info
+    // Build insert payload
+    const insertPayload: Record<string, unknown> = {
+      session_id: sessionId,
+      track_type: trackType,
+      filename: audioFile.name,
+      storage_path: filePath,
+      public_url: urlData.publicUrl,
+      file_size: audioFile.size,
+      mime_type: audioFile.type,
+      compression_settings: JSON.stringify(COMPRESSION_SETTINGS[networkQuality]),
+      uploaded_at: new Date().toISOString(),
+    };
+
+    // Insert safely
     const { data: audioTrack, error: trackError } = await supabase
       .from("session_audio_tracks")
-      .insert({
-        session_id: sessionId,
-        track_type: trackType,
-        filename: audioFile.name,
-        storage_path: filePath,
-        public_url: urlData.publicUrl,
-        file_size: audioFile.size,
-        mime_type: audioFile.type,
-        network_quality: networkQuality,
-        compression_settings: JSON.stringify(COMPRESSION_SETTINGS[networkQuality as keyof typeof COMPRESSION_SETTINGS]),
-        uploaded_at: new Date().toISOString(),
-      })
+      .insert(insertPayload)
       .select()
       .single();
 
-    if (trackError) {
+    if (trackError || !audioTrack) {
       console.error("Database error:", trackError);
-      // Try to delete the uploaded file if DB insert failed
-      await supabase.storage
-        .from('podcast-audio')
-        .remove([filePath]);
-      
+      // Clean up uploaded file if DB insert fails
+      await supabase.storage.from("podcast-audio").remove([filePath]);
       return NextResponse.json(
         { error: "Failed to store audio track" },
         { status: 500 }
@@ -125,7 +122,7 @@ export async function POST(req: NextRequest) {
       trackId: audioTrack.id,
       publicUrl: urlData.publicUrl,
       networkQuality,
-      compressionApplied: networkQuality !== 'high',
+      compressionApplied: networkQuality !== "high",
       message: "Audio uploaded successfully",
       roomName: session.room_name,
     });
@@ -137,6 +134,7 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
 
 export async function GET(req: NextRequest) {
   try {

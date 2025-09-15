@@ -1,4 +1,4 @@
-// app/api/livekit/token/route.ts - NETWORK + MOBILE OPTIMIZED
+// app/api/livekit/token/route.ts - FIXED
 import { NextResponse, NextRequest } from "next/server";
 import { AccessToken, VideoGrant, TrackSource } from "livekit-server-sdk";
 import { auth } from "@clerk/nextjs/server";
@@ -37,9 +37,9 @@ const TOKEN_CONFIGS = {
 // Mobile-specific configurations
 const MOBILE_CONFIGS = {
   ios: {
-    ttl: 60 * 20, // 20 minutes for iOS
+    ttl: 60 * 20,
     adaptiveStreaming: true,
-    audioOnly: true, // iOS stability
+    audioOnly: true,
     bufferOptimization: true,
   },
   android: {
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Identity mismatch" }, { status: 403 });
     }
 
-    // Get session info for additional context
+    // Get session info
     const { data: session } = await supabase
       .from("live_sessions")
       .select("id, title, author_id")
@@ -94,57 +94,82 @@ export async function GET(req: NextRequest) {
       .single();
 
     // Merge configs: network + mobile
-    const baseConfig =
-      TOKEN_CONFIGS[networkQuality as keyof typeof TOKEN_CONFIGS] ||
-      TOKEN_CONFIGS.medium;
-
+    const baseConfig = TOKEN_CONFIGS[networkQuality] || TOKEN_CONFIGS.medium;
     const mobileConfig =
       isIOS && deviceType === "mobile"
         ? MOBILE_CONFIGS.ios
         : deviceType === "mobile"
-        ? MOBILE_CONFIGS.android
-        : MOBILE_CONFIGS.default;
+          ? MOBILE_CONFIGS.android
+          : MOBILE_CONFIGS.default;
 
     const config = { ...baseConfig, ...mobileConfig };
 
+    // Generate AccessToken
     const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
       identity,
       ttl: config.ttl,
-      name: `User-${identity.slice(-6)}`, // Shorter name
+      name: `User-${identity.slice(-6)}`,
     });
 
-    const grant: VideoGrant = {
-      room: roomName,
-      roomJoin: true,
-      canPublish: role === "author",
-      canSubscribe: true,
-      canPublishData: role === "author",
-    };
+    // FIXED: Proper grants based on role and session ownership
+    let grant: VideoGrant;
 
-    // Restrict publishing sources for poor connections
-    if (role === "author") {
-      if (networkQuality === "low") {
-        grant.canPublishSources = [TrackSource.MICROPHONE];
+    if (role === "listener") {
+      // Listeners can only subscribe
+      grant = {
+        room: roomName,
+        roomJoin: true,
+        canSubscribe: true,
+        canPublish: false,
+        canPublishData: false,
+      };
+    } else {
+      // Check if user is the session author
+      const isAuthor = session && session.author_id === userId;
+      
+      if (isAuthor) {
+        // Authors get full publishing permissions
+        grant = {
+          room: roomName,
+          roomJoin: true,
+          canSubscribe: true,
+          canPublish: true,
+          canPublishData: true,
+          // CRITICAL: Allow all audio sources for music playback
+          canPublishSources: networkQuality === "low" 
+            ? [TrackSource.MICROPHONE] 
+            : [
+                TrackSource.MICROPHONE,
+                TrackSource.SCREEN_SHARE,
+                TrackSource.SCREEN_SHARE_AUDIO,
+                // Add these for audio element capture
+              ],
+        };
       } else {
-        grant.canPublishSources = [
-          TrackSource.MICROPHONE,
-          TrackSource.SCREEN_SHARE,
-        ];
+        // Non-authors in author role (shouldn't happen, but fallback)
+        grant = {
+          room: roomName,
+          roomJoin: true,
+          canSubscribe: true,
+          canPublish: false,
+          canPublishData: false,
+        };
       }
     }
 
     at.addGrant(grant);
 
-    // Metadata with mobile-aware optimizations
+    // Attach metadata
     at.metadata = JSON.stringify({
       networkQuality,
       deviceType,
       connectionType,
-      clientType: role === "author" ? "broadcaster" : "listener",
+      clientType: role === "listener" ? "listener" : "broadcaster",
       joinTime: new Date().toISOString(),
       sessionId: session?.id,
       isMobile: deviceType === "mobile",
       isIOS,
+      isAuthor: session && session.author_id === userId,
       optimizations: {
         lowLatency: networkQuality === "high" && !isIOS,
         adaptiveStreaming: config.adaptiveStreaming,
@@ -177,7 +202,7 @@ export async function GET(req: NextRequest) {
       token,
       room: roomName,
       identity,
-      canPublish: role === "author",
+      canPublish: role !== "listener" && session && session.author_id === userId,
       networkQuality,
       optimizations: {
         quickJoin: networkQuality === "low",
@@ -255,8 +280,7 @@ export async function POST(req: NextRequest) {
       }
 
       const newConfig =
-        TOKEN_CONFIGS[networkQuality as keyof typeof TOKEN_CONFIGS] ||
-        TOKEN_CONFIGS.medium;
+        TOKEN_CONFIGS[networkQuality] || TOKEN_CONFIGS.medium;
 
       return NextResponse.json({
         success: true,

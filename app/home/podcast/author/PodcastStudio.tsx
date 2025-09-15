@@ -1,4 +1,4 @@
-// app/home/podcast/author/PodcastStudio.tsx
+// app/home/podcast/author/PodcastStudio.tsx - FIXED MUSIC PUBLISHING
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -9,7 +9,7 @@ import {
   useMaybeRoomContext,
   TrackToggle,
 } from "@livekit/components-react";
-import { Track } from "livekit-client";
+import { Track, LocalAudioTrack, createLocalAudioTrack } from "livekit-client";
 import { LiveSession, User } from "@/types/podcast";
 import {
   Mic,
@@ -319,11 +319,41 @@ function AudioControls({
   const [audioVolume, setAudioVolume] = useState(0.7);
   const [micVolume, setMicVolume] = useState(0.8);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const [uploadedMusic, setUploadedMusic] = useState<File[]>([]);
   const [currentTrack, setCurrentTrack] = useState<string>("");
-  const [musicTrack, setMusicTrack] = useState<MediaStreamTrack | null>(null);
+  const [publishedAudioTrack, setPublishedAudioTrack] = useState<LocalAudioTrack | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const networkMonitorRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Initialize audio context for proper audio routing
+useEffect(() => {
+  const initAudioContext = async () => {
+    try {
+      // Properly handle browser-specific AudioContext types
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      audioContextRef.current = new AudioContextClass();
+      gainNodeRef.current = audioContextRef.current.createGain();
+      destinationRef.current = audioContextRef.current.createMediaStreamDestination();
+      
+      gainNodeRef.current.connect(destinationRef.current);
+      gainNodeRef.current.gain.value = audioVolume;
+    } catch (error) {
+      console.error('Failed to initialize audio context:', error);
+    }
+  };
+
+  initAudioContext();
+
+  return () => {
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close();
+    }
+  };
+}, []);
 
   // Network quality monitoring
   const monitorNetworkQuality = async (stats: NetworkQualityStats) => {
@@ -374,14 +404,12 @@ function AudioControls({
       networkMonitorRef.current = setInterval(async () => {
         if (room && localParticipant) {
           try {
-            // Use LiveKit's connection quality API
             let quality: NetworkQualityStats['quality'] = 'medium';
             const latency = 0;
             const jitter = 0;
             const packetLoss = 0;
             const bandwidth = 0;
 
-            // LiveKit provides connection quality as a string enum: 'excellent', 'good', 'poor', etc.
             const connectionQuality = localParticipant.connectionQuality;
             switch (connectionQuality) {
               case 'excellent':
@@ -400,11 +428,6 @@ function AudioControls({
                 quality = 'medium';
             }
 
-            // Optionally, you can try to get stats from the browser WebRTC API for more details
-            // but LiveKit does not expose getStats directly on the engine.
-            // Here we just set dummy values for latency, jitter, packetLoss, bandwidth.
-            // For production, you may want to use RTCPeerConnection.getStats() if needed.
-
             if (!navigator.onLine) quality = 'offline';
 
             const networkStats: NetworkQualityStats = {
@@ -421,7 +444,7 @@ function AudioControls({
             console.error('Network monitoring error:', error);
           }
         }
-      }, 5000); // Monitor every 5 seconds
+      }, 5000);
     };
 
     if (room && localParticipant) {
@@ -452,7 +475,6 @@ function AudioControls({
     setIsUploading(true);
 
     try {
-      // Upload files to backend
       const uploadPromises = audioFiles.map(file => uploadMixedAudio(file, 'music'));
       await Promise.all(uploadPromises);
 
@@ -464,8 +486,12 @@ function AudioControls({
     }
   };
 
+  // FIXED: Improved music playback with proper audio routing
   const playMusic = async (file: File) => {
-    if (!room || !localParticipant) return;
+    if (!room || !localParticipant || !audioContextRef.current || !gainNodeRef.current || !destinationRef.current) {
+      console.error('Room or audio context not ready');
+      return;
+    }
 
     try {
       const audioUrl = URL.createObjectURL(file);
@@ -475,32 +501,78 @@ function AudioControls({
         audioRef.current.volume = audioVolume;
 
         if (isPlayingJingle) {
+          // Stop current playback
           audioRef.current.pause();
           setIsPlayingJingle(false);
           setCurrentTrack("");
 
-          if (musicTrack) {
-            localParticipant.unpublishTrack(musicTrack);
-            setMusicTrack(null);
+          // Unpublish the track if it exists
+          if (publishedAudioTrack) {
+            localParticipant.unpublishTrack(publishedAudioTrack);
+            setPublishedAudioTrack(null);
           }
         } else {
+          // Start new playback
           await audioRef.current.play();
           setIsPlayingJingle(true);
           setCurrentTrack(file.name);
 
-          const stream = audioRef.current.captureStream();
-          const audioTrack = stream.getAudioTracks()[0];
+          // Create audio source from the audio element
+          if (sourceNodeRef.current) {
+            sourceNodeRef.current.disconnect();
+          }
 
-          if (audioTrack) {
-            await localParticipant.publishTrack(audioTrack, {
-              name: "background-music",
-            });
-            setMusicTrack(audioTrack);
+          sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
+          sourceNodeRef.current.connect(gainNodeRef.current);
+
+          // Get the audio stream from destination
+          const audioStream = destinationRef.current.stream;
+
+          // Create a new audio track from the stream
+          const audioTracks = audioStream.getAudioTracks();
+          if (audioTracks.length > 0) {
+            try {
+              // Create a local audio track from the media stream
+              const newAudioTrack = new LocalAudioTrack(audioTracks[0]);
+
+              // Publish the track with proper metadata
+              await localParticipant.publishTrack(newAudioTrack, {
+                name: "background-music",
+                source: Track.Source.Unknown,
+              });
+              setPublishedAudioTrack(newAudioTrack);
+            } catch (error) {
+              console.error("Failed to publish audio track:", error);
+
+              // Fallback: try to create track directly
+              try {
+                const newAudioTrack = await createLocalAudioTrack({
+                  deviceId: "default",
+                });
+
+                // Set track name after creation
+                await localParticipant.publishTrack(newAudioTrack, {
+                  name: "background-music",
+                  source: Track.Source.Unknown,
+                });
+                setPublishedAudioTrack(newAudioTrack);
+              } catch (fallbackError) {
+                console.error("Fallback audio publishing failed:", fallbackError);
+
+                // Check if it's a permissions error
+                if (fallbackError instanceof Error && fallbackError.message.includes('permissions')) {
+                  console.error("User doesn't have permission to publish audio tracks");
+                  // You might want to show a user-friendly error message here
+                }
+              }
+            }
           }
         }
       }
     } catch (error) {
       console.error("Error playing music:", error);
+      setIsPlayingJingle(false);
+      setCurrentTrack("");
     }
   };
 
@@ -512,9 +584,9 @@ function AudioControls({
       setCurrentTrack("");
     }
 
-    if (musicTrack && localParticipant) {
-      localParticipant.unpublishTrack(musicTrack);
-      setMusicTrack(null);
+    if (publishedAudioTrack && localParticipant) {
+      localParticipant.unpublishTrack(publishedAudioTrack);
+      setPublishedAudioTrack(null);
     }
   };
 
@@ -522,6 +594,9 @@ function AudioControls({
     setAudioVolume(value);
     if (audioRef.current) {
       audioRef.current.volume = value;
+    }
+    if (gainNodeRef.current) {
+      gainNodeRef.current.gain.value = value;
     }
   };
 
@@ -533,6 +608,9 @@ function AudioControls({
       setAudioVolume(volume);
       if (audioRef.current) {
         audioRef.current.volume = volume;
+      }
+      if (gainNodeRef.current) {
+        gainNodeRef.current.gain.value = volume;
       }
     }
   };
@@ -577,9 +655,9 @@ function AudioControls({
         onEnded={() => {
           setIsPlayingJingle(false);
           setCurrentTrack("");
-          if (musicTrack && localParticipant) {
-            localParticipant.unpublishTrack(musicTrack);
-            setMusicTrack(null);
+          if (publishedAudioTrack && localParticipant) {
+            localParticipant.unpublishTrack(publishedAudioTrack);
+            setPublishedAudioTrack(null);
           }
         }}
         hidden

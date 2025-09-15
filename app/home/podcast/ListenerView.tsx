@@ -7,7 +7,7 @@ import {
   useTracks,
   useParticipants,
 } from "@livekit/components-react";
-import { Track, AudioPresets } from "livekit-client";
+import { Track } from "livekit-client";
 import {
   Volume2,
   VolumeX,
@@ -205,11 +205,10 @@ function ListenerControls() {
 
             <button
               onClick={toggleMute}
-              className={`p-3 rounded-full font-medium transition-all duration-200 transform hover:scale-105 ${
-                isMuted
+              className={`p-3 rounded-full font-medium transition-all duration-200 transform hover:scale-105 ${isMuted
                   ? "bg-[#EF3866] text-white shadow-lg"
                   : "border border-black dark:border-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
-              }`}
+                }`}
             >
               {isMuted ? (
                 <VolumeX className="w-4 h-4" />
@@ -269,7 +268,7 @@ export default function ListenerView({
         audioElements.forEach((audio) => {
           audio.play().catch(() => {
             try {
-              const context = new (window.AudioContext || 
+              const context = new (window.AudioContext ||
                 (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
               context.resume().then(() => {
                 audio.play().catch((e) =>
@@ -333,7 +332,7 @@ export default function ListenerView({
           const silentAudio = document.createElement("audio");
           silentAudio.src =
             "data:audio/wav;base64,UklGRnoAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoAAAC";
-          await silentAudio.play().catch(() => {});
+          await silentAudio.play().catch(() => { });
         } catch (error) {
           console.log("iOS audio initialization:", error);
         }
@@ -399,8 +398,7 @@ export default function ListenerView({
           }).connection;
 
         const res = await fetch(
-          `/api/livekit/token?room=${session.roomName}&identity=${user.id}&role=listener&networkQuality=${networkQuality}&deviceType=${
-            isMobile ? "mobile" : "desktop"
+          `/api/livekit/token?room=${session.roomName}&identity=${user.id}&role=listener&networkQuality=${networkQuality}&deviceType=${isMobile ? "mobile" : "desktop"
           }&connectionType=${connection?.type || "wifi"}&isIOS=${isIOS}`
         );
 
@@ -429,7 +427,7 @@ export default function ListenerView({
   }, [session.roomName, user.id, networkQuality]);
 
   // 🚨 Error handling UI
-  if (connectionError || !token) {
+  if (connectionError) {
     const isMobile = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent);
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -472,7 +470,7 @@ export default function ListenerView({
     );
   }
 
-  if (isConnecting) {
+  if (isConnecting || !token) {
     return (
       <div className="max-w-2xl mx-auto">
         <div className="border border-black dark:border-white rounded-3xl p-12 text-center">
@@ -533,24 +531,47 @@ export default function ListenerView({
         token={token}
         serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL!}
         connect
-        audio
+        audio={false} // ✅ listeners don’t request microphone
         video={false}
         options={{
           adaptiveStream: networkQuality === "low",
           dynacast: networkQuality !== "low",
+          // iOS-specific options
           publishDefaults: {
-            audioPreset:
-              networkQuality === "low" ? AudioPresets.speech : AudioPresets.music,
+            // Explicitly disabled for listeners
+            audioPreset: undefined,
+            videoSimulcastLayers: [],
+          },
+          // Audio context settings for iOS
+          audioCaptureDefaults: {
+            autoGainControl: false,
+            echoCancellation: false,
+            noiseSuppression: false,
           },
         }}
         onConnected={() => {
-          console.log("Connected to live session");
+          console.log("Connected to live session as listener");
+
+          // ✅ Initialize iOS audio context if needed
+          if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            const audioContext = new (
+              window.AudioContext ||
+              (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+            )();
+
+            if (audioContext.state === "suspended") {
+              audioContext.resume().catch(console.warn);
+            }
+          }
+
+          // ✅ Update listener count
           fetch("/api/podcast/update-listener-count", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ sessionId: session.id, increment: 1 }),
           }).catch(console.error);
 
+          // ✅ Continue your network monitoring
           const interval = setInterval(() => {
             monitorNetworkQuality();
           }, 10000);
@@ -566,7 +587,18 @@ export default function ListenerView({
         }}
         onError={(error) => {
           console.error("LiveKit connection error:", error);
-          setConnectionError(error.message);
+
+          // ✅ More specific error handling for iOS
+          if (
+            error.message.includes("permissions") ||
+            error.message.includes("publish")
+          ) {
+            setConnectionError(
+              "Audio permission issue. Try refreshing and allowing audio access."
+            );
+          } else {
+            setConnectionError(error.message);
+          }
         }}
         className="space-y-6"
       >
@@ -596,6 +628,7 @@ export default function ListenerView({
           </div>
         </div>
       </LiveKitRoom>
+
     </div>
   );
 }
