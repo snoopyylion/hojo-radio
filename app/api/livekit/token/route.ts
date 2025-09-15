@@ -1,6 +1,6 @@
-// app/api/livekit/token/route.ts - FIXED
+// app/api/livekit/token/route.ts - FIXED AUDIO PERMISSIONS
 import { NextResponse, NextRequest } from "next/server";
-import { AccessToken, VideoGrant, TrackSource } from "livekit-server-sdk";
+import { AccessToken, VideoGrant } from "livekit-server-sdk";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -135,15 +135,8 @@ export async function GET(req: NextRequest) {
           canSubscribe: true,
           canPublish: true,
           canPublishData: true,
-          // CRITICAL: Allow all audio sources for music playback
-          canPublishSources: networkQuality === "low" 
-            ? [TrackSource.MICROPHONE] 
-            : [
-                TrackSource.MICROPHONE,
-                TrackSource.SCREEN_SHARE,
-                TrackSource.SCREEN_SHARE_AUDIO,
-                // Add these for audio element capture
-              ],
+          // CRITICAL FIX: Remove canPublishSources restriction entirely
+          // This allows publishing any audio track including music from HTML audio elements
         };
       } else {
         // Non-authors in author role (shouldn't happen, but fallback)

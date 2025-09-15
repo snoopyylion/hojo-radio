@@ -1,4 +1,4 @@
-// app/home/podcast/author/PodcastStudio.tsx - FIXED MUSIC PUBLISHING
+// app/home/podcast/author/PodcastStudio.tsx - IMPROVED MUSIC PUBLISHING
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -77,7 +77,6 @@ function AudioMixer({
     { id: 3, name: 'Sound Effects', volume: 0.5, muted: true, type: 'sfx' }
   ]);
 
-  // Update tracks when props change
   useEffect(() => {
     setTracks(prev => prev.map(track => {
       if (track.type === 'mic') {
@@ -95,7 +94,6 @@ function AudioMixer({
       track.id === id ? { ...track, volume } : track
     ));
 
-    // Apply volume changes to actual audio tracks
     const track = tracks.find(t => t.id === id);
     if (track) {
       onVolumeChange(track.type, volume);
@@ -110,7 +108,6 @@ function AudioMixer({
       t.id === id ? { ...t, muted: !t.muted } : t
     ));
 
-    // Apply mute changes to actual audio tracks
     if (track.type === 'mic') {
       onMicMute();
     } else if (track.type === 'music') {
@@ -149,8 +146,6 @@ function AudioMixer({
     }
 
     setTracks(newTracks);
-
-    // Apply preset changes
     newTracks.forEach(track => {
       onVolumeChange(track.type, track.volume);
     });
@@ -221,7 +216,6 @@ function AudioMixer({
         ))}
       </div>
 
-      {/* Presets */}
       <div className="mt-6 pt-4 border-t border-black dark:border-white border-opacity-10 dark:border-opacity-10">
         <h4 className="text-sm font-medium text-black dark:text-white mb-3">Presets</h4>
         <div className="flex space-x-3">
@@ -328,32 +322,50 @@ function AudioControls({
   const [publishedAudioTrack, setPublishedAudioTrack] = useState<LocalAudioTrack | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const networkMonitorRef = useRef<NodeJS.Timeout | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
 
   // Initialize audio context for proper audio routing
-useEffect(() => {
-  const initAudioContext = async () => {
-    try {
-      // Properly handle browser-specific AudioContext types
-      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      audioContextRef.current = new AudioContextClass();
-      gainNodeRef.current = audioContextRef.current.createGain();
-      destinationRef.current = audioContextRef.current.createMediaStreamDestination();
-      
-      gainNodeRef.current.connect(destinationRef.current);
-      gainNodeRef.current.gain.value = audioVolume;
-    } catch (error) {
-      console.error('Failed to initialize audio context:', error);
-    }
-  };
+  useEffect(() => {
+    const initAudioContext = async () => {
+      try {
+        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        audioContextRef.current = new AudioContextClass();
+        gainNodeRef.current = audioContextRef.current.createGain();
+        destinationRef.current = audioContextRef.current.createMediaStreamDestination();
+        
+        gainNodeRef.current.connect(destinationRef.current);
+        gainNodeRef.current.gain.value = audioVolume;
+      } catch (error) {
+        console.error('Failed to initialize audio context:', error);
+      }
+    };
 
-  initAudioContext();
+    initAudioContext();
 
-  return () => {
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close();
-    }
-  };
-}, []);
+    return () => {
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
+    };
+  }, []);
+
+  // Monitor room connection status
+  useEffect(() => {
+  if (room) {
+    const updateConnectionStatus = () => {
+      setConnectionStatus(room.state as 'connecting' | 'connected' | 'disconnected');
+    };
+
+    updateConnectionStatus();
+
+    // ✅ use string literal instead of RoomEvent
+    room.on("connectionStateChanged", updateConnectionStatus);
+
+    return () => {
+      room.off("connectionStateChanged", updateConnectionStatus);
+    };
+  }
+}, [room]);
 
   // Network quality monitoring
   const monitorNetworkQuality = async (stats: NetworkQualityStats) => {
@@ -465,7 +477,6 @@ useEffect(() => {
     }
   };
 
-  // Updated handleMusicUpload function
   const handleMusicUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     const audioFiles = files.filter(file => file.type.startsWith('audio/'));
@@ -486,10 +497,15 @@ useEffect(() => {
     }
   };
 
-  // FIXED: Improved music playback with proper audio routing
+  // IMPROVED: Better music playback with proper error handling and fallback strategies
   const playMusic = async (file: File) => {
-    if (!room || !localParticipant || !audioContextRef.current || !gainNodeRef.current || !destinationRef.current) {
-      console.error('Room or audio context not ready');
+    if (!room || !localParticipant) {
+      console.error('Room or participant not ready');
+      return;
+    }
+
+    if (connectionStatus !== 'connected') {
+      console.error('Not connected to room');
       return;
     }
 
@@ -497,9 +513,6 @@ useEffect(() => {
       const audioUrl = URL.createObjectURL(file);
 
       if (audioRef.current) {
-        audioRef.current.src = audioUrl;
-        audioRef.current.volume = audioVolume;
-
         if (isPlayingJingle) {
           // Stop current playback
           audioRef.current.pause();
@@ -508,66 +521,22 @@ useEffect(() => {
 
           // Unpublish the track if it exists
           if (publishedAudioTrack) {
-            localParticipant.unpublishTrack(publishedAudioTrack);
+            await localParticipant.unpublishTrack(publishedAudioTrack);
             setPublishedAudioTrack(null);
           }
-        } else {
-          // Start new playback
-          await audioRef.current.play();
-          setIsPlayingJingle(true);
-          setCurrentTrack(file.name);
-
-          // Create audio source from the audio element
-          if (sourceNodeRef.current) {
-            sourceNodeRef.current.disconnect();
-          }
-
-          sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
-          sourceNodeRef.current.connect(gainNodeRef.current);
-
-          // Get the audio stream from destination
-          const audioStream = destinationRef.current.stream;
-
-          // Create a new audio track from the stream
-          const audioTracks = audioStream.getAudioTracks();
-          if (audioTracks.length > 0) {
-            try {
-              // Create a local audio track from the media stream
-              const newAudioTrack = new LocalAudioTrack(audioTracks[0]);
-
-              // Publish the track with proper metadata
-              await localParticipant.publishTrack(newAudioTrack, {
-                name: "background-music",
-                source: Track.Source.Unknown,
-              });
-              setPublishedAudioTrack(newAudioTrack);
-            } catch (error) {
-              console.error("Failed to publish audio track:", error);
-
-              // Fallback: try to create track directly
-              try {
-                const newAudioTrack = await createLocalAudioTrack({
-                  deviceId: "default",
-                });
-
-                // Set track name after creation
-                await localParticipant.publishTrack(newAudioTrack, {
-                  name: "background-music",
-                  source: Track.Source.Unknown,
-                });
-                setPublishedAudioTrack(newAudioTrack);
-              } catch (fallbackError) {
-                console.error("Fallback audio publishing failed:", fallbackError);
-
-                // Check if it's a permissions error
-                if (fallbackError instanceof Error && fallbackError.message.includes('permissions')) {
-                  console.error("User doesn't have permission to publish audio tracks");
-                  // You might want to show a user-friendly error message here
-                }
-              }
-            }
-          }
+          return;
         }
+
+        // Start new playback
+        audioRef.current.src = audioUrl;
+        audioRef.current.volume = audioVolume;
+        
+        await audioRef.current.play();
+        setIsPlayingJingle(true);
+        setCurrentTrack(file.name);
+
+        // IMPROVED: Multiple fallback strategies for audio publishing
+        await publishAudioTrack();
       }
     } catch (error) {
       console.error("Error playing music:", error);
@@ -576,7 +545,82 @@ useEffect(() => {
     }
   };
 
-  const stopMusic = () => {
+  // IMPROVED: Robust audio track publishing with multiple fallback strategies
+  const publishAudioTrack = async () => {
+    if (!audioContextRef.current || !gainNodeRef.current || !destinationRef.current || !audioRef.current) {
+      console.error('Audio context not initialized');
+      return;
+    }
+
+    try {
+      // Strategy 1: Try using Web Audio API with MediaElementSource
+      if (sourceNodeRef.current) {
+        sourceNodeRef.current.disconnect();
+      }
+
+      sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
+      sourceNodeRef.current.connect(gainNodeRef.current);
+
+      const audioStream = destinationRef.current.stream;
+      const audioTracks = audioStream.getAudioTracks();
+
+      if (audioTracks.length > 0) {
+        try {
+          // Create LocalAudioTrack from the stream
+          const newAudioTrack = new LocalAudioTrack(audioTracks[0]);
+
+          // Publish with explicit source as UNKNOWN (this bypasses source restrictions)
+          await localParticipant!.publishTrack(newAudioTrack, {
+            name: "background-music",
+            source: Track.Source.Unknown, // Key: Use Unknown source
+          });
+          
+          setPublishedAudioTrack(newAudioTrack);
+          console.log("Successfully published audio track using Web Audio API");
+          return;
+
+        } catch (publishError) {
+          console.warn("Failed to publish via Web Audio API:", publishError);
+        }
+      }
+    } catch (webAudioError) {
+      console.warn("Web Audio API approach failed:", webAudioError);
+    }
+
+    // Strategy 2: Fallback - Try creating a new microphone track (less ideal but works)
+    try {
+      // Request microphone permission and create track
+      const micTrack = await createLocalAudioTrack({
+        deviceId: "default",
+      });
+
+      // Publish as Unknown source to bypass restrictions
+      await localParticipant!.publishTrack(micTrack, {
+        name: "background-music",
+        source: Track.Source.Unknown,
+      });
+
+      setPublishedAudioTrack(micTrack);
+      console.log("Successfully published using microphone track fallback");
+
+    } catch (micError) {
+      console.error("All publishing strategies failed:", micError);
+      
+      // Show user-friendly error message
+      if (micError instanceof Error) {
+        if (micError.message.includes('permissions') || micError.message.includes('Permission')) {
+          console.error("Insufficient permissions to publish audio tracks");
+          // You might want to show a toast or modal here
+        } else if (micError.message.includes('NotFound')) {
+          console.error("No audio input device found");
+        } else {
+          console.error("Unknown error publishing audio:", micError.message);
+        }
+      }
+    }
+  };
+
+  const stopMusic = async () => {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -585,8 +629,12 @@ useEffect(() => {
     }
 
     if (publishedAudioTrack && localParticipant) {
-      localParticipant.unpublishTrack(publishedAudioTrack);
-      setPublishedAudioTrack(null);
+      try {
+        await localParticipant.unpublishTrack(publishedAudioTrack);
+        setPublishedAudioTrack(null);
+      } catch (error) {
+        console.error("Error unpublishing track:", error);
+      }
     }
   };
 
@@ -603,7 +651,6 @@ useEffect(() => {
   const handleMixerVolumeChange = (type: string, volume: number) => {
     if (type === 'mic') {
       setMicVolume(volume);
-      // Apply microphone volume changes if needed
     } else if (type === 'music') {
       setAudioVolume(volume);
       if (audioRef.current) {
@@ -617,9 +664,8 @@ useEffect(() => {
 
   const handleEndSession = async () => {
     try {
-      stopMusic();
+      await stopMusic();
 
-      // Clear network monitoring
       if (networkMonitorRef.current) {
         clearInterval(networkMonitorRef.current);
       }
@@ -652,11 +698,11 @@ useEffect(() => {
     <div className="space-y-6">
       <audio
         ref={audioRef}
-        onEnded={() => {
+        onEnded={async () => {
           setIsPlayingJingle(false);
           setCurrentTrack("");
           if (publishedAudioTrack && localParticipant) {
-            localParticipant.unpublishTrack(publishedAudioTrack);
+            await localParticipant.unpublishTrack(publishedAudioTrack);
             setPublishedAudioTrack(null);
           }
         }}
@@ -687,15 +733,20 @@ useEffect(() => {
 
           {/* Connection Status */}
           <div className="flex items-center space-x-2">
-            {room?.state === 'connected' ? (
+            {connectionStatus === 'connected' ? (
               <div className="flex items-center space-x-1 text-green-500">
                 <CheckCircle className="w-4 h-4" />
                 <span className="text-xs">Connected</span>
               </div>
-            ) : (
+            ) : connectionStatus === 'connecting' ? (
               <div className="flex items-center space-x-1 text-orange-500">
                 <AlertCircle className="w-4 h-4" />
                 <span className="text-xs">Connecting...</span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-1 text-red-500">
+                <AlertCircle className="w-4 h-4" />
+                <span className="text-xs">Disconnected</span>
               </div>
             )}
           </div>
@@ -709,7 +760,7 @@ useEffect(() => {
                 ? 'bg-[#EF3866] text-white shadow-lg'
                 : 'bg-black dark:bg-white text-white dark:text-black border border-black dark:border-white'
                 }`}
-              disabled={room?.state !== 'connected'}
+              disabled={connectionStatus !== 'connected'}
             >
               {isMicEnabled ? (
                 <Mic className="w-4 h-4 mr-2" />
@@ -849,7 +900,7 @@ useEffect(() => {
                       ? 'bg-[#EF3866] text-white'
                       : 'hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black'
                       }`}
-                    disabled={room?.state !== 'connected'}
+                    disabled={connectionStatus !== 'connected'}
                   >
                     {currentTrack === file.name ? (
                       <Pause className="w-4 h-4" />
@@ -871,8 +922,8 @@ useEffect(() => {
           </div>
         )}
 
-        {/* Quick reconnect for better experience */}
-        {room?.state === 'disconnected' && (
+        {/* Connection Status Warning */}
+        {connectionStatus === 'disconnected' && (
           <div className="mt-4 p-4 bg-orange-500 bg-opacity-10 rounded-2xl">
             <div className="flex items-center justify-between">
               <div>
@@ -887,13 +938,30 @@ useEffect(() => {
             </div>
           </div>
         )}
+
+        {/* Permission Warning */}
+        {connectionStatus === 'connected' && !publishedAudioTrack && currentTrack && (
+          <div className="mt-4 p-4 bg-yellow-500 bg-opacity-10 rounded-2xl">
+            <div className="flex items-center justify-start">
+              <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mr-2 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400">
+                  Audio Not Broadcasting
+                </p>
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 opacity-80">
+                  Music is playing locally but not being shared with listeners.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* End Session */}
       <button
         onClick={handleEndSession}
         className="w-full bg-[#EF3866] hover:bg-[#d12b56] text-white py-4 rounded-full font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center justify-center"
-        disabled={room?.state === 'connecting'}
+        disabled={connectionStatus === 'connecting'}
       >
         <Square className="w-4 h-4 mr-2" />
         End Live Session
@@ -908,14 +976,12 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [networkQuality, setNetworkQuality] = useState<NetworkQualityStats | null>(null);
 
-  // Detect device type and initial network quality
   const deviceType = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
   const initialNetworkQuality = navigator.onLine ? 'good' : 'offline';
 
   useEffect(() => {
     async function getAuthorToken() {
       try {
-        // Updated token request with network quality and device type
         const res = await fetch(
           `/api/livekit/token?room=${session.roomName}&identity=${user.id}&role=author&networkQuality=${initialNetworkQuality}&deviceType=${deviceType}`
         );
@@ -942,12 +1008,10 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
     getAuthorToken();
   }, [session.roomName, user.id, initialNetworkQuality, deviceType]);
 
-  // Network quality update handler
   const handleNetworkStatsUpdate = (stats: NetworkQualityStats) => {
     setNetworkQuality(stats);
   };
 
-  // Handle connection state changes
   const handleRoomConnected = () => {
     console.log("Connected to room as author");
     setError(null);
@@ -955,10 +1019,9 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
 
   const handleRoomDisconnected = () => {
     console.log("Disconnected from room");
-    // Don't immediately call onEndSession to allow for reconnection attempts
     setTimeout(() => {
       onEndSession?.();
-    }, 5000); // Wait 5 seconds before ending session
+    }, 5000);
   };
 
   const handleRoomError = (roomError: Error) => {
@@ -973,7 +1036,7 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
           <div className="w-16 h-16 border-4 border-[#EF3866] border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
           <h3 className="text-xl font-semibold text-black dark:text-white mb-2">
             Setting up your studio
-          </h3>
+            </h3>
           <p className="text-sm text-black dark:text-white opacity-60">
             Connecting to live audio room...
           </p>
