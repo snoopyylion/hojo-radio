@@ -1,7 +1,7 @@
 // app/home/podcast/author/PodcastStudio.tsx - IMPROVED MUSIC PUBLISHING
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -28,8 +28,229 @@ import {
   Wifi,
   WifiOff,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  SkipBack,
+  SkipForward
 } from "lucide-react";
+
+// Fixed Audio Management System
+interface AudioTrackManager {
+  id: string;
+  file: File;
+  audioElement: HTMLAudioElement;
+  source: MediaElementAudioSourceNode | null;
+  gainNode: GainNode | null;
+  isPlaying: boolean;
+}
+
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext;
+  }
+}
+
+class PodcastAudioManager {
+  private audioContext: AudioContext;
+  private masterGain: GainNode;
+  private destination: MediaStreamAudioDestinationNode;
+  private tracks: Map<string, AudioTrackManager> = new Map();
+  private currentlyPlaying: string | null = null;
+
+  constructor() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    this.audioContext = new AudioContextClass();
+    this.masterGain = this.audioContext.createGain();
+    this.destination = this.audioContext.createMediaStreamDestination();
+    this.masterGain.connect(this.destination);
+  }
+
+  async addTrack(file: File): Promise<string> {
+    const trackId = `track_${Date.now()}_${Math.random()}`;
+    const audioUrl = URL.createObjectURL(file);
+    
+    // Create dedicated audio element for this track
+    const audioElement = new Audio(audioUrl);
+    audioElement.crossOrigin = 'anonymous';
+    
+    // Wait for audio to be ready
+    await new Promise((resolve, reject) => {
+      audioElement.addEventListener('canplay', resolve, { once: true });
+      audioElement.addEventListener('error', reject, { once: true });
+      audioElement.load();
+    });
+
+    const trackManager: AudioTrackManager = {
+      id: trackId,
+      file,
+      audioElement,
+      source: null,
+      gainNode: null,
+      isPlaying: false
+    };
+
+    this.tracks.set(trackId, trackManager);
+    return trackId;
+  }
+
+  async playTrack(trackId: string, volume: number = 0.7): Promise<void> {
+    const track = this.tracks.get(trackId);
+    if (!track) throw new Error('Track not found');
+
+    // Stop any currently playing track
+    if (this.currentlyPlaying && this.currentlyPlaying !== trackId) {
+      await this.stopTrack(this.currentlyPlaying);
+    }
+
+    try {
+      // Resume audio context if suspended
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
+
+      // Create audio graph for this track if not exists
+      if (!track.source) {
+        track.source = this.audioContext.createMediaElementSource(track.audioElement);
+        track.gainNode = this.audioContext.createGain();
+        
+        track.source.connect(track.gainNode);
+        track.gainNode.connect(this.masterGain);
+      }
+
+      // Set volume and play
+      if (track.gainNode) {
+        track.gainNode.gain.value = volume;
+      }
+      
+      track.audioElement.currentTime = 0; // Reset to beginning
+      await track.audioElement.play();
+      
+      track.isPlaying = true;
+      this.currentlyPlaying = trackId;
+
+      // Set up end handler
+      const handleEnded = () => {
+        track.isPlaying = false;
+        if (this.currentlyPlaying === trackId) {
+          this.currentlyPlaying = null;
+        }
+        track.audioElement.removeEventListener('ended', handleEnded);
+      };
+      
+      track.audioElement.addEventListener('ended', handleEnded, { once: true });
+
+    } catch (error) {
+      console.error('Failed to play track:', error);
+      throw error;
+    }
+  }
+
+  async stopTrack(trackId: string): Promise<void> {
+    const track = this.tracks.get(trackId);
+    if (!track) return;
+
+    track.audioElement.pause();
+    track.audioElement.currentTime = 0;
+    track.isPlaying = false;
+    
+    if (this.currentlyPlaying === trackId) {
+      this.currentlyPlaying = null;
+    }
+  }
+
+  async pauseTrack(trackId: string): Promise<void> {
+    const track = this.tracks.get(trackId);
+    if (!track || !track.isPlaying) return;
+
+    track.audioElement.pause();
+    track.isPlaying = false;
+    
+    if (this.currentlyPlaying === trackId) {
+      this.currentlyPlaying = null;
+    }
+  }
+
+  async resumeTrack(trackId: string): Promise<void> {
+    const track = this.tracks.get(trackId);
+    if (!track) return;
+
+    await track.audioElement.play();
+    track.isPlaying = true;
+    this.currentlyPlaying = trackId;
+  }
+
+  setTrackVolume(trackId: string, volume: number): void {
+    const track = this.tracks.get(trackId);
+    if (!track?.gainNode) return;
+    
+    track.gainNode.gain.value = Math.max(0, Math.min(1, volume));
+  }
+
+  setMasterVolume(volume: number): void {
+    this.masterGain.gain.value = Math.max(0, Math.min(1, volume));
+  }
+
+  getOutputStream(): MediaStream {
+    return this.destination.stream;
+  }
+
+  getCurrentTrack(): string | null {
+    return this.currentlyPlaying;
+  }
+
+  getTrackInfo(trackId: string): { name: string; isPlaying: boolean; duration: number } | null {
+    const track = this.tracks.get(trackId);
+    if (!track) return null;
+
+    return {
+      name: track.file.name,
+      isPlaying: track.isPlaying,
+      duration: track.audioElement.duration || 0
+    };
+  }
+
+  getAllTracks(): { id: string; name: string; isPlaying: boolean }[] {
+    return Array.from(this.tracks.values()).map(track => ({
+      id: track.id,
+      name: track.file.name,
+      isPlaying: track.isPlaying
+    }));
+  }
+
+  removeTrack(trackId: string): void {
+    const track = this.tracks.get(trackId);
+    if (!track) return;
+
+    // Stop if playing
+    if (track.isPlaying) {
+      this.stopTrack(trackId);
+    }
+
+    // Disconnect audio nodes
+    if (track.source) {
+      track.source.disconnect();
+    }
+    if (track.gainNode) {
+      track.gainNode.disconnect();
+    }
+
+    // Clean up audio element
+    URL.revokeObjectURL(track.audioElement.src);
+    track.audioElement.remove();
+
+    this.tracks.delete(trackId);
+  }
+
+  async cleanup(): Promise<void> {
+    // Stop all tracks and clean up
+    for (const [trackId] of this.tracks) {
+      this.removeTrack(trackId);
+    }
+    
+    if (this.audioContext.state !== 'closed') {
+      await this.audioContext.close();
+    }
+  }
+}
 
 interface Props {
   session: LiveSession;
@@ -309,63 +530,47 @@ function AudioControls({
   const { localParticipant } = useLocalParticipant();
   const room = useMaybeRoomContext();
   const [isMicEnabled, setIsMicEnabled] = useState(true);
-  const [isPlayingJingle, setIsPlayingJingle] = useState(false);
   const [audioVolume, setAudioVolume] = useState(0.7);
   const [micVolume, setMicVolume] = useState(0.8);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
-  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
-  const [uploadedMusic, setUploadedMusic] = useState<File[]>([]);
-  const [currentTrack, setCurrentTrack] = useState<string>("");
-  const [publishedAudioTrack, setPublishedAudioTrack] = useState<LocalAudioTrack | null>(null);
+  const [, setUploadedMusic] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const networkMonitorRef = useRef<NodeJS.Timeout | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  
+  // Audio manager for track management
+  const audioManagerRef = useRef<PodcastAudioManager | null>(null);
+  const [currentTrackId, setCurrentTrackId] = useState<string | null>(null);
+  const [tracks, setTracks] = useState<{id: string; name: string; isPlaying: boolean}[]>([]);
+  const [publishedAudioTrack, setPublishedAudioTrack] = useState<LocalAudioTrack | null>(null);
+  const [playlistIndex, setPlaylistIndex] = useState<number>(0);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
-  // Initialize audio context for proper audio routing
+  // Initialize audio manager
   useEffect(() => {
-    const initAudioContext = async () => {
-      try {
-        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        audioContextRef.current = new AudioContextClass();
-        gainNodeRef.current = audioContextRef.current.createGain();
-        destinationRef.current = audioContextRef.current.createMediaStreamDestination();
-        
-        gainNodeRef.current.connect(destinationRef.current);
-        gainNodeRef.current.gain.value = audioVolume;
-      } catch (error) {
-        console.error('Failed to initialize audio context:', error);
-      }
-    };
-
-    initAudioContext();
-
+    audioManagerRef.current = new PodcastAudioManager();
+    
     return () => {
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close();
-      }
+      audioManagerRef.current?.cleanup();
     };
   }, []);
 
   // Monitor room connection status
   useEffect(() => {
-  if (room) {
-    const updateConnectionStatus = () => {
-      setConnectionStatus(room.state as 'connecting' | 'connected' | 'disconnected');
-    };
+    if (room) {
+      const updateConnectionStatus = () => {
+        setConnectionStatus(room.state as 'connecting' | 'connected' | 'disconnected');
+      };
 
-    updateConnectionStatus();
+      updateConnectionStatus();
 
-    // ✅ use string literal instead of RoomEvent
-    room.on("connectionStateChanged", updateConnectionStatus);
+      // ✅ use string literal instead of RoomEvent
+      room.on("connectionStateChanged", updateConnectionStatus);
 
-    return () => {
-      room.off("connectionStateChanged", updateConnectionStatus);
-    };
-  }
-}, [room]);
+      return () => {
+        room.off("connectionStateChanged", updateConnectionStatus);
+      };
+    }
+  }, [room]);
 
   // Network quality monitoring
   const monitorNetworkQuality = async (stats: NetworkQualityStats) => {
@@ -486,10 +691,22 @@ function AudioControls({
     setIsUploading(true);
 
     try {
-      const uploadPromises = audioFiles.map(file => uploadMixedAudio(file, 'music'));
-      await Promise.all(uploadPromises);
+      // Add files to audio manager
+      for (const file of audioFiles) {
+        const trackId = await audioManagerRef.current?.addTrack(file);
+        if (trackId) {
+          // Also upload to server if needed
+          await uploadMixedAudio(file, 'music');
+        }
+      }
 
+      // Update local state
       setUploadedMusic(prev => [...prev, ...audioFiles]);
+      
+      // Update track list
+      if (audioManagerRef.current) {
+        setTracks(audioManagerRef.current.getAllTracks());
+      }
     } catch (error) {
       console.error('Failed to upload audio files:', error);
     } finally {
@@ -497,71 +714,105 @@ function AudioControls({
     }
   };
 
-  // IMPROVED: Better music playback with proper error handling and fallback strategies
-  const playMusic = async (file: File) => {
-    if (!room || !localParticipant) {
-      console.error('Room or participant not ready');
-      return;
-    }
-
-    if (connectionStatus !== 'connected') {
-      console.error('Not connected to room');
-      return;
-    }
-
+  // Play a specific track
+  const playTrack = async (trackId: string) => {
+    if (!audioManagerRef.current || !room || !localParticipant) return;
+    
     try {
-      const audioUrl = URL.createObjectURL(file);
-
-      if (audioRef.current) {
-        if (isPlayingJingle) {
-          // Stop current playback
-          audioRef.current.pause();
-          setIsPlayingJingle(false);
-          setCurrentTrack("");
-
-          // Unpublish the track if it exists
-          if (publishedAudioTrack) {
-            await localParticipant.unpublishTrack(publishedAudioTrack);
-            setPublishedAudioTrack(null);
-          }
-          return;
-        }
-
-        // Start new playback
-        audioRef.current.src = audioUrl;
-        audioRef.current.volume = audioVolume;
-        
-        await audioRef.current.play();
-        setIsPlayingJingle(true);
-        setCurrentTrack(file.name);
-
-        // IMPROVED: Multiple fallback strategies for audio publishing
-        await publishAudioTrack();
+      await audioManagerRef.current.playTrack(trackId, audioVolume);
+      setCurrentTrackId(trackId);
+      setIsPlaying(true);
+      
+      // Publish the audio to the stream
+      await publishAudioTrack();
+      
+      // Update track list
+      setTracks(audioManagerRef.current.getAllTracks());
+      
+      // Set the playlist index
+      const trackIndex = tracks.findIndex(t => t.id === trackId);
+      if (trackIndex !== -1) {
+        setPlaylistIndex(trackIndex);
       }
     } catch (error) {
-      console.error("Error playing music:", error);
-      setIsPlayingJingle(false);
-      setCurrentTrack("");
+      console.error('Failed to play track:', error);
+    }
+  };
+
+  // Play next track in playlist
+  const playNextTrack = useCallback(async () => {
+    if (!tracks.length) return;
+    
+    const nextIndex = (playlistIndex + 1) % tracks.length;
+    setPlaylistIndex(nextIndex);
+    
+    if (tracks[nextIndex]) {
+      await playTrack(tracks[nextIndex].id);
+    }
+  }, [tracks, playlistIndex]);
+
+  // Play previous track in playlist
+  const playPreviousTrack = async () => {
+    if (!tracks.length) return;
+    
+    const prevIndex = (playlistIndex - 1 + tracks.length) % tracks.length;
+    setPlaylistIndex(prevIndex);
+    
+    if (tracks[prevIndex]) {
+      await playTrack(tracks[prevIndex].id);
+    }
+  };
+
+  // Stop current track
+  const stopMusic = async () => {
+    if (currentTrackId && audioManagerRef.current) {
+      await audioManagerRef.current.stopTrack(currentTrackId);
+      setCurrentTrackId(null);
+      setIsPlaying(false);
+      
+      // Update track list
+      setTracks(audioManagerRef.current.getAllTracks());
+    }
+
+    if (publishedAudioTrack && localParticipant) {
+      try {
+        await localParticipant.unpublishTrack(publishedAudioTrack);
+        setPublishedAudioTrack(null);
+      } catch (error) {
+        console.error("Error unpublishing track:", error);
+      }
+    }
+  };
+
+  // Pause current track
+  const pauseMusic = async () => {
+    if (currentTrackId && audioManagerRef.current) {
+      await audioManagerRef.current.pauseTrack(currentTrackId);
+      setIsPlaying(false);
+      
+      // Update track list
+      setTracks(audioManagerRef.current.getAllTracks());
+    }
+  };
+
+  // Resume current track
+  const resumeMusic = async () => {
+    if (currentTrackId && audioManagerRef.current) {
+      await audioManagerRef.current.resumeTrack(currentTrackId);
+      setIsPlaying(true);
+      
+      // Update track list
+      setTracks(audioManagerRef.current.getAllTracks());
     }
   };
 
   // IMPROVED: Robust audio track publishing with multiple fallback strategies
   const publishAudioTrack = async () => {
-    if (!audioContextRef.current || !gainNodeRef.current || !destinationRef.current || !audioRef.current) {
-      console.error('Audio context not initialized');
-      return;
-    }
+    if (!audioManagerRef.current || !localParticipant) return;
 
     try {
-      // Strategy 1: Try using Web Audio API with MediaElementSource
-      if (sourceNodeRef.current) {
-        sourceNodeRef.current.disconnect();
-      }
-
-      sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
-      sourceNodeRef.current.connect(gainNodeRef.current);
-
-      const audioStream = destinationRef.current.stream;
+      // Get the audio stream from the manager
+      const audioStream = audioManagerRef.current.getOutputStream();
       const audioTracks = audioStream.getAudioTracks();
 
       if (audioTracks.length > 0) {
@@ -570,13 +821,13 @@ function AudioControls({
           const newAudioTrack = new LocalAudioTrack(audioTracks[0]);
 
           // Publish with explicit source as UNKNOWN (this bypasses source restrictions)
-          await localParticipant!.publishTrack(newAudioTrack, {
+          await localParticipant.publishTrack(newAudioTrack, {
             name: "background-music",
             source: Track.Source.Unknown, // Key: Use Unknown source
           });
           
           setPublishedAudioTrack(newAudioTrack);
-          console.log("Successfully published audio track using Web Audio API");
+          console.log("Successfully published audio track");
           return;
 
         } catch (publishError) {
@@ -587,7 +838,7 @@ function AudioControls({
       console.warn("Web Audio API approach failed:", webAudioError);
     }
 
-    // Strategy 2: Fallback - Try creating a new microphone track (less ideal but works)
+    // Fallback strategy if needed
     try {
       // Request microphone permission and create track
       const micTrack = await createLocalAudioTrack({
@@ -595,7 +846,7 @@ function AudioControls({
       });
 
       // Publish as Unknown source to bypass restrictions
-      await localParticipant!.publishTrack(micTrack, {
+      await localParticipant.publishTrack(micTrack, {
         name: "background-music",
         source: Track.Source.Unknown,
       });
@@ -610,7 +861,6 @@ function AudioControls({
       if (micError instanceof Error) {
         if (micError.message.includes('permissions') || micError.message.includes('Permission')) {
           console.error("Insufficient permissions to publish audio tracks");
-          // You might want to show a toast or modal here
         } else if (micError.message.includes('NotFound')) {
           console.error("No audio input device found");
         } else {
@@ -620,31 +870,10 @@ function AudioControls({
     }
   };
 
-  const stopMusic = async () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      setIsPlayingJingle(false);
-      setCurrentTrack("");
-    }
-
-    if (publishedAudioTrack && localParticipant) {
-      try {
-        await localParticipant.unpublishTrack(publishedAudioTrack);
-        setPublishedAudioTrack(null);
-      } catch (error) {
-        console.error("Error unpublishing track:", error);
-      }
-    }
-  };
-
   const handleVolumeChange = (value: number) => {
     setAudioVolume(value);
-    if (audioRef.current) {
-      audioRef.current.volume = value;
-    }
-    if (gainNodeRef.current) {
-      gainNodeRef.current.gain.value = value;
+    if (currentTrackId && audioManagerRef.current) {
+      audioManagerRef.current.setTrackVolume(currentTrackId, value);
     }
   };
 
@@ -653,11 +882,8 @@ function AudioControls({
       setMicVolume(volume);
     } else if (type === 'music') {
       setAudioVolume(volume);
-      if (audioRef.current) {
-        audioRef.current.volume = volume;
-      }
-      if (gainNodeRef.current) {
-        gainNodeRef.current.gain.value = volume;
+      if (currentTrackId && audioManagerRef.current) {
+        audioManagerRef.current.setTrackVolume(currentTrackId, volume);
       }
     }
   };
@@ -694,21 +920,44 @@ function AudioControls({
     }
   };
 
+  // Set up track ended listener to play next track
+  useEffect(() => {
+    const handleTrackEnded = () => {
+      if (tracks.length > 1) {
+        playNextTrack();
+      } else {
+        setIsPlaying(false);
+        setCurrentTrackId(null);
+      }
+    };
+
+    // Add event listener to all audio elements
+    if (audioManagerRef.current) {
+      const allTracks = audioManagerRef.current.getAllTracks();
+      allTracks.forEach(track => {
+        const audioElement = document.getElementById(`audio-${track.id}`) as HTMLAudioElement;
+        if (audioElement) {
+          audioElement.addEventListener('ended', handleTrackEnded);
+        }
+      });
+    }
+
+    return () => {
+      // Clean up event listeners
+      if (audioManagerRef.current) {
+        const allTracks = audioManagerRef.current.getAllTracks();
+        allTracks.forEach(track => {
+          const audioElement = document.getElementById(`audio-${track.id}`) as HTMLAudioElement;
+          if (audioElement) {
+            audioElement.removeEventListener('ended', handleTrackEnded);
+          }
+        });
+      }
+    };
+  }, [tracks, playNextTrack]);
+
   return (
     <div className="space-y-6">
-      <audio
-        ref={audioRef}
-        onEnded={async () => {
-          setIsPlayingJingle(false);
-          setCurrentTrack("");
-          if (publishedAudioTrack && localParticipant) {
-            await localParticipant.unpublishTrack(publishedAudioTrack);
-            setPublishedAudioTrack(null);
-          }
-        }}
-        hidden
-      />
-
       {/* Network Quality Indicator */}
       <NetworkQualityIndicator networkQuality={networkQuality} />
 
@@ -718,7 +967,7 @@ function AudioControls({
         micVolume={micVolume}
         musicVolume={audioVolume}
         isMicMuted={!isMicEnabled}
-        isMusicMuted={!isPlayingJingle}
+        isMusicMuted={!isPlaying}
         onMicMute={toggleMicrophone}
         onMusicMute={stopMusic}
       />
@@ -809,7 +1058,7 @@ function AudioControls({
         </div>
 
         {/* Current Track */}
-        {currentTrack && (
+        {currentTrackId && (
           <div className="mb-6 p-4 border border-[#EF3866] rounded-2xl bg-[#EF3866] bg-opacity-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -817,16 +1066,47 @@ function AudioControls({
                 <div>
                   <div className="text-sm font-medium text-black dark:text-white">Now Playing</div>
                   <div className="text-xs text-black dark:text-white opacity-60 truncate max-w-48">
-                    {currentTrack}
+                    {tracks.find(t => t.id === currentTrackId)?.name}
                   </div>
                 </div>
               </div>
-              <button
-                onClick={stopMusic}
-                className="p-2 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-full transition-all duration-200"
-              >
-                <Square className="w-4 h-4" />
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={playPreviousTrack}
+                  className="p-2 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-full transition-all duration-200"
+                  disabled={tracks.length <= 1}
+                >
+                  <SkipBack className="w-4 h-4" />
+                </button>
+                {isPlaying ? (
+                  <button
+                    onClick={pauseMusic}
+                    className="p-2 bg-[#EF3866] text-white rounded-full transition-all duration-200"
+                  >
+                    <Pause className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={resumeMusic}
+                    className="p-2 bg-[#EF3866] text-white rounded-full transition-all duration-200"
+                  >
+                    <Play className="w-4 h-4" />
+                  </button>
+                )}
+                <button
+                  onClick={playNextTrack}
+                  className="p-2 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-full transition-all duration-200"
+                  disabled={tracks.length <= 1}
+                >
+                  <SkipForward className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={stopMusic}
+                  className="p-2 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-full transition-all duration-200"
+                >
+                  <Square className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -877,32 +1157,32 @@ function AudioControls({
         </div>
 
         {/* Music Library */}
-        {uploadedMusic.length > 0 && (
+        {tracks.length > 0 && (
           <div>
             <h4 className="text-sm font-medium text-black dark:text-white mb-3">
-              Your Tracks ({uploadedMusic.length})
+              Your Tracks ({tracks.length})
             </h4>
             <div className="space-y-2 max-h-32 overflow-y-auto">
-              {uploadedMusic.map((file, index) => (
+              {tracks.map((track) => (
                 <div
-                  key={index}
-                  className={`flex items-center justify-between p-3 rounded-2xl border transition-all duration-200 ${currentTrack === file.name
+                  key={track.id}
+                  className={`flex items-center justify-between p-3 rounded-2xl border transition-all duration-200 ${currentTrackId === track.id
                     ? 'border-[#EF3866] bg-[#EF3866] bg-opacity-5'
                     : 'border-black dark:border-white border-opacity-10 dark:border-opacity-10 hover:border-opacity-30 dark:hover:border-opacity-30'
                     }`}
                 >
                   <span className="text-sm text-black dark:text-white truncate mr-4">
-                    {file.name.replace(/\.[^/.]+$/, "")}
+                    {track.name.replace(/\.[^/.]+$/, "")}
                   </span>
                   <button
-                    onClick={() => playMusic(file)}
-                    className={`p-2 rounded-full transition-all duration-200 ${currentTrack === file.name
+                    onClick={() => playTrack(track.id)}
+                    className={`p-2 rounded-full transition-all duration-200 ${currentTrackId === track.id
                       ? 'bg-[#EF3866] text-white'
                       : 'hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black'
                       }`}
                     disabled={connectionStatus !== 'connected'}
                   >
-                    {currentTrack === file.name ? (
+                    {currentTrackId === track.id && isPlaying ? (
                       <Pause className="w-4 h-4" />
                     ) : (
                       <Play className="w-4 h-4" />
@@ -914,7 +1194,7 @@ function AudioControls({
           </div>
         )}
 
-        {uploadedMusic.length === 0 && (
+        {tracks.length === 0 && (
           <div className="text-center py-8 text-black dark:text-white opacity-60">
             <Music className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p className="text-sm">No audio files uploaded yet</p>
@@ -940,7 +1220,7 @@ function AudioControls({
         )}
 
         {/* Permission Warning */}
-        {connectionStatus === 'connected' && !publishedAudioTrack && currentTrack && (
+        {connectionStatus === 'connected' && !publishedAudioTrack && currentTrackId && (
           <div className="mt-4 p-4 bg-yellow-500 bg-opacity-10 rounded-2xl">
             <div className="flex items-center justify-start">
               <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mr-2 flex-shrink-0" />

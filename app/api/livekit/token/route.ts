@@ -126,20 +126,18 @@ export async function GET(req: NextRequest) {
     } else {
       // Check if user is the session author
       const isAuthor = session && session.author_id === userId;
-      
+
       if (isAuthor) {
-        // Authors get full publishing permissions
+        // Authors get full publishing permissions for any audio source
         grant = {
           room: roomName,
           roomJoin: true,
           canSubscribe: true,
           canPublish: true,
           canPublishData: true,
-          // CRITICAL FIX: Remove canPublishSources restriction entirely
-          // This allows publishing any audio track including music from HTML audio elements
         };
       } else {
-        // Non-authors in author role (shouldn't happen, but fallback)
+        // Non-authors who aren't listeners get limited permissions
         grant = {
           room: roomName,
           roomJoin: true,
@@ -208,19 +206,19 @@ export async function GET(req: NextRequest) {
         iceServers:
           networkQuality === "low"
             ? [
-                { urls: "stun:stun.l.google.com:19302" },
-                { urls: "stun:stun1.l.google.com:19302" },
-              ]
+              { urls: "stun:stun.l.google.com:19302" },
+              { urls: "stun:stun1.l.google.com:19302" },
+            ]
             : [{ urls: "stun:stun.l.google.com:19302" }],
         reconnectAttempts: config.reconnectAttempts,
         reconnectDelay: config.reconnectDelay,
       },
       sessionInfo: session
         ? {
-            id: session.id,
-            title: session.title,
-            isAuthor: session.author_id === userId,
-          }
+          id: session.id,
+          title: session.title,
+          isAuthor: session.author_id === userId,
+        }
         : null,
     });
   } catch (error) {
