@@ -557,8 +557,8 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
         {/* Mobile Search Button */}
         <button
           onClick={handleSearchToggle}
-          className="p-2 rounded-lg bg-white dark:bg-black border border-gray-300 dark:border-gray-700 
-            text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 
+          className="p-2 rounded-lg bg-white dark:bg-transparent border border-gray-300 dark:border-gray-700 
+            text-gray-600 dark:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-400/10 
             hover:text-[#EF3866] transition-all"
         >
           <Search size={20} />
