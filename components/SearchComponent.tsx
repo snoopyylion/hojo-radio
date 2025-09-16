@@ -44,6 +44,7 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
   const pathname = usePathname();
   const router = useRouter();
   
+
   // Search states
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -123,8 +124,8 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
 
     switch (result.type) {
       case 'article':
-        let postId = result.url && result.url.includes('/post/')
-          ? result.url.split('/post/')[1].split('/')[0]
+        let postId = result.url && result.url.includes('/home/post/')
+          ? result.url.split('/home/post/')[1].split('/')[0]
           : result.id;
 
         // If prefixed with "sanity_post_", strip it
@@ -132,7 +133,7 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
           postId = postId.replace('sanity_post_', '');
         }
 
-        return `/post/${postId}`;
+        return `/home/post/${postId}`;
 
       case 'user':
       case 'author':
@@ -151,11 +152,11 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
           selected: userId
         });
         
-        console.log('User URL generated:', `/user/${userId}`);
-        return `/user/${userId}`;
+        console.log('User URL generated:', `/home/user/${userId}`);
+        return `/home/user/${userId}`;
 
       case 'category':
-        return `/blog/category/${getDatabaseId(result)}`;
+        return `/home/blog/category/${getDatabaseId(result)}`;
 
       default:
         return result.url || '#';
@@ -395,7 +396,7 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
       setIsNavigating(true);
 
       // Navigate to search results page
-      const searchUrl = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+      const searchUrl = `/home/search?q=${encodeURIComponent(searchQuery.trim())}`;
       console.log('🔗 Navigating to search page:', searchUrl);
 
       // Clear search query after navigation

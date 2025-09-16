@@ -15,8 +15,10 @@ import {
     Settings,
     LogOut,
     BrainCircuit,
-    X
+    X,
+    User
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import SidebarLink from "./SidebarLink";
 import clsx from "clsx";
 import Image from "next/image";
@@ -47,13 +49,14 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [isOpen, setIsOpen] = useState(false); // Start with closed state
     const [isLargeScreen, setIsLargeScreen] = useState(true);
     const [isInitialized, setIsInitialized] = useState(false);
+    
 
     useEffect(() => {
         const checkScreenSize = () => {
             const largeScreen = window.innerWidth >= 1024; // lg breakpoint
             const wasLargeScreen = isLargeScreen;
             setIsLargeScreen(largeScreen);
-            
+
             // Only set initial sidebar state on first load
             if (!isInitialized) {
                 setIsOpen(largeScreen); // Open on large screens, closed on small screens
@@ -113,6 +116,7 @@ const SignOutButton: React.FC<{ collapsed: boolean }> = ({ collapsed }) => {
 export default function Sidebar() {
     const { isOpen, toggleSidebar, isLargeScreen } = useSidebar();
     const { user, isLoaded } = useAppContext();
+    const router = useRouter();
 
     const getUserDisplay = useCallback(() => {
         if (!user) return { name: 'User', role: 'Member' };
@@ -262,15 +266,29 @@ export default function Sidebar() {
                                                 afterSignOutUrl="/"
                                                 appearance={{
                                                     elements: {
-                                                        avatarBox: "w-full h-full",
-                                                        userButtonPopoverCard: "shadow-xl",
+                                                        avatarBox: "w-9 h-9 rounded-lg",
+                                                        userButtonPopoverCard: "rounded-2xl shadow-2xl border border-gray-100",
+                                                        userButtonPopoverActions: "rounded-xl",
                                                     }
                                                 }}
-                                            />
+                                            >
+                                                <UserButton.MenuItems>
+                                                    <UserButton.Action
+                                                        label="Profile"
+                                                        labelIcon={<User size={16} />}
+                                                        onClick={() => router.push("/home/curr-profile")}
+                                                    />
+                                                    <UserButton.Action
+                                                        label="Notifications"
+                                                        labelIcon={<Bell size={16} />}
+                                                        onClick={() => router.push("/notifications")}
+                                                    />
+                                                </UserButton.MenuItems>
+                                            </UserButton>
                                         </div>
                                     </div>
                                     {isOpen && (
-                                        <div className="flex-1 min-w-0">
+                                        <div className="flex-1 min-w-0" onClick={() => router.push("/home/curr-profile")}>
                                             <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                                                 {name}
                                             </p>
@@ -305,7 +323,7 @@ export default function Sidebar() {
                                 </div>
                             )}
                         </div>
-                        
+
                         {/* Replace SidebarLink with SignOutButton */}
                         <SignOutButton collapsed={!isOpen && isLargeScreen} />
                     </div>
@@ -336,18 +354,18 @@ export default function Sidebar() {
                         className="fixed inset-0 backdrop-blur-sm bg-black/20 dark:bg-black/40 z-40 transition-all duration-300"
                         onClick={toggleSidebar}
                     />
-                    
+
                     {/* Professional Close Indicator */}
                     <div className="fixed top-6 right-6 z-50">
                         <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md rounded-full p-3 shadow-lg border border-gray-200/50 dark:border-gray-700/50 transition-all duration-300 hover:scale-105 cursor-pointer group"
-                             onClick={toggleSidebar}>
+                            onClick={toggleSidebar}>
                             <div className="relative">
                                 <X size={20} className="text-gray-600 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
-                                
+
                                 {/* Subtle pulse animation ring */}
                                 <div className="absolute inset-0 rounded-full bg-gray-400/20 animate-ping opacity-75 group-hover:opacity-0 transition-opacity"></div>
                             </div>
-                            
+
                             {/* Tooltip */}
                             <div className="absolute -bottom-12 right-0 bg-gray-900 dark:bg-gray-700 text-white text-xs px-3 py-1.5 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap pointer-events-none">
                                 Tap to close menu

@@ -1,4 +1,6 @@
 export interface UserProfile {
+  cover_image_url: any;
+  cover_image_url: string | StaticImport;
   id: string;
   first_name: string;
   last_name: string;

@@ -122,17 +122,20 @@ export default function PageLoader({
   const logoConfig = getLogoSize();
 
   return (
-    <div className={`min-h-screen bg-white dark:bg-black flex items-center justify-center p-4 transition-colors duration-300 ${className}`}>
+    <div className={`min-h-screen bg-white dark:bg-black flex flex-col items-center justify-start pt-10 p-4 transition-colors duration-300 ${className}`}>
       <div className="max-w-md w-full text-center">
         <div className="mb-6">
           {/* Logo Container with Professional Animation */}
-          <div className={`${logoConfig.container} mx-auto w-28 h-28 rounded-full bg-gradient-to-r from-[#EF3866] to-[#ff4d7a] shadow-xl mb-6 flex items-center justify-center`}style={{
-    background: `
-      radial-gradient(circle at 30% 30%, rgba(239, 56, 102, 0.8) 0%, transparent 50%),
-      radial-gradient(circle at 70% 70%, rgba(239, 56, 140, 0.6) 0%, transparent 50%),
-      linear-gradient(135deg, #EF3866 0%, #EF5638 25%, #D63866 50%, #EF3884 100%)
-    `
-  }}>
+          <div
+            className={`${logoConfig.container} mx-auto w-28 h-28 rounded-full bg-gradient-to-r from-[#EF3866] to-[#ff4d7a] shadow-xl mb-6 flex items-center justify-center`}
+            style={{
+              background: `
+            radial-gradient(circle at 30% 30%, rgba(239, 56, 102, 0.8) 0%, transparent 50%),
+            radial-gradient(circle at 70% 70%, rgba(239, 56, 140, 0.6) 0%, transparent 50%),
+            linear-gradient(135deg, #EF3866 0%, #EF5638 25%, #D63866 50%, #EF3884 100%)
+          `
+            }}
+          >
             <Link href="/" className="block">
               <Image
                 src="/img/logo.png"
@@ -144,11 +147,11 @@ export default function PageLoader({
               />
             </Link>
           </div>
-          
+
           <h1 className={`${getTextSize()} font-bold text-gray-800 dark:text-white mb-2 font-sora transition-colors animate-pulse`}>
             {loadingState.stage === 'complete' ? 'Ready!' : 'Loading'}
           </h1>
-          
+
           <p className="text-gray-600 dark:text-gray-400 mb-4 font-sora transition-colors">
             {loadingState.message}
           </p>
@@ -169,11 +172,10 @@ export default function PageLoader({
               {['loading', 'syncing', 'finalizing'].map((step, index) => (
                 <div
                   key={step}
-                  className={`w-2 h-2 rounded-full transition-colors duration-300 ${
-                    ['loading', 'syncing', 'finalizing'].indexOf(loadingState.stage) >= index
+                  className={`w-2 h-2 rounded-full transition-colors duration-300 ${['loading', 'syncing', 'finalizing'].indexOf(loadingState.stage) >= index
                       ? 'bg-[#EF3866]'
                       : 'bg-gray-300 dark:bg-gray-600'
-                  }`}
+                    }`}
                 />
               ))}
             </div>
@@ -197,12 +199,12 @@ export default function PageLoader({
 }
 
 // Compact version for inline loading states with logo option
-export function InlineLoader({ 
-  message = "Loading...", 
+export function InlineLoader({
+  message = "Loading...",
   size = "sm",
   useLogo = false
-}: { 
-  message?: string; 
+}: {
+  message?: string;
   size?: 'xs' | 'sm' | 'md';
   useLogo?: boolean;
 }) {
@@ -239,10 +241,10 @@ export function InlineLoader({
 }
 
 // Logo-only loader for minimal use cases
-export function LogoLoader({ 
+export function LogoLoader({
   size = 'md',
   className = ""
-}: { 
+}: {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }) {
