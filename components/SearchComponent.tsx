@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Search,  User, BookOpen, ArrowRight } from 'lucide-react';
+import { Search, User, BookOpen, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -53,7 +53,9 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
   const latestSearchIdRef = useRef(0);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchResultsRef = useRef<HTMLDivElement>(null);
+  
+  // Unified container ref for both desktop and mobile
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Helper function to format dates
   const formatDate = (dateString: string): string => {
@@ -116,12 +118,12 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
   };
 
   // Generate URL for search results
-  const getResultUrl = (result: SearchResult): string => {
+  const getResultUrl = useCallback((result: SearchResult): string => {
     console.log('Generating URL for result:', { id: result.id, type: result.type });
 
     switch (result.type) {
       case 'article':
-        let postId = result.url.includes('/post/')
+        let postId = result.url && result.url.includes('/post/')
           ? result.url.split('/post/')[1].split('/')[0]
           : result.id;
 
@@ -158,7 +160,7 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
       default:
         return result.url || '#';
     }
-  };
+  }, []);
 
   // Perform search API call
   const performSearch = useCallback(async (searchQuery: string) => {
@@ -202,56 +204,71 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
       console.log('✅ Search API response:', {
         totalCount: data.totalCount,
         categories: {
-          users: data.categories.users.length,
-          articles: data.categories.articles.length,
-          authors: data.categories.authors.length,
-          categories: data.categories.categories.length
-        }
+          users: data.categories?.users?.length || 0,
+          articles: data.categories?.articles?.length || 0,
+          authors: data.categories?.authors?.length || 0,
+          categories: data.categories?.categories?.length || 0
+        },
+        rawData: data
       });
 
       // Process and prioritize results for navbar dropdown
       const prioritizedResults: SearchResult[] = [];
 
-      // 1. First, add users (highest priority for navbar)
-      if (data.categories.users && data.categories.users.length > 0) {
-        data.categories.users.forEach(user => {
-          prioritizedResults.push({
-            ...user,
-            subtitle: user.subtitle || `👤 ${user.type === 'author' ? 'Author' : 'Member'}`,
-            url: getResultUrl(user)
+      // Check if categories exist and have data
+      if (data.categories) {
+        // 1. First, add users (highest priority for navbar)
+        if (data.categories.users && Array.isArray(data.categories.users) && data.categories.users.length > 0) {
+          data.categories.users.forEach(user => {
+            prioritizedResults.push({
+              ...user,
+              subtitle: user.subtitle || `👤 ${user.type === 'author' ? 'Author' : 'Member'}`,
+              url: getResultUrl(user)
+            });
           });
-        });
+        }
+
+        // 2. Then add articles
+        if (data.categories.articles && Array.isArray(data.categories.articles) && data.categories.articles.length > 0) {
+          data.categories.articles.slice(0, 4).forEach(article => { // Limit articles to 4 for navbar
+            prioritizedResults.push({
+              ...article,
+              subtitle: article.subtitle || `📝 Article • ${formatDate(article.publishedAt || '')}`,
+              url: getResultUrl(article)
+            });
+          });
+        }
+
+        // 3. Add authors
+        if (data.categories.authors && Array.isArray(data.categories.authors) && data.categories.authors.length > 0) {
+          data.categories.authors.slice(0, 2).forEach(author => { // Limit authors to 2 for navbar
+            prioritizedResults.push({
+              ...author,
+              subtitle: author.subtitle || '✍️ Author • View Profile',
+              url: getResultUrl(author)
+            });
+          });
+        }
+
+        // 4. Finally add categories
+        if (data.categories.categories && Array.isArray(data.categories.categories) && data.categories.categories.length > 0) {
+          data.categories.categories.slice(0, 2).forEach(category => { // Limit categories to 2 for navbar
+            prioritizedResults.push({
+              ...category,
+              subtitle: category.subtitle || '🏷️ Category • Browse Posts',
+              url: getResultUrl(category)
+            });
+          });
+        }
       }
 
-      // 2. Then add articles
-      if (data.categories.articles && data.categories.articles.length > 0) {
-        data.categories.articles.slice(0, 4).forEach(article => { // Limit articles to 4 for navbar
+      // Fallback: if no categories, check if results array exists
+      if (prioritizedResults.length === 0 && data.results && Array.isArray(data.results)) {
+        data.results.slice(0, 8).forEach(result => {
           prioritizedResults.push({
-            ...article,
-            subtitle: article.subtitle || `📝 Article • ${formatDate(article.publishedAt || '')}`,
-            url: getResultUrl(article)
-          });
-        });
-      }
-
-      // 3. Add authors
-      if (data.categories.authors && data.categories.authors.length > 0) {
-        data.categories.authors.slice(0, 2).forEach(author => { // Limit authors to 2 for navbar
-          prioritizedResults.push({
-            ...author,
-            subtitle: author.subtitle || '✍️ Author • View Profile',
-            url: getResultUrl(author)
-          });
-        });
-      }
-
-      // 4. Finally add categories
-      if (data.categories.categories && data.categories.categories.length > 0) {
-        data.categories.categories.slice(0, 2).forEach(category => { // Limit categories to 2 for navbar
-          prioritizedResults.push({
-            ...category,
-            subtitle: category.subtitle || '🏷️ Category • Browse Posts',
-            url: getResultUrl(category)
+            ...result,
+            subtitle: result.subtitle || `${result.type} result`,
+            url: getResultUrl(result)
           });
         });
       }
@@ -259,12 +276,14 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
       // Limit total results for navbar dropdown
       const finalResults = prioritizedResults.slice(0, 8);
 
+      console.log('🎯 Final processed results:', finalResults);
+
       // Only apply results if this is the latest request and not navigating
       const isLatest = currentSearchId === latestSearchIdRef.current;
       if (isLatest && !isNavigating) {
         setSearchResults(finalResults);
-        // Let rendering condition control visibility on desktop; keep state true if we have results
         setShowSearchResults(finalResults.length > 0);
+        console.log('✅ Results set in state:', { count: finalResults.length, show: finalResults.length > 0 });
       }
 
     } catch (error) {
@@ -274,7 +293,7 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
     } finally {
       setIsSearching(false);
     }
-  }, [getResultUrl, isNavigating, isMobile, isSearchExpanded]);
+  }, [getResultUrl, isNavigating]);
 
   // Handle result click
   const handleResultClick = async (result: SearchResult, event?: React.MouseEvent | React.TouchEvent) => {
@@ -424,10 +443,13 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isSearchExpanded]);
 
-  // Close search results when clicking outside
+  // Outside click detection
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (searchResultsRef.current && !searchResultsRef.current.contains(event.target as Node)) {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
         setShowSearchResults(false);
       }
     };
@@ -452,108 +474,129 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
     }
   }, [isMobile, isSearchExpanded, searchResults.length]);
 
-  // Render search results with dashboard theme
-  const renderSearchResults = () => (
-    <AnimatePresence>
-      {showSearchResults && searchResults.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
-          className={`absolute ${isMobile ? 'top-16 left-0 right-0' : 'top-full mt-2 left-0 right-0'} 
-            bg-white dark:bg-black border border-gray-200 dark:border-gray-700 
-            rounded-lg shadow-xl z-[9999] max-h-96 overflow-y-auto pointer-events-auto
-            min-w-full`}
-          style={{
-            boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
-          }}
-        >
-          <div className="p-2">
-            {searchResults.map((result) => (
-              <button
-                key={result.id}
-                onClick={(e) => handleResultClick(result, e)}
-                onTouchEnd={(e) => handleResultClick(result, e)}
-                className="w-full flex items-center gap-3 p-3 
-                  hover:bg-gray-50 dark:hover:bg-gray-800 
-                  rounded-lg transition-colors text-left group cursor-pointer"
-                type="button"
-              >
-                <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full 
-                  flex items-center justify-center flex-shrink-0 
-                  group-hover:bg-gray-300 dark:group-hover:bg-gray-600 transition-colors">
-                  {result.image ? (
-                    <Image
-                      width={40}
-                      height={40}
-                      src={result.image}
-                      alt={result.title}
-                      className="w-full h-full rounded-full object-cover"
-                    />
-                  ) : (
-                    <>
-                      {result.type === 'user' && <User size={20} className="text-gray-600 dark:text-gray-400" />}
-                      {result.type === 'article' && <BookOpen size={20} className="text-gray-600 dark:text-gray-400" />}
-                      {result.type === 'author' && <User size={20} className="text-gray-600 dark:text-gray-400" />}
-                      {result.type === 'category' && <div className="text-gray-600 dark:text-gray-400 text-sm font-semibold">#</div>}
-                    </>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 dark:text-white truncate 
-                    group-hover:text-[#EF3866] transition-colors">
-                    {result.title}
-                  </p>
-                  {result.subtitle && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{result.subtitle}</p>
-                  )}
-                  {result.excerpt && (
-                    <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-1">{result.excerpt}</p>
-                  )}
-                </div>
-                <div className="flex flex-col items-end text-xs text-gray-400 dark:text-gray-500">
-                  <span className="capitalize">{result.type}</span>
-                  {result.likes && (
-                    <span className="text-pink-500">♥ {result.likes}</span>
-                  )}
-                </div>
-              </button>
-            ))}
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 Search State Debug:', {
+      searchQuery,
+      searchResults: searchResults.length,
+      showSearchResults,
+      isSearchExpanded,
+      isMobile,
+      isSearching,
+      isNavigating
+    });
+  }, [searchQuery, searchResults, showSearchResults, isSearchExpanded, isMobile, isSearching, isNavigating]);
 
-            {searchQuery && (
-              <button
-                onClick={handleSearchSubmit}
-                className="w-full flex items-center gap-3 p-3 
-                  hover:bg-pink-50 dark:hover:bg-pink-950/20 
-                  rounded-lg transition-colors text-left border-t 
-                  border-gray-100 dark:border-gray-700 mt-2 group"
-              >
-                <div className="w-10 h-10 bg-pink-100 dark:bg-pink-900/30 rounded-full 
-                  flex items-center justify-center flex-shrink-0 
-                  group-hover:bg-pink-200 dark:group-hover:bg-pink-900/50 transition-colors">
-                  <Search size={20} className="text-pink-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900 dark:text-white 
-                    group-hover:text-[#EF3866] transition-colors">
-                    See all results for &quot;{searchQuery}&quot;
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">View complete search results</p>
-                </div>
-                <ArrowRight size={16} className="text-gray-400 dark:text-gray-500 
-                  group-hover:text-[#EF3866] transition-colors" />
-              </button>
-            )}
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
+  // Render search results with dashboard theme
+  const renderSearchResults = () => {
+    console.log('🎨 Rendering search results:', { 
+      show: showSearchResults, 
+      resultsLength: searchResults.length,
+      searchQuery 
+    });
+
+    return (
+      <AnimatePresence>
+        {showSearchResults && searchResults.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className={`absolute ${isMobile ? 'top-16 left-0 right-0' : 'top-full mt-2 left-0 right-0'} 
+              bg-white dark:bg-black border border-gray-200 dark:border-gray-700 
+              rounded-lg shadow-xl z-[9999] max-h-96 overflow-y-auto pointer-events-auto
+              min-w-full`}
+            style={{
+              boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+            }}
+          >
+            <div className="p-2">
+              {searchResults.map((result) => (
+                <button
+                  key={result.id}
+                  onClick={(e) => handleResultClick(result, e)}
+                  onTouchEnd={(e) => handleResultClick(result, e)}
+                  className="w-full flex items-center gap-3 p-3 
+                    hover:bg-gray-50 dark:hover:bg-gray-800 
+                    rounded-lg transition-colors text-left group cursor-pointer"
+                  type="button"
+                >
+                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full 
+                    flex items-center justify-center flex-shrink-0 
+                    group-hover:bg-gray-300 dark:group-hover:bg-gray-600 transition-colors">
+                    {result.image ? (
+                      <Image
+                        width={40}
+                        height={40}
+                        src={result.image}
+                        alt={result.title}
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                    ) : (
+                      <>
+                        {result.type === 'user' && <User size={20} className="text-gray-600 dark:text-gray-400" />}
+                        {result.type === 'article' && <BookOpen size={20} className="text-gray-600 dark:text-gray-400" />}
+                        {result.type === 'author' && <User size={20} className="text-gray-600 dark:text-gray-400" />}
+                        {result.type === 'category' && <div className="text-gray-600 dark:text-gray-400 text-sm font-semibold">#</div>}
+                      </>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 dark:text-white truncate 
+                      group-hover:text-[#EF3866] transition-colors">
+                      {result.title}
+                    </p>
+                    {result.subtitle && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{result.subtitle}</p>
+                    )}
+                    {result.excerpt && (
+                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-1">{result.excerpt}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end text-xs text-gray-400 dark:text-gray-500">
+                    <span className="capitalize">{result.type}</span>
+                    {result.likes && (
+                      <span className="text-pink-500">♥ {result.likes}</span>
+                    )}
+                  </div>
+                </button>
+              ))}
+
+              {searchQuery && (
+                <button
+                  onClick={handleSearchSubmit}
+                  className="w-full flex items-center gap-3 p-3 
+                    hover:bg-pink-50 dark:hover:bg-pink-950/20 
+                    rounded-lg transition-colors text-left border-t 
+                    border-gray-100 dark:border-gray-700 mt-2 group"
+                >
+                  <div className="w-10 h-10 bg-pink-100 dark:bg-pink-900/30 rounded-full 
+                    flex items-center justify-center flex-shrink-0 
+                    group-hover:bg-pink-200 dark:group-hover:bg-pink-900/50 transition-colors">
+                    <Search size={20} className="text-pink-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900 dark:text-white 
+                      group-hover:text-[#EF3866] transition-colors">
+                      See all results for &quot;{searchQuery}&quot;
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">View complete search results</p>
+                  </div>
+                  <ArrowRight size={16} className="text-gray-400 dark:text-gray-500 
+                    group-hover:text-[#EF3866] transition-colors" />
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  };
 
   if (isMobile) {
     return (
-      <>
+      <div ref={searchContainerRef}>
         {/* Mobile Search Button */}
         <button
           onClick={handleSearchToggle}
@@ -574,7 +617,6 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
               transition={{ duration: 0.3 }}
               className="absolute top-full left-0 right-0 bg-white/95 dark:bg-black/95 
                 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 p-4 z-40"
-              ref={searchResultsRef}
             >
               <form onSubmit={handleSearchSubmit} className="relative">
                 <input
@@ -610,13 +652,17 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
             </motion.div>
           )}
         </AnimatePresence>
-      </>
+      </div>
     );
   }
 
   // Desktop Search Component - Always visible, no expansion needed
   return (
-    <div className={`relative flex items-center w-full ${className}`} ref={searchResultsRef} style={{ zIndex: 9998 }}>
+    <div
+      ref={searchContainerRef}
+      className={`relative flex items-center w-full ${className}`}
+      style={{ zIndex: 9998 }}
+    >
       <form
         onSubmit={handleSearchSubmit}
         className="relative w-full"
@@ -637,7 +683,7 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
           placeholder="Search..."
           className="w-full px-4 py-2 pr-10 rounded-lg border
             border-gray-300 dark:border-gray-700
-            bg-white dark:bg-black
+            bg-white dark:bg-transparent
             text-gray-900 dark:text-white
             focus:outline-none focus:ring-2 focus:ring-[#EF3866] transition"
           onFocus={() => {
@@ -649,7 +695,7 @@ const SearchComponent: React.FC<SearchComponentProps> = ({ className = "", isMob
           {isSearching ? (
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-pink-500"></div>
           ) : (
-            <Search className="text-gray-400 dark:text-gray-400 w-5 h-5" />
+            <Search className="text-gray-400 dark:text-gray-600 w-5 h-5" />
           )}
         </div>
       </form>
