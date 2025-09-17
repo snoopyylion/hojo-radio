@@ -318,7 +318,7 @@ export const AuthorPostsSection: React.FC<AuthorPostsSectionProps> = ({
                 <div className="flex-1 min-w-0">
                   <div className="mb-4">
                     <Link 
-                      href={`/post/${post.id}`}
+                      href={`/home/post/${post.id}`}
                       className="group-hover:text-[#EF3866] transition-colors duration-200"
                     >
                       <h3 className="text-xl lg:text-2xl font-light text-gray-900 dark:text-white mb-3 line-clamp-2 tracking-tight">
