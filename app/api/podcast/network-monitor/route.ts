@@ -80,8 +80,8 @@ export async function POST(req: NextRequest) {
           timestamp: new Date().toISOString(),
         },
         {
-      onConflict: ["session_id", "user_id"], // 👈 FIXED
-    }
+          onConflict: "session_id, user_id",
+        }
       );
 
 
