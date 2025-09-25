@@ -56,7 +56,6 @@ export function AudioControls({
 
   const {
     effects,
-    loading: effectsLoading,
     playSound,
     isPlaying: isSoundEffectPlaying,
     stopAllSounds

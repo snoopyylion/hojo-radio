@@ -188,13 +188,13 @@ export function SoundEffectsPanel({ className = '' }: SoundEffectsPanelProps) {
               <Globe size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
               <p className="text-gray-500 dark:text-gray-400 mb-2">No sound effects available.</p>
               <p className="text-sm text-gray-400 dark:text-gray-500">
-                Sound effects will appear here once they're uploaded to the platform.
+                Sound effects will appear here once they&apos;re uploaded to the platform.
               </p>
             </div>
           ) : (
             <div>
               <Upload size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-              <p className="text-gray-500 dark:text-gray-400 mb-2">You haven't uploaded any sound effects yet.</p>
+              <p className="text-gray-500 dark:text-gray-400 mb-2">You haven&apos;t uploaded any sound effects yet.</p>
               <p className="text-sm text-gray-400 dark:text-gray-500">
                 Upload your first sound effect to get started with your personal library.
               </p>
