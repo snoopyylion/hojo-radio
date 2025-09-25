@@ -133,7 +133,7 @@ export function SoundEffectsUpload({ className = '' }: { className?: string }) {
           fileInputRef.current.value = '';
         }
       }, 1500);
-    } catch (err) {
+    } catch  {
       setError('Upload failed. Please try again.');
     } finally {
       setUploading(false);
