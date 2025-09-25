@@ -82,7 +82,7 @@ export function SignInForm() {
         await setActive({ session: result.createdSessionId });
         
         // For email/password sign-ins, redirect directly instead of going through OAuth callback
-        router.push(redirectUrl || '/blog');
+        router.push(redirectUrl || '/home/blog');
       } else {
         console.log('Sign-in not complete, status:', result.status);
         // Handle other statuses here
@@ -112,7 +112,7 @@ export function SignInForm() {
             
             // Redirect to sign-up after a short delay
             setTimeout(() => {
-              const signUpUrl = `/authentication/sign-up${redirectUrl && redirectUrl !== '/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
+              const signUpUrl = `/authentication/sign-up${redirectUrl && redirectUrl !== '/home/blog' ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : ''}`;
               window.location.href = signUpUrl;
             }, 3000);
             return;

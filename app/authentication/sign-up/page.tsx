@@ -16,7 +16,7 @@ export default function SignUpPage() {
   useEffect(() => {
     if (isSignedIn) {
       // Redirect directly instead of going through oauth-callback
-      router.replace("/blog");
+      router.replace("/home/blog");
     }
   }, [isSignedIn, router]);
 

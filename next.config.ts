@@ -60,6 +60,11 @@ const nextConfig = {
       'example.com',
     ],
   },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb', // adjust if you expect larger files (e.g. '50mb')
+    },
+  },
   // ... other config options
 };
 

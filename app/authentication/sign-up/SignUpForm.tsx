@@ -114,7 +114,7 @@ export default function SignUpForm({ onVerificationNeeded }: SignUpFormProps) {
   };
 
   // Show redirect destination if not default
-  const showRedirectInfo = redirectUrl && redirectUrl !== '/blog';
+  const showRedirectInfo = redirectUrl && redirectUrl !== '/home/blog';
 
   return (
     <AuthForm onSubmit={handleSubmit}>

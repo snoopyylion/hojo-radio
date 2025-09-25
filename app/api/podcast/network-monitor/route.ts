@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { sessionId, networkStats, deviceInfo, connectionType, timestamp } = body;
+    const { sessionId, networkStats, deviceInfo, connectionType } = body;
 
     if (!sessionId || !networkStats) {
       return NextResponse.json(
@@ -69,17 +69,21 @@ export async function POST(req: NextRequest) {
     // Store network monitoring data
     const { error: monitorError } = await supabase
       .from("network_monitoring")
-      .insert({
-        session_id: sessionId,
-        user_id: userId,
-        network_stats: JSON.stringify(networkStats),
-        device_info: JSON.stringify(deviceInfo),
-        connection_type: connectionType,
-        detected_quality: detectedQuality,
-        timestamp: timestamp || new Date().toISOString(),
-      })
-      .select()
-      .single();
+      .upsert(
+        {
+          session_id: sessionId,
+          user_id: userId,
+          network_stats: networkStats,
+          device_info: deviceInfo,
+          connection_type: connectionType,
+          detected_quality: detectedQuality,
+          timestamp: new Date().toISOString(),
+        },
+        {
+      onConflict: ["session_id", "user_id"], // 👈 FIXED
+    }
+      );
+
 
     if (monitorError) {
       console.error("Network monitoring storage error:", monitorError);
@@ -103,8 +107,8 @@ export async function POST(req: NextRequest) {
         detectedQuality === "low"
           ? "64k"
           : detectedQuality === "medium"
-          ? "128k"
-          : "256k",
+            ? "128k"
+            : "256k",
     };
 
     // Immediate optimization check
