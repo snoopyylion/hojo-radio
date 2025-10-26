@@ -18,6 +18,20 @@ export interface LiveSession {
   isActive: boolean;
 }
 
+export interface Participant {
+  id: string;
+  user_id: string;
+  role: 'host' | 'guest' | 'listener';
+  promoted_at: string;
+  created_at: string;
+}
+
+export interface RolesByType {
+  host: Participant[];
+  guests: Participant[];
+  listeners: Participant[];
+}
+
 export interface DatabaseLiveSession {
   id: string;
   author_id: string;

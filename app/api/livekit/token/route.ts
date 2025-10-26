@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const roomName = url.searchParams.get("room");
     const identity = url.searchParams.get("identity");
-    const role = url.searchParams.get("role") || "listener";
+    const requestedRole = url.searchParams.get("role") || "listener"; // still accept param
     const networkQuality =
       (url.searchParams.get("networkQuality") as keyof typeof TOKEN_CONFIGS) ||
       "medium";
@@ -85,13 +85,28 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Identity mismatch" }, { status: 403 });
     }
 
-    // Get session info
+    // ✅ Fetch session info including creator_id
     const { data: session } = await supabase
       .from("live_sessions")
-      .select("id, title, author_id")
+      .select("id, title, author_id, creator_id")
       .eq("room_name", roomName)
       .eq("is_active", true)
       .single();
+
+    if (!session) {
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+
+    // ✅ Decide role: creator always host
+    let finalRole: "host" | "guest" | "listener" = "guest";
+
+    if (session.creator_id === userId) {
+      finalRole = "host";
+    } else if (requestedRole === "listener") {
+      finalRole = "listener";
+    } else {
+      finalRole = "guest";
+    }
 
     // Merge configs: network + mobile
     const baseConfig = TOKEN_CONFIGS[networkQuality] || TOKEN_CONFIGS.medium;
@@ -111,11 +126,9 @@ export async function GET(req: NextRequest) {
       name: `User-${identity.slice(-6)}`,
     });
 
-    // FIXED: Proper grants based on role and session ownership
+    // ✅ Permissions by role
     let grant: VideoGrant;
-
-    if (role === "listener") {
-      // Listeners can only subscribe
+    if (finalRole === "listener") {
       grant = {
         room: roomName,
         roomJoin: true,
@@ -123,44 +136,38 @@ export async function GET(req: NextRequest) {
         canPublish: false,
         canPublishData: false,
       };
+    } else if (finalRole === "host") {
+      grant = {
+        room: roomName,
+        roomJoin: true,
+        canSubscribe: true,
+        canPublish: true,
+        canPublishData: true,
+      };
     } else {
-      // Check if user is the session author
-      const isAuthor = session && session.author_id === userId;
-
-      if (isAuthor) {
-        // Authors get full publishing permissions for any audio source
-        grant = {
-          room: roomName,
-          roomJoin: true,
-          canSubscribe: true,
-          canPublish: true,
-          canPublishData: true,
-        };
-      } else {
-        // Non-authors who aren't listeners get limited permissions
-        grant = {
-          room: roomName,
-          roomJoin: true,
-          canSubscribe: true,
-          canPublish: false,
-          canPublishData: false,
-        };
-      }
+      // guest
+      grant = {
+        room: roomName,
+        roomJoin: true,
+        canSubscribe: true,
+        canPublish: true, // guests can speak
+        canPublishData: true,
+      };
     }
 
     at.addGrant(grant);
 
     // Attach metadata
     at.metadata = JSON.stringify({
+      finalRole,
       networkQuality,
       deviceType,
       connectionType,
-      clientType: role === "listener" ? "listener" : "broadcaster",
       joinTime: new Date().toISOString(),
-      sessionId: session?.id,
+      sessionId: session.id,
       isMobile: deviceType === "mobile",
       isIOS,
-      isAuthor: session && session.author_id === userId,
+      isCreator: session.creator_id === userId,
       optimizations: {
         lowLatency: networkQuality === "high" && !isIOS,
         adaptiveStreaming: config.adaptiveStreaming,
@@ -176,50 +183,27 @@ export async function GET(req: NextRequest) {
 
     const token = await at.toJwt();
 
-    // Log connection attempt
-    if (session) {
-      await supabase.from("session_connections").insert({
-        session_id: session.id,
-        user_id: userId,
-        network_quality: networkQuality,
-        device_type: deviceType,
-        connection_type: connectionType,
-        role,
-        connected_at: new Date().toISOString(),
-      });
-    }
+    // Save connection log
+    await supabase.from("session_connections").insert({
+      session_id: session.id,
+      user_id: userId,
+      network_quality: networkQuality,
+      device_type: deviceType,
+      connection_type: connectionType,
+      role: finalRole,
+      connected_at: new Date().toISOString(),
+    });
 
     return NextResponse.json({
       token,
+      role: finalRole,
       room: roomName,
       identity,
-      canPublish: role !== "listener" && session && session.author_id === userId,
-      networkQuality,
-      optimizations: {
-        quickJoin: networkQuality === "low",
-        adaptiveQuality: config.adaptiveStreaming,
-        reconnectEnabled: true,
-        audioOnlyMode: config.audioOnly,
-        bufferOptimization: config.bufferOptimization,
+      sessionInfo: {
+        id: session.id,
+        title: session.title,
+        isCreator: session.creator_id === userId,
       },
-      connectionConfig: {
-        iceServers:
-          networkQuality === "low"
-            ? [
-              { urls: "stun:stun.l.google.com:19302" },
-              { urls: "stun:stun1.l.google.com:19302" },
-            ]
-            : [{ urls: "stun:stun.l.google.com:19302" }],
-        reconnectAttempts: config.reconnectAttempts,
-        reconnectDelay: config.reconnectDelay,
-      },
-      sessionInfo: session
-        ? {
-          id: session.id,
-          title: session.title,
-          isAuthor: session.author_id === userId,
-        }
-        : null,
     });
   } catch (error) {
     console.error("Token generation error:", error);
@@ -229,6 +213,7 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
 
 export async function POST(req: NextRequest) {
   try {

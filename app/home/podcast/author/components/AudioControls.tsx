@@ -20,13 +20,14 @@ interface AudioControlsProps {
   networkQuality: NetworkQualityStats | null;
   onNetworkStatsUpdate: (stats: NetworkQualityStats) => void;
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
+  userRole?: string;
 }
 
 export function AudioControls({
   onEndSession,
   session,
   networkQuality,
-  connectionStatus
+  connectionStatus,
 }: AudioControlsProps) {
   const { localParticipant } = useLocalParticipant();
   const room = useMaybeRoomContext();

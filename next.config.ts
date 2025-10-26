@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbo: false, // Added this line to disable Turbopack
   images: {
     remotePatterns: [
       {
@@ -62,24 +63,9 @@ const nextConfig = {
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: '50mb', // adjust if you expect larger files (e.g. '50mb')
+      bodySizeLimit: '50mb',
     },
   },
-  // ... other config options
 };
 
 module.exports = nextConfig;
-
-// Alternative syntax (if you prefer domains instead of remotePatterns):
-// const nextConfig = {
-//   images: {
-//     domains: [
-//       'www.gravatar.com',
-//       'images.clerk.dev',
-//       'img.clerk.com',
-//       'cdn.sanity.io'
-//     ],
-//   },
-// }
-// 
-// module.exports = nextConfig

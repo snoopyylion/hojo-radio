@@ -1,5 +1,5 @@
 // app/api/podcast/create-session/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
 
@@ -8,12 +8,12 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     try {
         // Get authenticated user
         const { userId } = await auth();
         console.log('Create session request from user:', userId);
-        
+
         if (!userId) {
             return NextResponse.json(
                 { error: "Unauthorized" },
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
             .select("id, title")
             .eq("author_id", userId)
             .eq("is_active", true)
-            .maybeSingle(); // Use maybeSingle instead of single to avoid error when no rows found
+            .maybeSingle();
 
         console.log('Existing session check:', existingSession, 'Error:', existingError);
 
@@ -87,8 +87,8 @@ export async function POST(req: Request) {
             started_at: new Date().toISOString(),
             is_active: true,
             listener_count: 0,
+            creator_id: userId,
         };
-
         console.log('Inserting session data:', sessionData);
 
         const { data: session, error } = await supabase
@@ -107,6 +107,25 @@ export async function POST(req: Request) {
 
         console.log('Session created successfully:', session);
 
+        // ⭐ CREATE HOST ROLE IN session_roles TABLE
+        const { error: roleError } = await supabase
+            .from('session_roles')
+            .insert({
+                session_id: session.id,
+                user_id: userId, // Use Clerk's userId
+                role: 'host',
+                promoted_at: new Date().toISOString(),
+                created_at: new Date().toISOString()
+            });
+
+        if (roleError) {
+            console.error('Failed to create host role:', roleError);
+            // Don't fail the entire request, but log it
+            // The session is still created, just without the role entry
+        } else {
+            console.log('Host role created successfully for user:', userId);
+        }
+
         // Transform the response to match frontend expectations
         const transformedSession = {
             id: session.id,
@@ -120,8 +139,8 @@ export async function POST(req: Request) {
             isActive: session.is_active,
         };
 
-        return NextResponse.json({ 
-            session: transformedSession, 
+        return NextResponse.json({
+            session: transformedSession,
             roomName: session.room_name,
             success: true
         });

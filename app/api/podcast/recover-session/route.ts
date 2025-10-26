@@ -1,4 +1,4 @@
-// app/api/podcast/recover-session/route.ts - OPTIMIZED RECOVERY
+// app/api/podcast/recover-session/route.ts - OPTIMIZED RECOVERY WITH HOST ENFORCEMENT
 import { NextResponse, NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
@@ -13,17 +13,14 @@ export async function GET(req: NextRequest) {
     const { userId } = await auth();
     
     if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const url = new URL(req.url);
     const networkQuality = url.searchParams.get("networkQuality") || "medium";
     const quickJoin = url.searchParams.get("quickJoin") === "true";
 
-    // Check for active session
+    // ✅ Fetch active session (with author_id)
     const { data: activeSession, error: sessionError } = await supabase
       .from("live_sessions")
       .select(`
@@ -34,24 +31,26 @@ export async function GET(req: NextRequest) {
           last_updated
         )
       `)
-      .eq("author_id", userId)
       .eq("is_active", true)
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (sessionError && sessionError.code !== 'PGRST116') {
+    if (sessionError && sessionError.code !== "PGRST116") {
       console.error("Session query error:", sessionError);
     }
 
     if (!activeSession) {
-      // Check for recent disconnected sessions that can be resumed
+      // ✅ Check for recent inactive session (author only)
       const { data: recentSession } = await supabase
         .from("live_sessions")
         .select("*")
         .eq("author_id", userId)
         .eq("is_active", false)
-        .gte("started_at", new Date(Date.now() - 30 * 60 * 1000).toISOString()) // Last 30 minutes
+        .gte(
+          "started_at",
+          new Date(Date.now() - 30 * 60 * 1000).toISOString()
+        )
         .order("started_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -67,7 +66,6 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      // Offer to reactivate recent session
       return NextResponse.json({
         canReactivate: true,
         recentSession: {
@@ -82,29 +80,54 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Get audio tracks for active session (optimized for network quality)
+    // ✅ Determine role (host if author, else guest/listener)
+    const isHost = activeSession.author_id === userId;
+    const role = isHost ? "host" : "listener";
+
+    // Check if role entry exists, create if missing
+    const { data: existingRole } = await supabase
+      .from('session_roles')
+      .select('*')
+      .eq('session_id', activeSession.id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!existingRole) {
+      // Create missing role entry
+      const { error: roleError } = await supabase
+        .from('session_roles')
+        .insert({
+          session_id: activeSession.id,
+          user_id: userId,
+          role: role, // 'host' or 'listener'
+          created_at: new Date().toISOString(),
+          promoted_at: role === 'host' ? new Date().toISOString() : null
+        });
+
+      if (roleError) {
+        console.error('Failed to create role on recovery:', roleError);
+      }
+    }
+
+    // Fetch optimized tracks
     let audioTracksQuery = supabase
       .from("session_audio_tracks")
       .select("*")
       .eq("session_id", activeSession.id);
 
-    // For poor network, limit and prioritize smaller files
     if (networkQuality === "low" || quickJoin) {
       audioTracksQuery = audioTracksQuery
         .order("file_size", { ascending: true })
-        .limit(5); // Limit tracks for quick join
+        .limit(5);
     } else {
-      audioTracksQuery = audioTracksQuery
-        .order("uploaded_at", { ascending: true });
+      audioTracksQuery = audioTracksQuery.order("uploaded_at", {
+        ascending: true,
+      });
     }
 
     const { data: audioTracks, error: tracksError } = await audioTracksQuery;
+    if (tracksError) console.error("Error fetching audio tracks:", tracksError);
 
-    if (tracksError) {
-      console.error("Error fetching audio tracks:", tracksError);
-    }
-
-    // Get recent connection stats for network optimization
     const { data: connectionStats } = await supabase
       .from("session_connections")
       .select("network_quality, device_type, connection_stats")
@@ -112,17 +135,14 @@ export async function GET(req: NextRequest) {
       .order("connected_at", { ascending: false })
       .limit(10);
 
-    // Calculate session health metrics
     const currentListeners = activeSession.listener_count || 0;
-    const sessionDuration = new Date().getTime() - new Date(activeSession.started_at).getTime();
-    const isHealthy = sessionDuration < 4 * 60 * 60 * 1000; // Less than 4 hours
+    const sessionDuration =
+      new Date().getTime() - new Date(activeSession.started_at).getTime();
+    const isHealthy = sessionDuration < 4 * 60 * 60 * 1000;
 
-    // Determine if session needs optimization
-    const needsOptimization = networkQuality === "low" || 
-                             currentListeners > 50 || 
-                             !isHealthy;
+    const needsOptimization =
+      networkQuality === "low" || currentListeners > 50 || !isHealthy;
 
-    // Transform the response with network optimizations
     const transformedSession = {
       id: activeSession.id,
       authorId: activeSession.author_id,
@@ -133,55 +153,60 @@ export async function GET(req: NextRequest) {
       startedAt: activeSession.started_at,
       listenerCount: currentListeners,
       isActive: activeSession.is_active,
-      duration: Math.floor(sessionDuration / 1000), // in seconds
+      duration: Math.floor(sessionDuration / 1000),
+      role, // ✅ new
       health: {
         isHealthy,
         needsOptimization,
-        averageNetworkQuality: connectionStats?.length ? 
-          connectionStats.reduce((acc, conn) => {
-            const quality = conn.network_quality;
-            return acc + (quality === 'high' ? 3 : quality === 'medium' ? 2 : 1);
-          }, 0) / connectionStats.length : 2,
-        connectionStability: connectionStats?.length || 0
+        averageNetworkQuality: connectionStats?.length
+          ? connectionStats.reduce((acc, conn) => {
+              const quality = conn.network_quality;
+              return (
+                acc +
+                (quality === "high" ? 3 : quality === "medium" ? 2 : 1)
+              );
+            }, 0) / connectionStats.length
+          : 2,
+        connectionStability: connectionStats?.length || 0,
       },
       networkOptimizations: {
         quickJoinEnabled: networkQuality === "low" || quickJoin,
         adaptiveQualityEnabled: needsOptimization,
         bufferOptimization: networkQuality === "low",
-        trackLimitApplied: (networkQuality === "low" || quickJoin) && audioTracks && audioTracks.length >= 5
+        trackLimitApplied:
+          (networkQuality === "low" || quickJoin) &&
+          audioTracks &&
+          audioTracks.length >= 5,
       },
       audioTracks: audioTracks || [],
       totalTracks: audioTracks?.length || 0,
-      canResume: true
+      canResume: true,
     };
 
-    // Update last activity
     await supabase
       .from("live_sessions")
-      .update({ 
+      .update({
         last_activity: new Date().toISOString(),
-        recovery_count: (activeSession.recovery_count || 0) + 1
+        recovery_count: (activeSession.recovery_count || 0) + 1,
       })
       .eq("id", activeSession.id);
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       session: transformedSession,
       success: true,
+      role, // ✅ included
       optimizedForNetwork: networkQuality === "low",
       quickJoinMode: quickJoin,
       recommendations: {
         upgradeConnection: networkQuality === "low",
         limitConcurrentStreams: currentListeners > 20,
         useAudioOnly: networkQuality === "low",
-        enableAdaptiveStreaming: needsOptimization
-      }
+        enableAdaptiveStreaming: needsOptimization,
+      },
     });
   } catch (error) {
     console.error("Session recovery error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 

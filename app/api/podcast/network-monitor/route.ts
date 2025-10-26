@@ -63,6 +63,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ✅ Check if session exists before inserting
+    const { data: session, error: sessionError } = await supabase
+      .from("live_sessions")
+      .select("id, listener_count, network_optimization_enabled")
+      .eq("id", sessionId)
+      .single();
+
+    if (sessionError || !session) {
+      return NextResponse.json(
+        { error: "Session not found" },
+        { status: 404 }
+      );
+    }
+
     // Analyze network quality
     const detectedQuality = analyzeNetworkQuality(networkStats as NetworkStats);
 
@@ -71,7 +85,7 @@ export async function POST(req: NextRequest) {
       .from("network_monitoring")
       .upsert(
         {
-          session_id: sessionId,
+          session_id: session.id, // ✅ guaranteed to exist now
           user_id: userId,
           network_stats: networkStats,
           device_info: deviceInfo,
@@ -79,22 +93,12 @@ export async function POST(req: NextRequest) {
           detected_quality: detectedQuality,
           timestamp: new Date().toISOString(),
         },
-        {
-          onConflict: "session_id, user_id",
-        }
+        { onConflict: "session_id, user_id" }
       );
-
 
     if (monitorError) {
       console.error("Network monitoring storage error:", monitorError);
     }
-
-    // Get session info
-    const { data: session } = await supabase
-      .from("live_sessions")
-      .select("id, listener_count, network_optimization_enabled")
-      .eq("id", sessionId)
-      .single();
 
     // Recommendations
     const recommendations = {
@@ -117,7 +121,7 @@ export async function POST(req: NextRequest) {
       networkStats.packetLoss > 2.0 ||
       networkStats.latency > 300;
 
-    if (needsImmediateOptimization && session) {
+    if (needsImmediateOptimization) {
       await supabase
         .from("live_sessions")
         .update({

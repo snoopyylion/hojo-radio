@@ -7,7 +7,11 @@ import { Radio, Clock, Users } from "lucide-react";
 
 import { AudioControls } from "./components/AudioControls";
 import { useNetworkMonitoring } from "./hooks/useNetworkMonitoring";
-import { SoundEffectsUpload } from "./components/SoundEffectsUpload"; // ⬅️ Import here
+import { SoundEffectsUpload } from "./components/SoundEffectsUpload";
+import GuestManagement from "../GuestManagement";
+import { useSessionRoles } from "../author/hooks/useSessionRoles";
+import { GuestRequestsPanel } from "../components/GuestRequestsPanel";
+import { useAuth } from "@clerk/nextjs";
 
 interface Props {
   session: LiveSession;
@@ -16,13 +20,24 @@ interface Props {
   networkQuality: "high" | "medium" | "low";
 }
 
-export default function PodcastStudio({ session, user, onEndSession }: Props) {
+export default function PodcastStudio({ session, onEndSession }: Props) {
+  const { userId, isLoaded } = useAuth();
   const [token, setToken] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<
     "connecting" | "connected" | "disconnected"
   >("connecting");
+
+  // 1. Use Clerk's userId consistently
+  const {
+    userRole,
+    isHost,
+    loading: rolesLoading,
+    promoteUser,
+    demoteUser,
+    refreshTokenForRole
+  } = useSessionRoles(session.id, userId || ''); // ← Changed from user.id
 
   const deviceType = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent)
     ? "mobile"
@@ -32,12 +47,20 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
   useEffect(() => {
     async function getAuthorToken() {
       try {
+        setIsConnecting(true);
+        
+        // ✅ Use Clerk's userId instead of user.id
         const res = await fetch(
-          `/api/livekit/token?room=${session.roomName}&identity=${user.id}&role=author&networkQuality=${initialNetworkQuality}&deviceType=${deviceType}`
+          `/api/livekit/token?room=${session.roomName}&identity=${userId}&role=host&networkQuality=${initialNetworkQuality}&deviceType=${deviceType}`,
+          {
+            credentials: 'include', // ✅ Include cookies
+          }
         );
 
         if (!res.ok) {
-          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+          const errorData = await res.json().catch(() => ({}));
+          console.error('Token fetch failed:', res.status, errorData);
+          throw new Error(errorData.error || `HTTP ${res.status}: ${res.statusText}`);
         }
 
         const data = await res.json();
@@ -47,6 +70,7 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
         }
 
         setToken(data.token);
+        setConnectionStatus('connected');
       } catch (error) {
         console.error("Failed to get author token:", error);
         setError(error instanceof Error ? error.message : "Failed to get token");
@@ -55,8 +79,11 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
       }
     }
 
-    getAuthorToken();
-  }, [session.roomName, user.id, initialNetworkQuality, deviceType]);
+    // ✅ Only fetch if userId is available
+    if (userId) {
+      getAuthorToken();
+    }
+  }, [session.roomName, userId, initialNetworkQuality, deviceType]);
 
   const handleRoomConnected = () => {
     console.log("Connected to room as author");
@@ -78,7 +105,6 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
     setConnectionStatus("disconnected");
   };
 
-  // ⬅️ This function will be passed to SoundEffectsUpload
   const handleSoundEffectUpload = async (formData: FormData) => {
     try {
       const res = await fetch("/api/sound-effects/upload", {
@@ -97,7 +123,91 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
     }
   };
 
-  if (isConnecting) {
+  // 2. Fix role change handler
+  const handleRoleChange = async (targetUserId: string, newRole: string) => {
+    try {
+      if (newRole === 'guest') {
+        await promoteUser(targetUserId);
+      } else if (newRole === 'listener') {
+        await demoteUser(targetUserId);
+      }
+
+      // If it's the current user, refresh token and rejoin
+      if (targetUserId === userId) { // ← Changed from user.id
+        await refreshTokenForRole();
+        // In a real implementation, you'd want to reconnect with new permissions
+      }
+    } catch (error) {
+      console.error('Role change failed:', error);
+    }
+  };
+
+  // 3. Fix approve request handler
+  const handleApproveRequest = async (requestId: string, targetUserId: string) => {
+    try {
+      const updateResponse = await fetch('/api/podcast/guest-requests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId,
+          status: 'approved',
+          respondedBy: userId // ← Changed from user.id
+        })
+      });
+
+      if (!updateResponse.ok) {
+        throw new Error('Failed to update request status');
+      }
+
+      const success = await promoteUser(targetUserId);
+
+      if (!success) {
+        await fetch('/api/podcast/guest-requests', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requestId,
+            status: 'pending',
+            respondedBy: null
+          })
+        });
+        throw new Error('Failed to promote user');
+      }
+    } catch (error) {
+      console.error('Failed to approve request:', error);
+      alert('Failed to approve request. Please try again.');
+    }
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    try {
+      await fetch('/api/podcast/guest-requests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId,
+          status: 'rejected',
+          respondedBy: userId // ← Changed from user.id
+        })
+      });
+    } catch (error) {
+      console.error('Failed to reject request:', error);
+      alert('Failed to reject request');
+    }
+  };
+
+  // 4. Add safety check for userId
+  if (!isLoaded || !userId) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="border border-black dark:border-white rounded-3xl p-12 text-center">
+          <p>Loading authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isConnecting || rolesLoading) {
     return (
       <div className="max-w-2xl mx-auto">
         <div className="border border-black dark:border-white rounded-3xl p-12 text-center">
@@ -146,13 +256,13 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8">
       {/* Session Header */}
       <div className="text-center border border-black dark:border-white rounded-3xl p-8">
         <div className="flex items-center justify-center space-x-3 mb-4">
           <div className="w-4 h-4 bg-[#EF3866] rounded-full animate-pulse"></div>
           <span className="text-[#EF3866] font-bold uppercase tracking-wider text-sm">
-            Live Broadcasting
+            Live Broadcasting • {userRole === 'host' ? '👑 Host' : '🎤 Guest'}
           </span>
         </div>
 
@@ -178,44 +288,66 @@ export default function PodcastStudio({ session, user, onEndSession }: Props) {
         </div>
       </div>
 
-      {/* Sound Effect Upload Button */}
-      <div className="flex justify-center">
-        <SoundEffectsUpload onUpload={handleSoundEffectUpload} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Controls */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Sound Effect Upload */}
+          <div className="flex justify-center">
+            <SoundEffectsUpload onUpload={handleSoundEffectUpload} />
+          </div>
+
+          {/* Guest Requests Panel - Only show for host */}
+          {isHost && (
+            <GuestRequestsPanel
+              sessionId={session.id}
+              onApproveRequest={handleApproveRequest}
+              onRejectRequest={handleRejectRequest}
+            />
+          )}
+
+          {/* LiveKit Room */}
+          <LiveKitRoom
+            token={token}
+            serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL!}
+            connect={true}
+            onConnected={handleRoomConnected}
+            onDisconnected={handleRoomDisconnected}
+            onError={handleRoomError}
+            options={{
+              adaptiveStream: true,
+              dynacast: true,
+              publishDefaults: {
+                audioPreset: {
+                  maxBitrate: 64000,
+                },
+              },
+            }}
+          >
+            <RoomAudioRenderer />
+
+            <NetworkMonitoringWrapper
+              onEndSession={onEndSession}
+              session={session}
+              connectionStatus={connectionStatus}
+            />
+          </LiveKitRoom>
+        </div>
+
+        {/* Guest Management Panel */}
+        <div className="lg:col-span-1">
+          <GuestManagement
+            sessionId={session.id}
+            isHost={isHost}
+            currentUserRole={userRole}
+            onRoleChange={handleRoleChange}
+          />
+        </div>
       </div>
-
-      {/* LiveKit Room */}
-      <LiveKitRoom
-        token={token}
-        serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL!}
-        connect={true}
-        onConnected={handleRoomConnected}
-        onDisconnected={handleRoomDisconnected}
-        onError={handleRoomError}
-        options={{
-          adaptiveStream: true,
-          dynacast: true,
-          publishDefaults: {
-            audioPreset: {
-              maxBitrate: 64000,
-            },
-          },
-        }}
-      >
-        <RoomAudioRenderer />
-
-        {/* ✅ Hook now runs INSIDE RoomProvider */}
-        <NetworkMonitoringWrapper
-          onEndSession={onEndSession}
-          session={session}
-          connectionStatus={connectionStatus}
-        />
-      </LiveKitRoom>
     </div>
   );
 }
 
-// Wrapper for network monitoring
-function NetworkMonitoringWrapper({
+const NetworkMonitoringWrapper = ({
   session,
   onEndSession,
   connectionStatus,
@@ -223,7 +355,7 @@ function NetworkMonitoringWrapper({
   session: LiveSession;
   onEndSession: () => void;
   connectionStatus: "connecting" | "connected" | "disconnected";
-}) {
+}) => {
   const { networkQuality, updateNetworkStats } = useNetworkMonitoring();
 
   return (
@@ -235,4 +367,4 @@ function NetworkMonitoringWrapper({
       connectionStatus={connectionStatus}
     />
   );
-}
+};

@@ -7,22 +7,25 @@ import { Providers } from "./providers";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
+  preload: false, // Disable preload to reduce requests
 });
 
 const manrope = Manrope({
   subsets: ["latin"],
   display: 'swap',
-  weight: ['200', '300', '400', '500', '600', '700', '800'],
+  weight: ['400', '500', '600', '700'], // Reduce weight variants
   variable: '--font-manrope',
+  preload: false,
 });
 
 const sora = Sora({
   subsets: ['latin'],
   display: 'swap',
-  weight: ['100', '200', '300', '400', '500', '600', '700', '800'],
+  weight: ['400', '500', '600'], // Reduce weight variants
   variable: '--font-sora',
+  preload: false,
 });
-
 
 export const metadata: Metadata = {
   title: "Hojo Media",
@@ -37,7 +40,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${sora.variable} ${manrope.variable} antialiased`}
+        className={`${inter.variable} ${sora.variable} ${manrope.variable} antialiased font-sans`}
       >
         <Providers>
           {children}

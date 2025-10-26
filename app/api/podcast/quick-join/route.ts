@@ -1,4 +1,4 @@
-// app/api/podcast/quick-join/route.ts - NEW
+// app/api/podcast/quick-join/route.ts - WITH HOST ENFORCEMENT
 import { NextResponse, NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
@@ -16,88 +16,79 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { 
-      sessionId, 
-      networkQuality = 'low', 
-      deviceType = 'mobile',
-      skipPreload = true 
+    const {
+      sessionId,
+      networkQuality = "low",
+      deviceType = "mobile",
+      skipPreload = true,
     } = body;
 
     if (!sessionId) {
-      return NextResponse.json(
-        { error: "Session ID required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Session ID required" }, { status: 400 });
     }
 
-    // Get minimal session info for quick join
+    // ✅ Fetch session WITH author_id
     const { data: session, error: sessionError } = await supabase
       .from("live_sessions")
-      .select("id, room_name, title, author_name, is_active, listener_count")
+      .select("id, room_name, title, author_name, author_id, is_active, listener_count")
       .eq("id", sessionId)
       .eq("is_active", true)
       .single();
 
     if (sessionError || !session) {
-      return NextResponse.json(
-        { error: "Active session not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Active session not found" }, { status: 404 });
     }
 
-    // Get only essential audio tracks (limit to 2 for quick join)
+    const isHost = session.author_id === userId;
+    const role = isHost ? "host" : "listener";
+
     const { data: essentialTracks, error: tracksError } = await supabase
       .from("session_audio_tracks")
       .select("id, track_type, public_url, file_size")
       .eq("session_id", sessionId)
-      .order("file_size", { ascending: true }) // Smallest files first
+      .order("file_size", { ascending: true })
       .limit(2);
 
-    if (tracksError) {
-      console.error("Error fetching essential tracks:", tracksError);
-    }
+    if (tracksError) console.error("Error fetching essential tracks:", tracksError);
 
-    // Create optimized connection record
     const { data: connectionRecord, error: connectionError } = await supabase
       .from("session_connections")
       .insert({
         session_id: sessionId,
         user_id: userId,
+        role, // ✅ log host/guest
         network_quality: networkQuality,
         device_type: deviceType,
-        connection_type: 'quick_join',
+        connection_type: "quick_join",
         connected_at: new Date().toISOString(),
         optimization_flags: JSON.stringify({
           quickJoin: true,
           skipPreload,
           audioOnly: true,
-          minimalTracks: true
-        })
+          minimalTracks: true,
+        }),
       })
       .select()
       .single();
 
-    if (connectionError) {
-      console.error("Connection record error:", connectionError);
-    }
+    if (connectionError) console.error("Connection record error:", connectionError);
 
-    // Increment listener count
     await supabase
       .from("live_sessions")
-      .update({ 
+      .update({
         listener_count: (session.listener_count || 0) + 1,
-        last_activity: new Date().toISOString()
+        last_activity: new Date().toISOString(),
       })
       .eq("id", sessionId);
 
-    // Generate quick join configuration
     const quickJoinConfig = {
       sessionInfo: {
         id: session.id,
         roomName: session.room_name,
         title: session.title,
-        authorName: session.author_name
+        authorName: session.author_name,
       },
+      role, // ✅ included
       connectionConfig: {
         audioOnly: true,
         skipVideoTracks: true,
@@ -105,41 +96,38 @@ export async function POST(req: NextRequest) {
         autoReconnect: true,
         reconnectAttempts: 5,
         reconnectDelay: 1000,
-        networkOptimized: true
+        networkOptimized: true,
       },
       streamingConfig: {
-        quality: 'low',
-        bitrate: '32k',
+        quality: "low",
+        bitrate: "32k",
         sampleRate: 22050,
         channels: 1,
-        latencyMode: 'high', // Higher latency for stability
-        adaptiveStreaming: false // Disable for consistency
+        latencyMode: "high",
+        adaptiveStreaming: false,
       },
       essentialTracks: essentialTracks || [],
       quickJoinEnabled: true,
-      estimatedJoinTime: networkQuality === 'low' ? '2-3 seconds' : '1-2 seconds'
+      estimatedJoinTime: networkQuality === "low" ? "2-3 seconds" : "1-2 seconds",
     };
 
     return NextResponse.json({
       success: true,
+      role,
       quickJoinConfig,
       optimizations: {
         tracksLimited: true,
         audioOnlyMode: true,
         bufferMinimized: true,
         preloadSkipped: skipPreload,
-        networkOptimized: true
+        networkOptimized: true,
       },
       connectionId: connectionRecord?.id,
-      message: "Quick join configuration ready"
+      message: "Quick join configuration ready",
     });
-
   } catch (error) {
     console.error("Quick join error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
