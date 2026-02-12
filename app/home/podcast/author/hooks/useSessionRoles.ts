@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Participant, RolesByType } from '@/types/podcast';
-import { Room } from 'livekit-client'; // ⬅️ Required if you manage your own LiveKit room instance
 
 export function useSessionRoles(
   sessionId: string,
-  userId: string,
-  room?: Room // optional LiveKit Room instance for token refresh
+  userId: string
 ) {
   const [roles, setRoles] = useState<RolesByType>({
     host: [],

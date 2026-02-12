@@ -1,28 +1,88 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sanityClient } from '@/lib/sanity/server';
 import { createClient } from "@supabase/supabase-js";
-import { auth } from "@clerk/nextjs/server";
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+// Define proper types for Supabase
+type Database = {
+  public: {
+    Tables: Record<string, unknown>;
+    Views: Record<string, unknown>;
+    Functions: Record<string, unknown>;
+  };
+};
+
+// Create Supabase client with proper typing - no unused import
+const supabase = createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+// Define types for audio segments
+interface AudioSegment {
+  name: string;
+  blob_base64: string;
+}
+
+interface UploadedSegment {
+  name: string;
+  url: string;
+  createdAt: string;
+}
+
+interface TTSResponse {
+  segments: AudioSegment[];
+}
+
+interface AuthorDoc {
+  _id: string;
+  name: string;
+}
+
+// Define Sanity post creation type (without _id)
+interface SanityPostInput {
+  _type: 'post';
+  title: string;
+  description: string;
+  slug: {
+    _type: 'slug';
+    current: string;
+  };
+  author: {
+    _type: 'reference';
+    _ref: string;
+  };
+  categories: Array<{
+    _type: 'reference';
+    _ref: string;
+  }>;
+  mainImage: unknown;
+  publishedAt: string;
+  createdAt: string;
+  body: string;
+  status: 'pending' | 'published' | 'rejected';
+  rejectionReason: string;
+  likes: unknown[];
+  comments: unknown[];
+}
+
+interface CreatedPost {
+  _id: string;
+}
+
 export async function POST(req: NextRequest) {
   try {
-
-    
     const formData = await req.formData();
 
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
     const body = formData.get('body') as string;
-    const slug = formData.get('slug') as string || title.toLowerCase().replace(/\s+/g, '-');
+    const slug = (formData.get('slug') as string) || title.toLowerCase().replace(/\s+/g, '-');
     const authorId = formData.get('authorId') as string;
     const imageRef = formData.get('imageRef') as string;
     const categoryIds = formData.getAll('categoryIds') as string[];
 
     // 1️⃣ Find author doc
-    const authorDoc = await sanityClient.fetch(
+    const authorDoc = await sanityClient.fetch<AuthorDoc>(
       `*[_type == "author" && userId == $userId][0]{ _id, name }`,
       { userId: authorId }
     );
@@ -42,7 +102,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3️⃣ Create post in Sanity first
-    const post = await sanityClient.create({
+    const postData: SanityPostInput = {
       _type: 'post',
       title,
       description,
@@ -57,7 +117,9 @@ export async function POST(req: NextRequest) {
       rejectionReason: '',
       likes: [],
       comments: [],
-    });
+    };
+
+    const post = await sanityClient.create(postData) as CreatedPost;
 
     // 4️⃣ Trigger TTS generation in background (non-blocking)
     (async () => {
@@ -74,15 +136,15 @@ export async function POST(req: NextRequest) {
         });
 
         if (!res.ok) throw new Error('TTS generation failed');
-        const audioBlobs = await res.json(); // { segments: [{ name, blob_base64 }] }
+        const audioBlobs = (await res.json()) as TTSResponse;
 
         // Upload each segment to Supabase
-        const uploadedSegments = [];
+        const uploadedSegments: UploadedSegment[] = [];
         for (const seg of audioBlobs.segments) {
           const audioBuffer = Buffer.from(seg.blob_base64, 'base64');
           const path = `narrations/${post._id}/${seg.name}.mp3`;
 
-          const { error } = await supabaseServer.storage
+          const { error } = await supabase.storage
             .from('post-audios')
             .upload(path, audioBuffer, {
               contentType: 'audio/mpeg',
@@ -91,7 +153,7 @@ export async function POST(req: NextRequest) {
 
           if (error) throw error;
 
-          const { data: publicUrlData } = supabaseServer.storage
+          const { data: publicUrlData } = supabase.storage
             .from('post-audios')
             .getPublicUrl(path);
 
