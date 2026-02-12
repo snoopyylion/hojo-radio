@@ -1,6 +1,6 @@
 //hojo/hooks/useWebSocketConnection.ts
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Message, TypingUser } from '@/types/messaging';
+import { Message, TypingUser, Conversation } from '@/types/messaging';
 import { useGlobalNotifications } from '@/context/GlobalNotificationsContext';
 import { useGlobalTyping } from '@/context/GlobalTypingContext';
 import toast from 'react-hot-toast';
@@ -10,7 +10,7 @@ interface UseWebSocketConnectionProps {
   userId: string;
   isViewingConversation?: boolean;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
-  setConversations: React.Dispatch<React.SetStateAction<any[]>>;
+  setConversations: React.Dispatch<React.SetStateAction<Conversation[]>>;
   setTypingUsers: React.Dispatch<React.SetStateAction<Record<string, TypingUser[]>>>;
   setOnlineUsers: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
@@ -48,7 +48,6 @@ export const useWebSocketConnection = ({
     isGlobalConnected, 
     sendGlobalTypingUpdate, 
     setTypingInConversation,
-    addMessageNotification,
     showBrowserNotification,
     addNotification,
     fetchNotifications,
@@ -356,7 +355,11 @@ export const useWebSocketConnection = ({
             case 'user_presence':
               setOnlineUsers(prev => {
                 const newSet = new Set(prev);
-                data.isOnline ? newSet.add(data.userId) : newSet.delete(data.userId);
+                if (data.isOnline) {
+                  newSet.add(data.userId);
+                } else {
+                  newSet.delete(data.userId);
+                }
                 return newSet;
               });
               break;

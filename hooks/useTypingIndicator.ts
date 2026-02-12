@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '@/lib/supabaseClient';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UseTypingIndicatorProps {
   conversationId: string;
@@ -15,7 +16,8 @@ export const useTypingIndicator = ({
   const { user } = useUser();
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Fixed type
   const isTypingRef = useRef(false);
-  const channelRef = useRef<any>(null); // Store channel reference
+  const channelRef = useRef<RealtimeChannel | null>(null); // Store channel reference
+
   
   // Initialize channel
   useEffect(() => {

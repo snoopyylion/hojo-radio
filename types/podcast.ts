@@ -18,12 +18,20 @@ export interface LiveSession {
   isActive: boolean;
 }
 
+export interface ParticipantProfile {
+  first_name?: string | null;
+  last_name?: string | null;
+  username?: string | null;
+  avatar_url?: string | null;
+}
+
 export interface Participant {
   id: string;
   user_id: string;
   role: 'host' | 'guest' | 'listener';
   promoted_at: string;
   created_at: string;
+  profile?: ParticipantProfile | null;
 }
 
 export interface RolesByType {

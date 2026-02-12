@@ -1,6 +1,6 @@
 // app/home/podcast/author/components/AudioControls.tsx - MAIN AUDIO CONTROLS COMPONENT
-import React, { useState, useEffect } from 'react';
-import { Square, Mic, MicOff, Volume2, VolumeX, Settings, Headphones } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Square, Mic, MicOff, Volume2, VolumeX, Settings, Headphones, Play } from 'lucide-react';
 import { useLocalParticipant, useMaybeRoomContext } from "@livekit/components-react";
 import { LiveSession } from "@/types/podcast";
 
@@ -11,7 +11,7 @@ import { MusicControls } from './MusicControls';
 import { SoundEffectsPanel } from './SoundEffectsPanel';
 import { useAudioManager } from '../hooks/useAudioManager';
 import { useNetworkMonitoring } from '../hooks/useNetworkMonitoring';
-import { useSoundEffects } from '../hooks/useSoundEffects';
+import { useSoundEffects, SoundEffect } from '../hooks/useSoundEffects';
 import { NetworkQualityStats } from '../types/audio';
 
 interface AudioControlsProps {
@@ -52,20 +52,51 @@ export function AudioControls({
     stopMusic,
     pauseMusic,
     resumeMusic,
-    setTrackVolume
+    setTrackVolume,
+    playSoundEffect,
+    stopSoundEffect,
+    stopAllSoundEffects,
   } = useAudioManager();
+
+  const soundboardOptions = useMemo(
+    () => ({
+      playEffect: playSoundEffect,
+      stopEffect: stopSoundEffect,
+      stopAllEffects: stopAllSoundEffects,
+    }),
+    [playSoundEffect, stopSoundEffect, stopAllSoundEffects]
+  );
 
   const {
     effects,
+    userEffects,
+    loading: effectsLoading,
+    error: effectsError,
     playSound,
+    stopSound,
+    stopAllSounds,
     isPlaying: isSoundEffectPlaying,
-    stopAllSounds
-  } = useSoundEffects();
+    volume: effectsVolume,
+    setVolume: setEffectsVolume,
+    refetch,
+    activeEffects,
+  } = useSoundEffects(soundboardOptions);
 
   const { startNetworkMonitoring, stopNetworkMonitoring } = useNetworkMonitoring();
 
   // Quick access to favorite effects (first 6)
   const quickAccessEffects = effects.slice(0, 6);
+
+  const broadcastingEffects = useMemo(() => {
+    if (activeEffects.length === 0) return [] as SoundEffect[];
+    const lookup = new Map<string, SoundEffect>();
+    [...effects, ...userEffects].forEach(effect => {
+      lookup.set(effect.id, effect);
+    });
+    return activeEffects
+      .map(id => lookup.get(id))
+      .filter((effect): effect is SoundEffect => Boolean(effect));
+  }, [activeEffects, effects, userEffects]);
 
   // Start network monitoring when component mounts
   useEffect(() => {
@@ -310,12 +341,21 @@ export function AudioControls({
               View All ({effects.length})
             </button>
           </div>
+
+          {broadcastingEffects.length > 0 && (
+            <div className="flex items-center gap-2 mb-4 rounded-lg bg-green-500/10 px-3 py-2 text-sm text-green-600 dark:text-green-400">
+              <Play className="w-4 h-4" />
+              <span>
+                Now playing: {broadcastingEffects.map(effect => effect.title).join(', ')}
+              </span>
+            </div>
+          )}
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {quickAccessEffects.map((effect) => (
               <button
                 key={effect.id}
-                onClick={() => playSound(effect.id)}
+                onClick={() => void playSound(effect.id)}
                 disabled={isMuted}
                 className={`p-3 rounded-lg text-sm font-medium transition-colors ${
                   isSoundEffectPlaying(effect.id)
@@ -344,8 +384,20 @@ export function AudioControls({
 
       {/* Full Sound Effects Panel */}
       {showSoundEffects && (
-  <SoundEffectsPanel className="shadow-lg" />
-)}
+        <SoundEffectsPanel
+          className="shadow-lg"
+          effects={effects}
+          userEffects={userEffects}
+          loading={effectsLoading}
+          error={effectsError}
+          playSound={playSound}
+          stopSound={stopSound}
+          isPlaying={isSoundEffectPlaying}
+          volume={effectsVolume}
+          setVolume={setEffectsVolume}
+          refetch={refetch}
+        />
+      )}
 
       {/* Settings Panel */}
       {showSettings && (

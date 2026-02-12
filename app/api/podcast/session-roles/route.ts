@@ -16,6 +16,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    interface UserProfile {
+      first_name: string | null;
+      last_name: string | null;
+      username: string | null;
+      avatar_url: string | null;
+    }
+
     const { data: roles, error } = await supabase
       .from('session_roles')
       .select('*')
@@ -25,11 +32,38 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const uniqueUserIds = Array.from(new Set((roles || []).map((role) => role.user_id))).filter(Boolean);
+    let userProfiles: Record<string, UserProfile> = {};
+
+    if (uniqueUserIds.length > 0) {
+      const { data: users, error: userError } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, username, avatar_url')
+        .in('id', uniqueUserIds);
+
+      if (!userError && users) {
+        userProfiles = users.reduce((acc, user) => {
+          acc[user.id] = {
+            first_name: user.first_name ?? null,
+            last_name: user.last_name ?? null,
+            username: user.username ?? null,
+            avatar_url: user.avatar_url ?? null,
+          };
+          return acc;
+        }, {} as Record<string, UserProfile>);
+      }
+    }
+
+    const rolesWithProfiles = (roles || []).map((role) => ({
+      ...role,
+      profile: userProfiles[role.user_id] ?? null,
+    }));
+
     // Group by role type
     const rolesByType = {
-      host: roles?.filter(r => r.role === 'host') || [],
-      guests: roles?.filter(r => r.role === 'guest') || [],
-      listeners: roles?.filter(r => r.role === 'listener') || []
+      host: rolesWithProfiles.filter(r => r.role === 'host'),
+      guests: rolesWithProfiles.filter(r => r.role === 'guest'),
+      listeners: rolesWithProfiles.filter(r => r.role === 'listener')
     };
 
     return NextResponse.json({ roles: rolesByType });

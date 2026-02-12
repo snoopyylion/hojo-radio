@@ -9,6 +9,7 @@ interface UserInfo {
   first_name?: string;
   last_name?: string;
   username?: string;
+  avatar_url?: string | null;
 }
 
 interface GuestManagementProps {
@@ -47,7 +48,8 @@ export default function GuestManagement({
         user_id: userId,
         first_name: data.first_name,
         last_name: data.last_name,
-        username: data.username
+        username: data.username,
+        avatar_url: data.avatar_url ?? null,
       };
       
       // Update cache using functional update to avoid stale state
@@ -61,34 +63,46 @@ export default function GuestManagement({
   return null;
 };
 
-  const getUserDisplayName = (userId: string): string => {
-  const userInfo = userInfoCache[userId];
-  
-  if (!userInfo) {
-    // Still loading
-    return `Loading...`;
-  }
+  const resolveUserInfo = (participant: Participant): UserInfo | null => {
+    if (participant.profile) {
+      return {
+        user_id: participant.user_id,
+        first_name: participant.profile.first_name ?? undefined,
+        last_name: participant.profile.last_name ?? undefined,
+        username: participant.profile.username ?? undefined,
+        avatar_url: participant.profile.avatar_url ?? null,
+      };
+    }
 
-  // Priority: Full name > Username > User ID
-  const fullName = [userInfo.first_name, userInfo.last_name]
-    .filter(Boolean)
-    .join(' ')
-    .trim();
-  
-  if (fullName) {
-    return fullName;
-  }
-  
-  if (userInfo.username) {
-    return `@${userInfo.username}`;
-  }
-  
-  return `User ${userId.slice(-6)}`;
-};
+    return userInfoCache[participant.user_id] ?? null;
+  };
 
-  const getUserSubtext = (userId: string): string | null => {
-    const userInfo = userInfoCache[userId];
-    
+  const getUserDisplayName = (participant: Participant): string => {
+    const userInfo = resolveUserInfo(participant);
+
+    if (!userInfo) {
+      return `User ${participant.user_id.slice(-6)}`;
+    }
+
+    const fullName = [userInfo.first_name, userInfo.last_name]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    if (fullName) {
+      return fullName;
+    }
+
+    if (userInfo.username) {
+      return `@${userInfo.username}`;
+    }
+
+    return `User ${participant.user_id.slice(-6)}`;
+  };
+
+  const getUserSubtext = (participant: Participant): string | null => {
+    const userInfo = resolveUserInfo(participant);
+
     if (!userInfo) {
       return null;
     }
@@ -97,43 +111,63 @@ export default function GuestManagement({
       .filter(Boolean)
       .join(' ')
       .trim();
-    
-    // If showing full name, also show username if available
+
     if (fullName && userInfo.username) {
       return `@${userInfo.username}`;
     }
-    
+
     return null;
   };
 
   const fetchRoles = async () => {
-  try {
-    const response = await fetch(`/api/podcast/session-roles?sessionId=${sessionId}`);
-    if (response.ok) {
-      const data = await response.json();
-      setRoles(data.roles);
-      
-      // Fetch user info for all participants
-      const allUserIds = [
-        ...data.roles.host,
-        ...data.roles.guests,
-        ...data.roles.listeners
-      ].map((p: Participant) => p.user_id);
-      
-      // Fetch user info in parallel and WAIT for all to complete
-      const userInfoPromises = allUserIds.map(async (userId: string) => {
-        const userInfo = await fetchUserInfo(userId);
-        return { userId, userInfo };
-      });
-      
-      await Promise.all(userInfoPromises);
+    try {
+      const response = await fetch(`/api/podcast/session-roles?sessionId=${sessionId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setRoles(data.roles);
+
+        const participants: Participant[] = [
+          ...data.roles.host,
+          ...data.roles.guests,
+          ...data.roles.listeners,
+        ];
+
+        const derivedFromProfile = participants.reduce((acc, participant) => {
+          if (participant.profile) {
+            acc[participant.user_id] = {
+              user_id: participant.user_id,
+              first_name: participant.profile.first_name ?? undefined,
+              last_name: participant.profile.last_name ?? undefined,
+              username: participant.profile.username ?? undefined,
+              avatar_url: participant.profile.avatar_url ?? null,
+            };
+          }
+          return acc;
+        }, {} as Record<string, UserInfo>);
+
+        if (Object.keys(derivedFromProfile).length > 0) {
+          setUserInfoCache(prev => ({ ...derivedFromProfile, ...prev }));
+        }
+
+        const knownUserIds = new Set([
+          ...Object.keys(userInfoCache),
+          ...Object.keys(derivedFromProfile),
+        ]);
+
+        const missingParticipants = participants.filter(
+          participant => !participant.profile && !knownUserIds.has(participant.user_id)
+        );
+
+        if (missingParticipants.length > 0) {
+          await Promise.all(missingParticipants.map(({ user_id }) => fetchUserInfo(user_id)));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch roles:', error);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Failed to fetch roles:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const promoteToGuest = async (userId: string) => {
     setActionLoading(userId);
@@ -193,20 +227,20 @@ export default function GuestManagement({
     }
   };
 
-  const removeUser = async (userId: string) => {
-    const displayName = getUserDisplayName(userId);
+  const removeUser = async (participant: Participant) => {
+    const displayName = getUserDisplayName(participant);
     if (!confirm(`Are you sure you want to remove ${displayName} from the session?`)) {
       return;
     }
 
-    setActionLoading(userId);
+    setActionLoading(participant.user_id);
     try {
       const response = await fetch('/api/podcast/session-roles', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId,
-          targetUserId: userId
+          targetUserId: participant.user_id
         })
       });
 
@@ -255,8 +289,8 @@ export default function GuestManagement({
     };
 
     const isActionInProgress = actionLoading === participant.user_id;
-    const displayName = getUserDisplayName(participant.user_id);
-    const subtext = getUserSubtext(participant.user_id);
+    const displayName = getUserDisplayName(participant);
+    const subtext = getUserSubtext(participant);
 
     return (
       <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
@@ -286,7 +320,7 @@ export default function GuestManagement({
                 className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <UserPlus className="w-4 h-4 mr-1" />
-                {isActionInProgress ? 'Promoting...' : 'Promote'}
+                {isActionInProgress ? 'Inviting...' : 'Invite to Speak'}
               </button>
             )}
 
@@ -297,18 +331,18 @@ export default function GuestManagement({
                 className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-orange-100 text-orange-700 hover:bg-orange-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <MicOff className="w-4 h-4 mr-1" />
-                {isActionInProgress ? 'Demoting...' : 'Demote'}
+                {isActionInProgress ? 'Revoking...' : 'Revoke Speaking'}
               </button>
             )}
 
             {participant.role !== 'host' && (
               <button
-                onClick={() => removeUser(participant.user_id)}
+                onClick={() => removeUser(participant)}
                 disabled={isActionInProgress}
                 className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <UserMinus className="w-4 h-4 mr-1" />
-                {isActionInProgress ? 'Removing...' : 'Remove'}
+                {isActionInProgress ? 'Removing...' : 'Remove from Session'}
               </button>
             )}
           </div>

@@ -20,16 +20,23 @@ export interface UseSoundEffectsReturn {
   userEffects: SoundEffect[];
   loading: boolean;
   error: string | null;
-  playSound: (effectId: string) => void;
+  playSound: (effectId: string) => Promise<void>;
   stopSound: (effectId: string) => void;
   stopAllSounds: () => void;
   isPlaying: (effectId: string) => boolean;
   volume: number;
   setVolume: (volume: number) => void;
   refetch: () => Promise<void>;
+  activeEffects: string[];
 }
 
-export function useSoundEffects(): UseSoundEffectsReturn {
+export interface SoundEffectsOptions {
+  playEffect?: (effectId: string, url: string, volume: number) => Promise<void>;
+  stopEffect?: (effectId: string) => void;
+  stopAllEffects?: () => void;
+}
+
+export function useSoundEffects(options?: SoundEffectsOptions): UseSoundEffectsReturn {
   const [effects, setEffects] = useState<SoundEffect[]>([]);
   const [userEffects, setUserEffects] = useState<SoundEffect[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +45,7 @@ export function useSoundEffects(): UseSoundEffectsReturn {
   
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const playingSounds = useRef<Set<string>>(new Set());
+  const [activeEffects, setActiveEffects] = useState<string[]>([]);
 
   // Fetch all sound effects
   const fetchAllSoundEffects = useCallback(async () => {
@@ -133,6 +141,16 @@ export function useSoundEffects(): UseSoundEffectsReturn {
     };
   }, []);
 
+  const markEffectStart = useCallback((effectId: string) => {
+    playingSounds.current.add(effectId);
+    setActiveEffects(prev => (prev.includes(effectId) ? prev : [...prev, effectId]));
+  }, []);
+
+  const markEffectEnd = useCallback((effectId: string) => {
+    playingSounds.current.delete(effectId);
+    setActiveEffects(prev => prev.filter(id => id !== effectId));
+  }, []);
+
   const getOrCreateAudio = useCallback((effect: SoundEffect): HTMLAudioElement => {
     if (audioRefs.current.has(effect.id)) {
       return audioRefs.current.get(effect.id)!;
@@ -143,19 +161,19 @@ export function useSoundEffects(): UseSoundEffectsReturn {
     audio.preload = 'auto';
     
     audio.addEventListener('ended', () => {
-      playingSounds.current.delete(effect.id);
+      markEffectEnd(effect.id);
     });
 
     audio.addEventListener('error', (e) => {
       console.error(`Failed to load sound effect: ${effect.title}`, e);
-      playingSounds.current.delete(effect.id);
+      markEffectEnd(effect.id);
     });
 
     audioRefs.current.set(effect.id, audio);
     return audio;
-  }, [volume]);
+  }, [volume, markEffectEnd]);
 
-  const playSound = useCallback((effectId: string) => {
+  const playSound = useCallback(async (effectId: string) => {
     // Find effect in either effects or userEffects
     const effect = effects.find(e => e.id === effectId) || 
                   userEffects.find(e => e.id === effectId);
@@ -165,46 +183,63 @@ export function useSoundEffects(): UseSoundEffectsReturn {
       return;
     }
 
+    if (options?.playEffect) {
+      markEffectStart(effectId);
+      try {
+        await options.playEffect(effectId, effect.url, volume / 100);
+      } catch (error) {
+        console.error('Error broadcasting sound effect:', error);
+      } finally {
+        markEffectEnd(effectId);
+      }
+      return;
+    }
+
     try {
       const audio = getOrCreateAudio(effect);
-      
-      // Stop if already playing
+
       if (playingSounds.current.has(effectId)) {
         audio.pause();
         audio.currentTime = 0;
+        markEffectEnd(effectId);
       }
 
-      // Update volume
-      audio.volume = volume / 100;
-      
-      // Play the sound
-      audio.play().catch(error => {
-        console.error('Error playing sound effect:', error);
-        playingSounds.current.delete(effectId);
-      });
+      markEffectStart(effectId);
 
-      playingSounds.current.add(effectId);
+      audio.volume = volume / 100;
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.catch(error => {
+          console.error('Error playing sound effect:', error);
+          markEffectEnd(effectId);
+        });
+      }
     } catch (error) {
       console.error('Error playing sound effect:', error);
+      markEffectEnd(effectId);
     }
-  }, [effects, userEffects, volume, getOrCreateAudio]);
+  }, [effects, userEffects, volume, getOrCreateAudio, options, markEffectStart, markEffectEnd]);
 
   const stopSound = useCallback((effectId: string) => {
+    options?.stopEffect?.(effectId);
     const audio = audioRefs.current.get(effectId);
     if (audio) {
       audio.pause();
       audio.currentTime = 0;
-      playingSounds.current.delete(effectId);
     }
-  }, []);
+    markEffectEnd(effectId);
+  }, [options, markEffectEnd]);
 
   const stopAllSounds = useCallback(() => {
-    audioRefs.current.forEach((audio, effectId) => {
+    options?.stopAllEffects?.();
+    audioRefs.current.forEach((audio) => {
       audio.pause();
       audio.currentTime = 0;
-      playingSounds.current.delete(effectId);
     });
-  }, []);
+
+    const active = Array.from(playingSounds.current);
+    active.forEach(markEffectEnd);
+  }, [options, markEffectEnd]);
 
   const isPlaying = useCallback((effectId: string): boolean => {
     return playingSounds.current.has(effectId);
@@ -229,5 +264,6 @@ export function useSoundEffects(): UseSoundEffectsReturn {
     volume,
     setVolume,
     refetch,
+    activeEffects,
   };
 }

@@ -1,6 +1,6 @@
-// app/api/livekit/token/route.ts - FIXED AUDIO PERMISSIONS
+// app/api/livekit/token/route.ts - FIXED GUEST AUDIO PERMISSIONS + ROLE DETECTION
 import { NextResponse, NextRequest } from "next/server";
-import { AccessToken, VideoGrant } from "livekit-server-sdk";
+import { AccessToken, VideoGrant, TrackSource } from "livekit-server-sdk";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const roomName = url.searchParams.get("room");
     const identity = url.searchParams.get("identity");
-    const requestedRole = url.searchParams.get("role") || "listener"; // still accept param
+    const requestedRole = url.searchParams.get("role") || "listener";
     const networkQuality =
       (url.searchParams.get("networkQuality") as keyof typeof TOKEN_CONFIGS) ||
       "medium";
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Identity mismatch" }, { status: 403 });
     }
 
-    // ✅ Fetch session info including creator_id
+    // ✅ Fetch session info including creator_id AND check guest status
     const { data: session } = await supabase
       .from("live_sessions")
       .select("id, title, author_id, creator_id")
@@ -97,16 +97,28 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    // ✅ Decide role: creator always host
-    let finalRole: "host" | "guest" | "listener" = "guest";
+    // ✅ Check if user is approved guest (FIXED ROLE DETECTION)
+    const { data: guestRole } = await supabase
+      .from("session_roles")
+      .select("role")
+      .eq("session_id", session.id)
+      .eq("user_id", userId)
+      .single(); // ⬅️ removed .eq("role", "guest")
+
+    // ✅ Decide role based on DATABASE, not request
+    let finalRole: "host" | "guest" | "listener";
 
     if (session.creator_id === userId) {
       finalRole = "host";
-    } else if (requestedRole === "listener") {
-      finalRole = "listener";
-    } else {
+    } else if (guestRole?.role === "guest") {
       finalRole = "guest";
+    } else {
+      finalRole = "listener";
     }
+
+    console.log(
+      `[Token] User ${userId} requested ${requestedRole}, granted: ${finalRole}`
+    );
 
     // Merge configs: network + mobile
     const baseConfig = TOKEN_CONFIGS[networkQuality] || TOKEN_CONFIGS.medium;
@@ -114,8 +126,8 @@ export async function GET(req: NextRequest) {
       isIOS && deviceType === "mobile"
         ? MOBILE_CONFIGS.ios
         : deviceType === "mobile"
-          ? MOBILE_CONFIGS.android
-          : MOBILE_CONFIGS.default;
+        ? MOBILE_CONFIGS.android
+        : MOBILE_CONFIGS.default;
 
     const config = { ...baseConfig, ...mobileConfig };
 
@@ -123,35 +135,48 @@ export async function GET(req: NextRequest) {
     const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
       identity,
       ttl: config.ttl,
-      name: `User-${identity.slice(-6)}`,
+      name:
+        finalRole === "host"
+          ? `Host-${session.author_id || identity.slice(-6)}`
+          : finalRole === "guest"
+          ? `Guest-${identity.slice(-6)}`
+          : `Listener-${identity.slice(-6)}`,
     });
 
-    // ✅ Permissions by role
+    // ✅ Permissions by role - CRITICAL FIX
     let grant: VideoGrant;
+
     if (finalRole === "listener") {
+      // Listeners: can only subscribe (listen)
       grant = {
         room: roomName,
         roomJoin: true,
         canSubscribe: true,
         canPublish: false,
         canPublishData: false,
+        canUpdateOwnMetadata: true,
       };
     } else if (finalRole === "host") {
+      // Host: full permissions
       grant = {
         room: roomName,
         roomJoin: true,
         canSubscribe: true,
         canPublish: true,
         canPublishData: true,
+        canUpdateOwnMetadata: true,
+        roomAdmin: true,
       };
     } else {
-      // guest
+      // Guest: can publish audio only
       grant = {
         room: roomName,
         roomJoin: true,
         canSubscribe: true,
-        canPublish: true, // guests can speak
+        canPublish: true, // ✅ Guests can speak
         canPublishData: true,
+        canUpdateOwnMetadata: true,
+        canPublishSources: [TrackSource.MICROPHONE], // ✅ Audio only
       };
     }
 
@@ -168,10 +193,11 @@ export async function GET(req: NextRequest) {
       isMobile: deviceType === "mobile",
       isIOS,
       isCreator: session.creator_id === userId,
+      isGuest: finalRole === "guest",
       optimizations: {
         lowLatency: networkQuality === "high" && !isIOS,
         adaptiveStreaming: config.adaptiveStreaming,
-        audioOnly: config.audioOnly,
+        audioOnly: config.audioOnly || finalRole === "guest",
         bufferOptimization: config.bufferOptimization,
         mobileOptimized: deviceType === "mobile",
         reconnectConfig: {
@@ -194,6 +220,10 @@ export async function GET(req: NextRequest) {
       connected_at: new Date().toISOString(),
     });
 
+    console.log(
+      `[Token] Generated token for ${finalRole} (canPublish: ${grant.canPublish})`
+    );
+
     return NextResponse.json({
       token,
       role: finalRole,
@@ -203,6 +233,7 @@ export async function GET(req: NextRequest) {
         id: session.id,
         title: session.title,
         isCreator: session.creator_id === userId,
+        isGuest: finalRole === "guest",
       },
     });
   } catch (error) {
@@ -213,7 +244,6 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
 
 export async function POST(req: NextRequest) {
   try {

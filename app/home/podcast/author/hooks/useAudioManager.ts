@@ -109,7 +109,7 @@ export function useAudioManager() {
     }
   };
 
-  const publishAudioTrack = async () => {
+  const publishAudioTrack = useCallback(async () => {
     if (!audioManagerRef.current || !localParticipant) return;
 
     try {
@@ -154,7 +154,7 @@ export function useAudioManager() {
     } catch (micError) {
       console.error("All publishing strategies failed:", micError);
     }
-  };
+  }, [localParticipant]);
 
   const setTrackVolume = (volume: number) => {
     setAudioVolume(volume);
@@ -162,6 +162,21 @@ export function useAudioManager() {
       audioManagerRef.current.setTrackVolume(currentTrackId, volume);
     }
   };
+
+  const playSoundEffect = useCallback(async (effectId: string, url: string, volume: number) => {
+    if (!audioManagerRef.current || !localParticipant) return;
+
+    await publishAudioTrack();
+    return audioManagerRef.current.playEffect(effectId, url, volume);
+  }, [localParticipant, publishAudioTrack]);
+
+  const stopSoundEffect = useCallback((effectId: string) => {
+    audioManagerRef.current?.stopEffect(effectId);
+  }, []);
+
+  const stopAllSoundEffects = useCallback(() => {
+    audioManagerRef.current?.stopAllEffects();
+  }, []);
 
   return {
     tracks,
@@ -177,6 +192,9 @@ export function useAudioManager() {
     stopMusic,
     pauseMusic,
     resumeMusic,
-    setTrackVolume
+    setTrackVolume,
+    playSoundEffect,
+    stopSoundEffect,
+    stopAllSoundEffects,
   };
 }

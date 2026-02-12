@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
 import { LiveSession, User } from "@/types/podcast";
 import { Radio, Clock, Users } from "lucide-react";
+import toast from "react-hot-toast";
 
 import { AudioControls } from "./components/AudioControls";
 import { useNetworkMonitoring } from "./hooks/useNetworkMonitoring";
@@ -144,38 +145,46 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
 
   // 3. Fix approve request handler
   const handleApproveRequest = async (requestId: string, targetUserId: string) => {
+    const toastId = toast.loading("Approving request...");
+  
     try {
-      const updateResponse = await fetch('/api/podcast/guest-requests', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+      // 1️⃣ Update request to approved
+      const updateResponse = await fetch("/api/podcast/guest-requests", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           requestId,
-          status: 'approved',
-          respondedBy: userId // ← Changed from user.id
-        })
+          status: "approved",
+          respondedBy: userId,
+        }),
       });
-
+  
       if (!updateResponse.ok) {
-        throw new Error('Failed to update request status');
+        throw new Error("Failed to update request status");
       }
-
+  
+      // 2️⃣ Promote the user in database
       const success = await promoteUser(targetUserId);
-
+  
       if (!success) {
-        await fetch('/api/podcast/guest-requests', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+        // Rollback if promotion fails
+        await fetch("/api/podcast/guest-requests", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             requestId,
-            status: 'pending',
-            respondedBy: null
-          })
+            status: "pending",
+            respondedBy: null,
+          }),
         });
-        throw new Error('Failed to promote user');
+        throw new Error("Failed to promote user");
       }
+  
+      toast.success("✅ Guest approved! They'll reconnect automatically.", { id: toastId });
+      
     } catch (error) {
-      console.error('Failed to approve request:', error);
-      alert('Failed to approve request. Please try again.');
+      console.error("❌ Failed to approve request:", error);
+      toast.error("Failed to approve request. Please try again.", { id: toastId });
     }
   };
 
@@ -262,7 +271,7 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
         <div className="flex items-center justify-center space-x-3 mb-4">
           <div className="w-4 h-4 bg-[#EF3866] rounded-full animate-pulse"></div>
           <span className="text-[#EF3866] font-bold uppercase tracking-wider text-sm">
-            Live Broadcasting • {userRole === 'host' ? '👑 Host' : '🎤 Guest'}
+            Live Broadcasting • {userRole === 'host' ? 'Host' : 'Guest'}
           </span>
         </div>
 
@@ -291,11 +300,6 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Controls */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Sound Effect Upload */}
-          <div className="flex justify-center">
-            <SoundEffectsUpload onUpload={handleSoundEffectUpload} />
-          </div>
-
           {/* Guest Requests Panel - Only show for host */}
           {isHost && (
             <GuestRequestsPanel
@@ -306,6 +310,10 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
           )}
 
           {/* LiveKit Room */}
+           {/* Sound Effect Upload */}
+          <div className="flex justify-start">
+            <SoundEffectsUpload onUpload={handleSoundEffectUpload} />
+          </div>
           <LiveKitRoom
             token={token}
             serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL!}

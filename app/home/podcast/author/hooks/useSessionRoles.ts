@@ -1,17 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Participant, RolesByType } from '@/types/podcast';
+import { Room } from 'livekit-client'; // ⬅️ Required if you manage your own LiveKit room instance
 
-export function useSessionRoles(sessionId: string, userId: string) {
+export function useSessionRoles(
+  sessionId: string,
+  userId: string,
+  room?: Room // optional LiveKit Room instance for token refresh
+) {
   const [roles, setRoles] = useState<RolesByType>({
     host: [],
     guests: [],
-    listeners: []
+    listeners: [],
   });
   const [userRole, setUserRole] = useState<'host' | 'guest' | 'listener'>('listener');
   const [isHost, setIsHost] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  /* ---------------- Fetch Roles ---------------- */
   const fetchRoles = useCallback(async () => {
     if (!sessionId || !userId) {
       setLoading(false);
@@ -21,7 +27,7 @@ export function useSessionRoles(sessionId: string, userId: string) {
     try {
       setError(null);
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 50000); // 50s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 50000);
 
       const response = await fetch(
         `/api/podcast/session-roles?sessionId=${sessionId}&userId=${userId}`,
@@ -35,22 +41,18 @@ export function useSessionRoles(sessionId: string, userId: string) {
       }
 
       const data = await response.json();
-      
-      // Set roles data
-      if (data.roles) {
-        setRoles(data.roles);
-      }
-      
-      // Find current user's role - fix the property name
+
+      if (data.roles) setRoles(data.roles);
+
       const allParticipants = [
         ...(data.roles?.host || []),
         ...(data.roles?.guests || []),
-        ...(data.roles?.listeners || [])
+        ...(data.roles?.listeners || []),
       ];
-      
+
       const currentUser = allParticipants.find((p: Participant) => p.user_id === userId);
       const currentUserRole = currentUser?.role || 'listener';
-      
+
       setUserRole(currentUserRole);
       setIsHost(currentUserRole === 'host');
     } catch (error) {
@@ -58,7 +60,6 @@ export function useSessionRoles(sessionId: string, userId: string) {
       if (error instanceof Error) {
         setError(error.name === 'AbortError' ? 'Request timeout' : error.message);
       }
-      // Fallback values
       setUserRole('listener');
       setIsHost(false);
     } finally {
@@ -66,96 +67,117 @@ export function useSessionRoles(sessionId: string, userId: string) {
     }
   }, [sessionId, userId]);
 
-  const promoteUser = useCallback(async (targetUserId: string) => {
-    try {
-      const response = await fetch('/api/podcast/session-roles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId,
-          targetUserId,
-          newRole: 'guest',
-          action: 'promote'
-        })
-      });
+  /* ---------------- Promote User ---------------- */
+  const promoteUser = useCallback(
+    async (targetUserId: string) => {
+      try {
+        const response = await fetch('/api/podcast/session-roles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            targetUserId,
+            newRole: 'guest',
+            action: 'promote',
+          }),
+        });
 
-      if (response.ok) {
-        await fetchRoles();
-        return true;
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Promotion failed');
+        if (response.ok) {
+          await fetchRoles();
+          return true;
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Promotion failed');
+        }
+      } catch (error) {
+        console.error('Promotion failed:', error);
+        throw error;
       }
-    } catch (error) {
-      console.error('Promotion failed:', error);
-      throw error; // Re-throw to let caller handle
-    }
-  }, [sessionId, fetchRoles]);
+    },
+    [sessionId, fetchRoles]
+  );
 
-  const demoteUser = useCallback(async (targetUserId: string) => {
-    try {
-      const response = await fetch('/api/podcast/session-roles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId,
-          targetUserId,
-          newRole: 'listener',
-          action: 'demote'
-        })
-      });
+  /* ---------------- Demote User ---------------- */
+  const demoteUser = useCallback(
+    async (targetUserId: string) => {
+      try {
+        const response = await fetch('/api/podcast/session-roles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            targetUserId,
+            newRole: 'listener',
+            action: 'demote',
+          }),
+        });
 
-      if (response.ok) {
-        await fetchRoles();
-        return true;
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Demotion failed');
+        if (response.ok) {
+          await fetchRoles();
+          return true;
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Demotion failed');
+        }
+      } catch (error) {
+        console.error('Demotion failed:', error);
+        throw error;
       }
-    } catch (error) {
-      console.error('Demotion failed:', error);
-      throw error; // Re-throw to let caller handle
-    }
-  }, [sessionId, fetchRoles]);
+    },
+    [sessionId, fetchRoles]
+  );
 
-  const removeUser = useCallback(async (targetUserId: string) => {
-    try {
-      const response = await fetch('/api/podcast/session-roles', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId,
-          targetUserId
-        })
-      });
+  /* ---------------- Remove User ---------------- */
+  const removeUser = useCallback(
+    async (targetUserId: string) => {
+      try {
+        const response = await fetch('/api/podcast/session-roles', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            targetUserId,
+          }),
+        });
 
-      if (response.ok) {
-        await fetchRoles();
-        return true;
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Remove failed');
+        if (response.ok) {
+          await fetchRoles();
+          return true;
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Remove failed');
+        }
+      } catch (error) {
+        console.error('Remove failed:', error);
+        throw error;
       }
-    } catch (error) {
-      console.error('Remove failed:', error);
-      throw error; // Re-throw to let caller handle
-    }
-  }, [sessionId, fetchRoles]);
+    },
+    [sessionId, fetchRoles]
+  );
 
+  /* ---------------- Token Refresh Logic ---------------- */
   const refreshTokenForRole = useCallback(async () => {
-    // This would trigger a reconnection with new token
-    console.log('Role changed - token refresh needed');
+    console.log('🔄 Token refresh triggered for role:', userRole);
+    
+    if (userRole === 'guest') {
+      // Simple reload approach - most reliable
+      window.location.reload();
+      return true;
+    }
+    
     return true;
-  }, []);
+  }, [userRole]);
 
+  
+  /* ---------------- Auto Refresh Roles ---------------- */
   useEffect(() => {
     fetchRoles();
-    
-    // Reduce refresh interval to 30 seconds to prevent API overload
+
     const interval = setInterval(fetchRoles, 30000);
     return () => clearInterval(interval);
   }, [fetchRoles]);
 
+  /* ---------------- Return API ---------------- */
   return {
     roles,
     userRole,
@@ -166,6 +188,6 @@ export function useSessionRoles(sessionId: string, userId: string) {
     demoteUser,
     removeUser,
     refreshTokenForRole,
-    refetchRoles: fetchRoles
+    refetchRoles: fetchRoles,
   };
 }

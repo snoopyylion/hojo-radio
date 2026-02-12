@@ -101,14 +101,22 @@ export const useInstantNotifications = () => {
     }, [user, refreshUser, getUser, addNotification]);
 
     // Generic WebSocket event handler
-    const handleWebSocketEvent = useCallback((event: any) => {
+    type WebSocketEvent =
+        | { type: 'follow'; data: { followerId: string; followedId: string; timestamp: number } }
+        | { type: 'message'; data?: unknown }
+        | { type: 'like'; data?: unknown }
+        | { type: 'comment'; data?: unknown }
+        | { type: string; data?: unknown };
+
+    const handleWebSocketEvent = useCallback((event: WebSocketEvent) => {
         if (!mountedRef.current) return;
 
         console.log('🔔 Received WebSocket event:', event);
 
         switch (event.type) {
             case 'follow':
-                handleFollowEvent(event.data);
+                // TypeScript narrows event to the follow branch here, so event.data has the expected shape
+                handleFollowEvent(event.data as { followerId: string; followedId: string; timestamp: number });
                 break;
             
             case 'message':

@@ -22,7 +22,7 @@ interface NavItem {
 }
 
 const baseNavItems: NavItem[] = [
-  { href: "/", label: "Home", icon: Home },
+  { href: "/home", label: "Home", icon: Home },
   { href: "/home/verifications", label: "Verify News", icon: Shield },
   { href: "/home/podcast", label: "Podcast", icon: Mic },
   { href: "/home/blog", label: "Blog", icon: BookOpen },

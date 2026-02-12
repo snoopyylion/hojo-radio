@@ -13,7 +13,7 @@ interface UseRealtimeMessagingReturn {
   error: string | null;
   sendMessage: (content: string, type?: string) => Promise<Message | null>;
   sendTypingIndicator: (isTyping: boolean) => void;
-  reactToMessage: (messageId: string, emoji: string) => Promise<any>;
+  reactToMessage: (messageId: string, emoji: string) => Promise<{ id: string; message_id: string; user_id: string; emoji: string } | null>;
   loadMessages: (limit?: number, before?: string) => Promise<Message[]>;
   loadConversations: () => Promise<Conversation[]>;
   setError: (err: string | null) => void;
@@ -33,7 +33,7 @@ export function useRealtimeMessaging(conversationId?: string): UseRealtimeMessag
   const { typingUsers, setTypingUsers } = useGlobalTyping();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const channelsRef = useRef<any[]>([]);
+  const channelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
 
   // Enhanced function to fetch user data from Clerk
   const fetchUserData = useCallback(async (userIds: string[]) => {
@@ -52,10 +52,28 @@ export function useRealtimeMessaging(conversationId?: string): UseRealtimeMessag
       }
       
       const { users } = await response.json();
-      return users.reduce((acc: any, user: any) => {
-        acc[user.id] = user;
+      if (!Array.isArray(users)) return {};
+      
+      type UserObj = {
+        id: string;
+        username?: string;
+        firstName?: string;
+        lastName?: string;
+        imageUrl?: string;
+        email?: string;
+        fullName?: string;
+        [key: string]: unknown;
+      };
+      
+      return users.reduce((acc: Record<string, UserObj>, user: unknown) => {
+        if (user && typeof user === 'object' && 'id' in user) {
+          const u = user as UserObj;
+          if (typeof u.id === 'string') {
+            acc[u.id] = u;
+          }
+        }
         return acc;
-      }, {});
+      }, {} as Record<string, UserObj>);
     } catch (error) {
       console.error('Failed to fetch user data:', error);
       return {};
@@ -302,14 +320,14 @@ export function useRealtimeMessaging(conversationId?: string): UseRealtimeMessag
         const userData = await fetchUserData([newMessage.sender_id]);
         const messageWithUser = {
           ...newMessage,
-          sender: userData[newMessage.sender_id] || {
+          sender: {
             id: newMessage.sender_id,
-            username: 'Unknown User',
-            firstName: '',
-            lastName: '',
-            imageUrl: '',
-            email: '',
-            fullName: 'Unknown User'
+            username: userData[newMessage.sender_id]?.username || 'Unknown User',
+            firstName: userData[newMessage.sender_id]?.firstName || '',
+            lastName: userData[newMessage.sender_id]?.lastName || '',
+            imageUrl: userData[newMessage.sender_id]?.imageUrl || '',
+            email: userData[newMessage.sender_id]?.email || '',
+            fullName: userData[newMessage.sender_id]?.fullName || 'Unknown User'
           }
         };
         

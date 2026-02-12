@@ -21,6 +21,8 @@ export class PodcastAudioManager {
   private destination: MediaStreamAudioDestinationNode;
   private tracks: Map<string, AudioTrackManager> = new Map();
   private currentlyPlaying: string | null = null;
+  private effectBuffers: Map<string, AudioBuffer> = new Map();
+  private activeEffectNodes: Map<string, AudioBufferSourceNode[]> = new Map();
 
   constructor() {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -28,6 +30,7 @@ export class PodcastAudioManager {
     this.masterGain = this.audioContext.createGain();
     this.destination = this.audioContext.createMediaStreamDestination();
     this.masterGain.connect(this.destination);
+    this.masterGain.connect(this.audioContext.destination);
   }
 
   async addTrack(file: File): Promise<string> {
@@ -137,6 +140,65 @@ export class PodcastAudioManager {
     this.currentlyPlaying = trackId;
   }
 
+  async playEffect(effectId: string, url: string, volume: number = 0.75): Promise<void> {
+    if (this.audioContext.state === 'suspended') {
+      await this.audioContext.resume();
+    }
+
+    const buffer = await this.getOrLoadEffectBuffer(url);
+
+    return new Promise((resolve) => {
+      const source = this.audioContext.createBufferSource();
+      source.buffer = buffer;
+
+      const gainNode = this.audioContext.createGain();
+      gainNode.gain.value = Math.max(0, Math.min(1, volume));
+
+      source.connect(gainNode);
+      gainNode.connect(this.masterGain);
+
+      const activeNodes = this.activeEffectNodes.get(effectId) || [];
+      activeNodes.push(source);
+      this.activeEffectNodes.set(effectId, activeNodes);
+
+      source.onended = () => {
+        this.removeActiveEffectNode(effectId, source);
+        resolve();
+      };
+
+      source.start(0);
+    });
+  }
+
+  stopEffect(effectId: string): void {
+    const nodes = this.activeEffectNodes.get(effectId);
+    if (!nodes) return;
+
+    nodes.forEach(node => {
+      try {
+        node.stop();
+      } catch (error) {
+        console.warn('Failed to stop effect node', error);
+      }
+    });
+
+    this.activeEffectNodes.delete(effectId);
+  }
+
+  stopAllEffects(): void {
+    this.activeEffectNodes.forEach((nodes) => {
+      nodes.forEach(node => {
+        try {
+          node.stop();
+        } catch (error) {
+          console.warn('Failed to stop effect node', error);
+        }
+      });
+    });
+
+    this.activeEffectNodes.clear();
+  }
+
   setTrackVolume(trackId: string, volume: number): void {
     const track = this.tracks.get(trackId);
     if (!track?.gainNode) return;
@@ -197,12 +259,42 @@ export class PodcastAudioManager {
   }
 
   async cleanup(): Promise<void> {
+    this.stopAllEffects();
     for (const [trackId] of this.tracks) {
       this.removeTrack(trackId);
     }
     
     if (this.audioContext.state !== 'closed') {
       await this.audioContext.close();
+    }
+  }
+
+  private async getOrLoadEffectBuffer(url: string): Promise<AudioBuffer> {
+    const cached = this.effectBuffers.get(url);
+    if (cached) {
+      return cached;
+    }
+
+    const response = await fetch(url, { cache: 'force-cache' });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch sound effect: ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+    this.effectBuffers.set(url, audioBuffer);
+    return audioBuffer;
+  }
+
+  private removeActiveEffectNode(effectId: string, node: AudioBufferSourceNode) {
+    const nodes = this.activeEffectNodes.get(effectId);
+    if (!nodes) return;
+
+    const filtered = nodes.filter(active => active !== node);
+    if (filtered.length === 0) {
+      this.activeEffectNodes.delete(effectId);
+    } else {
+      this.activeEffectNodes.set(effectId, filtered);
     }
   }
 }

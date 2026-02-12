@@ -35,7 +35,7 @@ interface NavItem {
 }
 
 const baseNavItems: NavItem[] = [
-  { href: '/', label: 'Home', icon: Home, description: 'Latest updates' },
+  { href: '/home', label: 'Home', icon: Home, description: 'Latest updates' },
   { href: '/home/verifications', label: 'Verify News', icon: Shield, description: 'Fact checking' },
   { href: '/home/podcast', label: 'Podcast', icon: Mic, description: 'Audio content' },
   { href: '/home/blog', label: 'Blog', icon: BookOpen, description: 'Read articles' },

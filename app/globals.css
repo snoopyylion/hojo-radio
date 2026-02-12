@@ -25,6 +25,20 @@ html{
     background: #94a3b8;
 }
 
+@theme inline {
+  --font-sans: var(--font-roboto-flex), Arial, Helvetica, sans-serif;
+
+  --font-black-slanted: var(--font-roboto-flex);
+  --font-black-slanted--font-variation-settings:
+    "wdth" var(--wdth, 100), "slnt" var(--slnt, -10), "opsz" var(--opsz, 144),
+    "wght" var(--wght, 1000);
+
+  --font-bold-slanted: var(--font-roboto-flex);
+  --font-bold-slanted--font-variation-settings:
+    "wdth" var(--wdth, 74), "slnt" var(--slnt, -10), "opsz" var(--opsz, 100),
+    "wght" var(--wght, 600);
+}
+
 /* Add to your globals.css */
 
 /* Notification animations */
@@ -109,4 +123,47 @@ html{
 
 .notification-container > * {
   pointer-events: auto;
+}
+
+.hojo-gradient-bg {
+  background: linear-gradient(
+    180deg,
+    #0A0A0A 0%,
+    #1A0B13 25%,
+    #EF3866 65%,
+    #FF5C8A 100%
+  );
+}
+
+.hojo-btn {
+  background: linear-gradient(90deg, #EF3866, #FF5C8A);
+  color: white;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-radius: 9999px;
+  padding: 0.75rem 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.hojo-btn-secondary {
+  background: transparent;
+  border: 2px solid #EF3866;
+  color: #EF3866;
+  font-weight: 600;
+  border-radius: 9999px;
+  padding: 0.75rem 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.hojo-btn-secondary:hover {
+  background: #EF3866;
+  color: white;
+  box-shadow: 0 4px 20px rgba(239, 56, 102, 0.4);
+}
+
+
+.hojo-btn:hover {
+  background: linear-gradient(90deg, #FF5C8A, #EF3866);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(239, 56, 102, 0.4);
 }

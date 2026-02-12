@@ -3,6 +3,15 @@ import type { Metadata } from "next";
 import { Inter, Manrope, Sora } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { Roboto_Flex } from "next/font/google";
+
+
+const robotoFlex = Roboto_Flex({
+  variable: "--font-roboto-flex",
+  subsets: ["latin"],
+  display: "swap",
+  axes: ["wdth", "slnt", "opsz"],
+});
 
 const inter = Inter({
   variable: "--font-inter",
@@ -40,7 +49,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${sora.variable} ${manrope.variable} antialiased font-sans`}
+        className={`${inter.variable} ${robotoFlex.variable} ${sora.variable} ${manrope.variable} antialiased font-sans`}
       >
         <Providers>
           {children}

@@ -1,26 +1,35 @@
 // app/home/podcast/author/components/SoundEffectsPanel.tsx
 import React, { useState } from 'react';
 import { Play, Square, RefreshCw, User, Globe, Upload } from 'lucide-react';
-import { useSoundEffects } from '../hooks/useSoundEffects';
+import { SoundEffect } from '../hooks/useSoundEffects';
 
 interface SoundEffectsPanelProps {
   className?: string;
+  effects: SoundEffect[];
+  userEffects: SoundEffect[];
+  loading: boolean;
+  error: string | null;
+  playSound: (effectId: string) => Promise<void>;
+  stopSound: (effectId: string) => void;
+  isPlaying: (effectId: string) => boolean;
+  volume: number;
+  setVolume: (volume: number) => void;
+  refetch: () => Promise<void>;
 }
 
-export function SoundEffectsPanel({ className = '' }: SoundEffectsPanelProps) {
-  const { 
-    effects, 
-    userEffects, 
-    loading, 
-    error, 
-    playSound, 
-    stopSound, 
-    isPlaying, 
-    volume, 
-    setVolume,
-    refetch 
-  } = useSoundEffects();
-  
+export function SoundEffectsPanel({
+  className = '',
+  effects,
+  userEffects,
+  loading,
+  error,
+  playSound,
+  stopSound,
+  isPlaying,
+  volume,
+  setVolume,
+  refetch,
+}: SoundEffectsPanelProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'my'>('all');
 
   // Get current effects based on active tab
@@ -165,7 +174,7 @@ export function SoundEffectsPanel({ className = '' }: SoundEffectsPanelProps) {
                       </button>
                     ) : (
                       <button
-                        onClick={() => playSound(effect.id)}
+                    onClick={() => void playSound(effect.id)}
                         className="p-2 bg-[#EF3866] text-white rounded-lg hover:bg-[#d12b56] transition-colors"
                         title="Play"
                       >

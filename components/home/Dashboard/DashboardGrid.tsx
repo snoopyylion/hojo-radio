@@ -83,10 +83,10 @@ const DashboardGrid = () => {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-black min-h-screen mt-4">
+      <div className="bg-white dark:bg-black">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-xl p-4 flex justify-between items-start min-h-[120px] animate-pulse">
+            <div key={i} className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-xl p-4 flex justify-between items-start animate-pulse">
               <div className="flex flex-col justify-between h-full">
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-2"></div>
                 <div>
@@ -103,13 +103,13 @@ const DashboardGrid = () => {
   }
 
   return (
-    <div className="bg-white dark:bg-black min-h-screen mt-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {data.map((card, i) => (
-            <DashboardCard key={i} {...card} />
-          ))}
-        </div>
+    <div className="bg-white dark:bg-black">    {/* ← removed min-h-screen and mt-4 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        {data.map((card, i) => (
+          <DashboardCard key={i} {...card} />
+        ))}
       </div>
+    </div>
   );
 };
 

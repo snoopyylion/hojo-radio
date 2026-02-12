@@ -1,0 +1,11 @@
+Model Information:
+* title:	MM wave Solar radio telescope
+* source:	https://sketchfab.com/3d-models/mm-wave-solar-radio-telescope-c26c5d32954a4908a71ff04c1be88bd4
+* author:	Lassi Kaukonen (https://sketchfab.com/thesidekick)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "MM wave Solar radio telescope" (https://sketchfab.com/3d-models/mm-wave-solar-radio-telescope-c26c5d32954a4908a71ff04c1be88bd4) by Lassi Kaukonen (https://sketchfab.com/thesidekick) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

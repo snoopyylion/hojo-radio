@@ -6,6 +6,7 @@ import {
   RoomAudioRenderer,
   useTracks,
   useParticipants,
+  useLocalParticipant,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import {
@@ -18,8 +19,14 @@ import {
   User as UserIcon,
   Waves,
   AlertCircle,
+  Mic,
+  MicOff,
+  Hand,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { useSessionRoles } from "./author/hooks/useSessionRoles";
+import toast from "react-hot-toast";
 
 // Types
 interface LiveSession {
@@ -53,22 +60,156 @@ interface Props {
   onEndSession?: () => void;
 }
 
-// Request to Speak Button Component
-function RequestToSpeakButton({ 
-  sessionId, 
-  userId 
-}: { 
-  sessionId: string; 
-  userId: string; 
+/* -------------------- 🎙️ Guest Controls Component -------------------- */
+function GuestControls() {
+  const { localParticipant } = useLocalParticipant();
+  const [isMuted, setIsMuted] = useState(true);
+  const [volume, setVolume] = useState(1.0);
+
+  const toggleMic = useCallback(async () => {
+    if (!localParticipant) return;
+
+    const newMutedState = !isMuted;
+    await localParticipant.setMicrophoneEnabled(!newMutedState);
+    setIsMuted(newMutedState);
+  }, [localParticipant, isMuted]);
+
+  const handleVolumeChange = useCallback(
+    (newVolume: number) => {
+      setVolume(newVolume);
+      // Optional: adjust input gain if needed
+    },
+    [localParticipant]
+  );
+
+  if (!localParticipant) return null;
+
+  return (
+    <div className="border border-black rounded-3xl p-6 bg-white dark:bg-black/30">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-semibold text-black dark:text-white flex items-center">
+          <Mic className="w-5 h-5 mr-3 text-[#EF3866]" />
+          Guest Microphone
+        </h3>
+        <span className="text-sm text-[#EF3866] font-medium bg-[#EF3866]/10 px-3 py-1 rounded-full">
+          🎤 You can speak!
+        </span>
+      </div>
+
+      <div className="space-y-6">
+        {/* Mic Toggle */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm font-medium text-black dark:text-white">
+              Microphone
+            </label>
+            <span className={`text-sm font-medium ${isMuted ? 'text-[#EF3866]' : 'text-green-500'}`}>
+              {isMuted ? "Muted" : "Live"}
+            </span>
+          </div>
+
+          <button
+            onClick={toggleMic}
+            className={`w-full p-4 rounded-xl font-semibold transition-all duration-200 transform hover:scale-[1.02] flex items-center justify-center space-x-2 ${isMuted
+              ? "bg-[#EF3866] text-white hover:bg-[#d12b56] shadow-lg"
+              : "bg-green-500 text-white hover:bg-green-600 shadow-lg"
+              }`}
+            type="button"
+          >
+            {isMuted ? (
+              <>
+                <MicOff className="w-5 h-5" />
+                <span>Unmute to Speak</span>
+              </>
+            ) : (
+              <>
+                <Mic className="w-5 h-5" />
+                <span>You&apos;re Live!</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Volume Control */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm font-medium text-black dark:text-white">
+              Input Volume
+            </label>
+            <span className="text-sm text-black dark:text-white opacity-60">
+              {Math.round(volume * 100)}%
+            </span>
+          </div>
+
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.1"
+            value={volume}
+            onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+            className="w-full h-2 bg-black dark:bg-white bg-opacity-10 dark:bg-opacity-10 rounded-full appearance-none cursor-pointer slider"
+          />
+          <style jsx>{`
+            .slider::-webkit-slider-thumb {
+              appearance: none;
+              width: 20px;
+              height: 20px;
+              border-radius: 50%;
+              background: #EF3866;
+              cursor: pointer;
+              border: 2px solid white;
+              box-shadow: 0 2px 8px rgba(239, 56, 102, 0.4);
+            }
+            .slider::-moz-range-thumb {
+              width: 20px;
+              height: 20px;
+              border-radius: 50%;
+              background: #EF3866;
+              cursor: pointer;
+              border: 2px solid white;
+              box-shadow: 0 2px 8px rgba(239, 56, 102, 0.4);
+            }
+          `}</style>
+        </div>
+
+        {/* Tip */}
+        <div className="border border-[#EF3866] rounded-2xl p-4 bg-[#EF3866]/10">
+          <div className="flex items-start space-x-3">
+            <AlertCircle className="w-5 h-5 text-[#EF3866] flex-shrink-0 mt-0.5" />
+            <div>
+              <div className="text-sm font-medium text-black dark:text-white mb-1">
+                Guest Tip
+              </div>
+              <div className="text-xs text-black dark:text-white opacity-60">
+                You&apos;re now a guest speaker! Click the microphone button to go live.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------- ✋ Request to Speak Button -------------------- */
+function RequestToSpeakButton({
+  sessionId,
+  userId
+}: {
+  sessionId: string;
+  userId: string;
 }) {
   const [requested, setRequested] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:4001';
     const ws = new WebSocket(`${wsUrl}/podcast/${sessionId}?role=listener&userId=${userId}`);
     wsRef.current = ws;
-    
+
     return () => {
       if (wsRef.current) {
         wsRef.current.close();
@@ -77,6 +218,11 @@ function RequestToSpeakButton({
   }, [sessionId, userId]);
 
   const handleRequest = useCallback(async () => {
+    if (isRequesting || requested) return;
+
+    setIsRequesting(true);
+    setError(null);
+
     try {
       const response = await fetch('/api/podcast/guest-requests', {
         method: 'POST',
@@ -88,56 +234,144 @@ function RequestToSpeakButton({
         })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Send WebSocket notification to host
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send(JSON.stringify({
-            type: 'new_guest_request',
-            request: data.request
-          }));
-        }
-        
-        setRequested(true);
-        alert('Request sent to host!');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Request failed');
       }
+
+      // Send WebSocket notification to host
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: 'new_guest_request',
+          request: data.request
+        }));
+      }
+
+      setRequested(true);
+      toast.success('🎤 Request sent to host! Waiting for approval...', {
+        duration: 3000,
+      });
     } catch (error) {
       console.error('Failed to send request:', error);
-      alert('Failed to send request. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to send request. Please try again.';
+      setError(errorMessage);
+      toast.error(`❌ ${errorMessage}`, {
+        duration: 3000,
+      });
+    } finally {
+      setIsRequesting(false);
     }
-  }, [sessionId, userId]);
+  }, [sessionId, userId, isRequesting, requested]);
 
+  // If request has been sent, show a simpler notification-style UI
   if (requested) {
     return (
-      <div className="fixed bottom-4 right-4 bg-gray-600 text-white p-4 rounded-lg shadow-lg z-50">
-        <p className="font-medium">Request Sent!</p>
-        <p className="text-sm opacity-90">Waiting for host approval...</p>
+      <div className="border border-[#EF3866] rounded-3xl p-8 text-center bg-white dark:bg-black/30">
+        <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Check className="w-8 h-8 text-green-500" />
+        </div>
+
+        <h3 className="text-xl font-bold text-black dark:text-white mb-3">
+          Request Sent Successfully!
+        </h3>
+
+        <p className="text-sm text-black dark:text-white opacity-60 mb-6 max-w-md mx-auto">
+          Your request to speak has been sent to the host. Wait for approval to become a guest speaker.
+        </p>
+
+        <div className="p-4 bg-[#EF3866]/10 border border-[#EF3866] rounded-2xl">
+          <div className="flex items-center justify-center space-x-3">
+            <Loader2 className="w-5 h-5 text-[#EF3866] animate-spin" />
+            <span className="text-sm font-medium text-black dark:text-white">
+              Waiting for host approval...
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-6 border-t border-[#EF3866] border-opacity-20 pt-6">
+          <div className="inline-flex items-center space-x-4 text-xs text-black dark:text-white opacity-60">
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-[#EF3866] rounded-full animate-pulse"></div>
+              <span>Awaiting host response</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-[#EF3866] rounded-full animate-pulse"></div>
+              <span>You&apos;ll be notified</span>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
+  // Main request button UI
   return (
-    <div className="fixed bottom-4 right-4 bg-blue-600 text-white p-4 rounded-lg shadow-lg z-50">
-      <p className="font-medium">Want to speak?</p>
-      <p className="text-sm opacity-90">Ask the host to promote you to guest!</p>
+    <div className="border border-[#EF3866] rounded-3xl p-8 text-center bg-white dark:bg-black/30">
+      <div className="w-16 h-16 bg-[#EF3866]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+        <Hand className="w-8 h-8 text-[#EF3866]" />
+      </div>
+
+      <h3 className="text-xl font-bold text-black dark:text-white mb-3">
+        Want to Join the Conversation?
+      </h3>
+
+      <p className="text-sm text-black dark:text-white opacity-60 mb-8 max-w-md mx-auto">
+        Request to become a guest speaker and share your thoughts with the host and other listeners.
+      </p>
+
+      {error && (
+        <div className="mb-6 p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
+          <p className="text-sm text-red-500">{error}</p>
+        </div>
+      )}
+
       <button
         onClick={handleRequest}
-        className="mt-2 px-3 py-1 bg-white text-blue-600 rounded text-sm font-medium hover:bg-blue-50 transition-colors"
+        disabled={isRequesting}
+        className={`w-full max-w-xs mx-auto p-4 rounded-xl font-bold transition-all duration-200 transform hover:scale-[1.02] flex items-center justify-center space-x-2 ${'bg-[#EF3866] hover:bg-[#d12b56] text-white'
+          } ${isRequesting ? 'cursor-not-allowed opacity-90' : ''}`}
         type="button"
       >
-        Request to Speak
+        {isRequesting ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Sending Request...</span>
+          </>
+        ) : (
+          <>
+            <Hand className="w-5 h-5" />
+            <span>Request to Speak</span>
+          </>
+        )}
       </button>
+
+      <div className="mt-6 border-t border-[#EF3866] border-opacity-20 pt-6">
+        <div className="inline-flex items-center space-x-4 text-xs text-black dark:text-white opacity-60">
+          <div className="flex items-center space-x-1">
+            <div className="w-2 h-2 bg-[#EF3866] rounded-full"></div>
+            <span>Host approval required</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <div className="w-2 h-2 bg-[#EF3866] rounded-full"></div>
+            <span>Microphone access needed</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <div className="w-2 h-2 bg-[#EF3866] rounded-full"></div>
+            <span>Real-time notifications</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-// 🔊 AudioVisualizer Component
+/* -------------------- 🔊 Audio Visualizer -------------------- */
 function AudioVisualizer() {
   const tracks = useTracks([Track.Source.Microphone], { onlySubscribed: true });
   const participants = useParticipants();
-  
-  const isMobile = useMemo(() => 
+
+  const isMobile = useMemo(() =>
     /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent),
     []
   );
@@ -211,7 +445,7 @@ function AudioVisualizer() {
   );
 }
 
-// 🔊 ListenerControls Component
+/* -------------------- 🔊 Listener Controls -------------------- */
 function ListenerControls() {
   const [volume, setVolume] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
@@ -236,7 +470,6 @@ function ListenerControls() {
 
   return (
     <div className="border border-black dark:border-white rounded-3xl p-6">
-      {/* Volume Control */}
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold text-black dark:text-white flex items-center">
           <Headphones className="w-5 h-5 mr-3" />
@@ -293,11 +526,10 @@ function ListenerControls() {
 
             <button
               onClick={toggleMute}
-              className={`p-3 rounded-full font-medium transition-all duration-200 transform hover:scale-105 ${
-                isMuted
-                  ? "bg-[#EF3866] text-white shadow-lg"
-                  : "border border-black dark:border-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
-              }`}
+              className={`p-3 rounded-full font-medium transition-all duration-200 transform hover:scale-105 ${isMuted
+                ? "bg-[#EF3866] text-white shadow-lg"
+                : "border border-black dark:border-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
+                }`}
               type="button"
             >
               <VolumeIcon className="w-4 h-4" />
@@ -324,7 +556,7 @@ function ListenerControls() {
   );
 }
 
-// 🎧 Main ListenerView Component
+/* -------------------- 🎧 Main ListenerView -------------------- */
 export default function ListenerView({
   session,
   user,
@@ -341,13 +573,60 @@ export default function ListenerView({
     loading: rolesLoading
   } = useSessionRoles(session.id, user.id);
 
+  // ✅ ENHANCED Role change detection with microphone permission pre-request
+  const previousRoleRef = useRef(userRole);
+
+  useEffect(() => {
+    const handleRoleChange = async () => {
+      if (
+        previousRoleRef.current !== userRole &&
+        !rolesLoading &&
+        previousRoleRef.current === "listener" &&
+        userRole === "guest"
+      ) {
+        console.log(
+          `🔄 Role changed from ${previousRoleRef.current} to ${userRole} - requesting permissions`
+        );
+
+        try {
+          // Request microphone permission
+          toast.loading("🎤 Requesting microphone access...", { duration: 2000 });
+
+          await navigator.mediaDevices.getUserMedia({ audio: true });
+
+          toast.success("🎤 You've been promoted to guest! Updating connection...", {
+            duration: 2000,
+          });
+
+          // ✅ Instead of reloading, force token refresh
+          setIsConnecting(true);
+          setToken(null); // Clear current token to trigger reconnection
+
+          // Wait a moment for token refresh
+          setTimeout(() => {
+            // The token useEffect will run again because userRole changed
+          }, 100);
+        } catch (error) {
+          console.error("Microphone permission denied:", error);
+          toast.error("❌ Microphone access required to speak as guest", {
+            duration: 4000,
+          });
+        }
+      }
+    };
+
+    handleRoleChange();
+    previousRoleRef.current = userRole;
+  }, [userRole, rolesLoading]);
+
+
   // Device detection
-  const isMobile = useMemo(() => 
+  const isMobile = useMemo(() =>
     /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent),
     []
   );
-  
-  const isIOS = useMemo(() => 
+
+  const isIOS = useMemo(() =>
     /iPhone|iPad|iPod/i.test(navigator.userAgent),
     []
   );
@@ -394,16 +673,16 @@ export default function ListenerView({
   // 📱 Handle mobile/iOS background audio session
   useEffect(() => {
     if (isMobile) {
-      const { webkit } = window as unknown as { 
-        webkit?: { 
-          messageHandlers?: { 
-            audioSession?: { 
-              postMessage: (message: unknown) => void 
-            } 
-          } 
-        } 
+      const { webkit } = window as unknown as {
+        webkit?: {
+          messageHandlers?: {
+            audioSession?: {
+              postMessage: (message: unknown) => void
+            }
+          }
+        }
       };
-      
+
       if (webkit?.messageHandlers?.audioSession) {
         try {
           webkit.messageHandlers.audioSession.postMessage({
@@ -492,16 +771,19 @@ export default function ListenerView({
     }
   }, [session.id, isMobile]);
 
-  // Token Request with Mobile Params
+  // Token Request with role-based audio enablement
   useEffect(() => {
+    let mounted = true;
+
     async function getListenerToken() {
       try {
         const connection = (navigator as Navigator & {
           connection?: { type?: string };
         }).connection;
 
+        // ✅ Force token refresh when role changes
         const res = await fetch(
-          `/api/livekit/token?room=${session.roomName}&identity=${user.id}&role=listener&networkQuality=${networkQuality}&deviceType=${isMobile ? "mobile" : "desktop"}&connectionType=${connection?.type || "wifi"}&isIOS=${isIOS}`
+          `/api/livekit/token?room=${session.roomName}&identity=${user.id}&role=${userRole}&networkQuality=${networkQuality}&deviceType=${isMobile ? "mobile" : "desktop"}&connectionType=${connection?.type || "wifi"}&isIOS=${isIOS}&_t=${Date.now()}`
         );
 
         if (!res.ok) {
@@ -514,23 +796,33 @@ export default function ListenerView({
           throw new Error(data.error || "Missing token");
         }
 
-        setToken(data.token);
+        if (mounted) {
+          setToken(data.token);
+        }
       } catch (error) {
         console.error("Failed to get listener token:", error);
-        setConnectionError(
-          error instanceof Error ? error.message : "Failed to connect"
-        );
+        if (mounted) {
+          setConnectionError(
+            error instanceof Error ? error.message : "Failed to connect"
+          );
+        }
       } finally {
-        setIsConnecting(false);
+        if (mounted) {
+          setIsConnecting(false);
+        }
       }
     }
 
     getListenerToken();
-  }, [session.roomName, user.id, networkQuality, isMobile, isIOS]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [session.roomName, user.id, userRole, networkQuality, isMobile, isIOS]);
 
   // Connection handlers
   const handleConnected = useCallback(() => {
-    console.log("Connected to live session as listener");
+    console.log(`Connected to live session as ${userRole}`);
 
     // ✅ Initialize iOS audio context if needed
     if (isIOS) {
@@ -557,7 +849,7 @@ export default function ListenerView({
       monitorNetworkQuality();
     }, 10000);
     return () => clearInterval(interval);
-  }, [session.id, isIOS, monitorNetworkQuality]);
+  }, [session.id, isIOS, monitorNetworkQuality, userRole]);
 
   const handleDisconnected = useCallback(() => {
     console.log("Disconnected from live session");
@@ -696,19 +988,24 @@ export default function ListenerView({
         token={token}
         serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL!}
         connect
-        audio={false}
+        audio={userRole === "guest"} // ✅ Enable audio for guests only
         video={false}
         options={{
           adaptiveStream: networkQuality === "low",
           dynacast: networkQuality !== "low",
           publishDefaults: {
-            audioPreset: undefined,
+            audioPreset:
+              userRole === "guest"
+                ? {
+                  maxBitrate: 64000,
+                }
+                : undefined,
             videoSimulcastLayers: [],
           },
           audioCaptureDefaults: {
-            autoGainControl: false,
-            echoCancellation: false,
-            noiseSuppression: false,
+            autoGainControl: userRole === "guest", // ✅ Enable for guests only
+            echoCancellation: userRole === "guest",
+            noiseSuppression: userRole === "guest",
           },
         }}
         onConnected={handleConnected}
@@ -717,6 +1014,8 @@ export default function ListenerView({
         className="space-y-6"
       >
         <RoomAudioRenderer />
+
+        {/* Live Stream Status */}
         <div className="border border-black dark:border-white rounded-3xl p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-black dark:text-white flex items-center">
@@ -726,7 +1025,18 @@ export default function ListenerView({
           </div>
           <AudioVisualizer />
         </div>
-        <ListenerControls />
+
+        {/* ✅ Conditional Controls Based on Role */}
+        {userRole === "guest" ? (
+          <>
+            <GuestControls />
+            <ListenerControls />
+          </>
+        ) : (
+          <ListenerControls />
+        )}
+
+        {/* Premium Audio Experience */}
         <div className="border border-black dark:border-white border-opacity-20 dark:border-opacity-20 rounded-3xl p-6">
           <div className="text-center">
             <div className="w-12 h-12 bg-[#EF3866] bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -742,9 +1052,9 @@ export default function ListenerView({
           </div>
         </div>
 
-        {/* Request to Speak Button for Listeners */}
+        {/* Request to Speak Button for Listeners Only */}
         {userRole === 'listener' && (
-          <RequestToSpeakButton 
+          <RequestToSpeakButton
             sessionId={session.id}
             userId={user.id}
           />
