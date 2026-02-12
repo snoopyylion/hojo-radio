@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Heart, MessageCircle, Shield } from "lucide-react";
+import { Heart, MessageCircle, Shield, LucideIcon } from "lucide-react";
 
 interface UserStatsProps {
   userId?: string;
@@ -15,7 +15,7 @@ interface UserStatsProps {
 }
 
 interface StatItemProps {
-  icon: React.ElementType;
+  icon: LucideIcon;
   value: number | string;
   label: string;
   isLoading?: boolean;
@@ -36,7 +36,7 @@ const StatItem: React.FC<StatItemProps> = ({
     <div className="bg-white dark:bg-gray-950 rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-2 sm:mb-4">
         <div className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 ${color.bg} rounded-lg sm:rounded-xl flex items-center justify-center`}>
-          <Icon className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 ${color.icon}`} />
+          <Icon className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6`} style={{ color: color.icon.replace('text-', '') }} />
         </div>
       </div>
       <div>
