@@ -1,4 +1,4 @@
-// app/api/podcast/network-monitor/route.ts - FIXED
+// app/api/podcast/network-monitor/route.ts
 import { NextResponse, NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ Check if session exists before inserting
+    // Check if session exists before inserting
     const { data: session, error: sessionError } = await supabase
       .from("live_sessions")
       .select("id, listener_count, network_optimization_enabled")
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
       .from("network_monitoring")
       .upsert(
         {
-          session_id: session.id, // ✅ guaranteed to exist now
+          session_id: session.id,
           user_id: userId,
           network_stats: networkStats,
           device_info: deviceInfo,
@@ -204,7 +204,9 @@ export async function GET(req: NextRequest) {
       networkHistory?.map((record) => ({
         timestamp: record.timestamp,
         quality: record.detected_quality,
-        stats: JSON.parse(record.network_stats || "{}") as NetworkStats,
+        stats: typeof record.network_stats === 'string' 
+          ? JSON.parse(record.network_stats) 
+          : record.network_stats as NetworkStats,
       })) || [];
 
     // Averages
@@ -234,6 +236,14 @@ export async function GET(req: NextRequest) {
       {} as Record<string, number>
     );
 
+    // Find most common quality
+    let overallQuality = "unknown";
+    if (Object.keys(qualityDistribution).length > 0) {
+      overallQuality = Object.keys(qualityDistribution).reduce((a, b) =>
+        qualityDistribution[a] > qualityDistribution[b] ? a : b
+      );
+    }
+
     return NextResponse.json({
       success: true,
       timeRange,
@@ -244,9 +254,7 @@ export async function GET(req: NextRequest) {
       currentQuality:
         qualityTrend[qualityTrend.length - 1]?.quality || "unknown",
       recommendations: {
-        overallQuality: Object.keys(qualityDistribution).reduce((a, b) =>
-          qualityDistribution[a] > qualityDistribution[b] ? a : b
-        ),
+        overallQuality,
         stabilityScore:
           recordCount > 0
             ? 1 - (Object.keys(qualityDistribution).length - 1) / recordCount

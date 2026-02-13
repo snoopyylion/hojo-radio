@@ -26,10 +26,10 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
   const [mode, setMode] = useState<'browse' | 'create' | 'listen' | 'manage'>('browse');
   const [userSession, setUserSession] = useState<LiveSession | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [networkQuality, setNetworkQuality] = useState<NetworkQuality>({ 
-    quality: 'medium', 
-    speed: 0, 
-    latency: 0 
+  const [networkQuality, setNetworkQuality] = useState<NetworkQuality>({
+    quality: 'medium',
+    speed: 0,
+    latency: 0
   });
   const [isTestingNetwork, setIsTestingNetwork] = useState(false);
 
@@ -38,53 +38,89 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
   // Test network quality on component mount
   useEffect(() => {
     testNetworkQuality();
-    
+
     // Set up periodic network testing
     const networkTestInterval = setInterval(testNetworkQuality, 30000); // Test every 30 seconds
-    
+
     return () => clearInterval(networkTestInterval);
   }, [supabase]);
 
   const testNetworkQuality = async () => {
     setIsTestingNetwork(true);
     try {
-      // Simple network test - measure latency to API
       const startTime = performance.now();
-      await fetch('/api/podcast/network-test', { 
+      await fetch('/api/podcast/network-test', {
         method: 'HEAD',
         cache: 'no-store'
       });
       const latency = performance.now() - startTime;
 
-      // Estimate speed based on latency (very rough estimate)
       let quality: NetworkQuality['quality'] = 'medium';
       let speed = 0;
-      
+
       if (latency < 100) {
         quality = 'high';
-        speed = 10 + Math.random() * 10; // 10-20 Mbps
+        speed = 10 + Math.random() * 10;
       } else if (latency < 300) {
         quality = 'medium';
-        speed = 5 + Math.random() * 5; // 5-10 Mbps
+        speed = 5 + Math.random() * 5;
       } else {
         quality = 'low';
-        speed = 1 + Math.random() * 4; // 1-5 Mbps
+        speed = 1 + Math.random() * 4;
       }
 
       setNetworkQuality({ quality, speed, latency });
-      
-      // Log network quality for analytics
-      if (userSession) {
-        await fetch('/api/podcast/network-monitor', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: userSession.id,
-            networkStats: { latency, bandwidth: speed, packetLoss: 0 },
-            deviceInfo: navigator.userAgent,
-            connectionType: 'unknown'
-          })
-        });
+
+      // ✅ ONLY send monitoring data if we have an active session
+      if (userSession?.id) {
+        console.log('📊 Monitoring network for session:', userSession.id);
+
+        try {
+          // First check if session exists
+          const sessionCheck = await fetch(
+            `/api/podcast/session-check?sessionId=${userSession.id}`
+          );
+
+          if (sessionCheck.ok) {
+            const sessionData = await sessionCheck.json();
+
+            if (sessionData.exists && sessionData.isActive) {
+              console.log('✅ Session exists and is active, sending network data');
+
+              const response = await fetch('/api/podcast/network-monitor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  sessionId: userSession.id,
+                  networkStats: {
+                    latency,
+                    bandwidth: speed,
+                    packetLoss: 0,
+                    jitter: 0
+                  },
+                  deviceInfo: navigator.userAgent,
+                  connectionType: 'unknown'
+                })
+              });
+
+              if (!response.ok) {
+                const error = await response.json();
+                console.warn('⚠️ Network monitor failed:', error);
+              } else {
+                console.log('✅ Network monitoring data sent successfully');
+              }
+            } else {
+              console.log('⚠️ Session inactive or not found:', sessionData);
+            }
+          } else {
+            console.log('⚠️ Session check failed, skipping monitoring');
+          }
+        } catch (error) {
+          console.error('❌ Network monitoring error:', error);
+          // Don't throw - just log and continue
+        }
+      } else {
+        console.log('ℹ️ No active session, skipping network monitoring');
       }
     } catch (error) {
       console.error('Network test failed:', error);
@@ -97,22 +133,22 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
   // Real-time subscription to live sessions
   useEffect(() => {
     console.log('Setting up real-time subscription...');
-    
+
     const channelName = `live-sessions-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    
+
     const channel = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
+        {
+          event: '*',
+          schema: 'public',
           table: 'live_sessions',
           filter: 'is_active=eq.true'
         },
         (payload: RealtimePostgresChangesPayload<DatabaseLiveSession>) => {
           console.log('Real-time event received:', payload.eventType, payload);
-          
+
           const transformSession = (dbSession: DatabaseLiveSession): LiveSession => ({
             id: dbSession.id,
             authorId: dbSession.author_id,
@@ -168,7 +204,7 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
         }
 
         console.log('Fetched latest sessions:', sessions);
-        
+
         const transformedSessions = sessions?.map((dbSession: DatabaseLiveSession): LiveSession => ({
           id: dbSession.id,
           authorId: dbSession.author_id,
@@ -210,7 +246,7 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
         `Your network connection is poor (${Math.round(networkQuality.speed)} Mbps). ` +
         `Would you like to use quick join mode for better stability?`
       );
-      
+
       if (useQuickJoin) {
         try {
           const response = await fetch('/api/podcast/quick-join', {
@@ -223,7 +259,7 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
               connectionSpeed: networkQuality.speed
             })
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             console.log('Quick join configured:', data);
@@ -352,7 +388,7 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
               <span className="text-sm text-black dark:text-white opacity-60">
                 {isConnected ? 'Live' : 'Reconnecting...'}
               </span>
-              
+
               {/* Network Status */}
               <div className="flex items-center space-x-2">
                 <div className={`flex items-center space-x-1 ${getNetworkQualityColor()}`}>
@@ -498,11 +534,10 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
                     <span className="text-xs text-black dark:text-white opacity-40">
                       {new Date(session.startedAt).toLocaleTimeString()}
                     </span>
-                    <div className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 ${
-                      session.authorId === user.id
-                        ? 'bg-[#EF3866] text-white group-hover:bg-black group-hover:text-white'
-                        : 'bg-black dark:bg-white text-white dark:text-black group-hover:bg-[#EF3866] group-hover:text-white'
-                    }`}>
+                    <div className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 ${session.authorId === user.id
+                      ? 'bg-[#EF3866] text-white group-hover:bg-black group-hover:text-white'
+                      : 'bg-black dark:bg-white text-white dark:text-black group-hover:bg-[#EF3866] group-hover:text-white'
+                      }`}>
                       {session.authorId === user.id ? 'Manage' : 'Listen'}
                     </div>
                   </div>

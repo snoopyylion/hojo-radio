@@ -312,7 +312,7 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <div className="p-6 pt-[150px] space-y-10 bg-gray-50 dark:bg-gray-900 min-h-screen text-gray-900 dark:text-white transition-colors duration-300">
+    <div className="p-6 space-y-10 bg-white dark:bg-black min-h-screen text-gray-900 dark:text-white transition-colors duration-300">
       {/* Header with Theme Toggle */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
