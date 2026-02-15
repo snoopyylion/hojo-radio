@@ -1,49 +1,149 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Hojo — Real-Time AI Media, Podcast & Messaging Platform
 
-## Getting Started
+Hojo is a production-style full-stack platform that combines real-time communication, live podcast broadcasting, blogging, and AI-powered intelligence into a single interactive ecosystem. It simulates how modern social, media, and creator platforms handle live audio collaboration, messaging, content publishing, and intelligent automation.
 
-First, run the development server:
+✨ Core Features
 
-```bash
+🔹 Real-Time Messaging
+- Persistent WebSocket communication
+- Typing indicators and live presence tracking
+- Instant event broadcasting
+
+🎙 Live Podcast System
+- Host-controlled sessions with listener → guest promotion
+- Permission-based microphone access
+- Remote audio mixing from multiple locations
+- Audience hears synchronized voices as a unified stream
+- Network-aware connection optimization
+
+🤖 Hojo AI Assistant
+- Conversational assistant similar to ChatGPT
+- Q&A and developer help workflows
+- Context-aware interaction pipeline
+
+📰 AI News Verification
+- Automated content verification pipeline
+- AI-assisted credibility checks
+- Real-time processing integration
+
+✍ Blog & Publishing System
+- CMS-driven article management
+- Role-aware content workflows
+- Secure publishing pipeline
+
+🔔 Notification System
+- Real-time alerts
+- browser + in-app notifications
+- user preference handling
+
+
+🧠 Architecture Overview
+
+Hojo uses an event-driven architecture designed for low-latency interaction:
+
+Frontend → API layer → WebSocket server → Database → AI services → Live audio engine
+
+Key design principles:
+
+- Persistent real-time communication channels
+- Role-based permission enforcement
+- Audio session orchestration
+- Secure multi-user boundaries
+- Non-blocking AI request pipelines
+- Network-adaptive streaming logic
+
+
+
+🎙 Live Podcast Engineering Highlights
+
+The live audio system demonstrates advanced session control:
+
+- Host, guest, and listener role detection
+- Permission-gated microphone publishing
+- Remote audio mixing across locations
+- Adaptive network optimization
+- Mobile-aware connection tuning
+
+Guests can publish audio only when approved by the host, ensuring controlled collaboration while maintaining session stability.
+
+
+⚙ Technology Stack
+
+Frontend  
+- Next.js (App Router)  
+- TypeScript  
+
+Realtime & Backend  
+- Node.js WebSocket server  
+- Live audio orchestration via LiveKit  
+- Supabase database + realtime  
+
+AI Layer  
+- LLM-powered assistant + verification workflows  
+
+Auth & CMS  
+- Clerk authentication  
+- Sanity CMS  
+
+Deployment  
+- Hosted via Vercel  
+
+---
+
+🔐 Security & Permissions
+
+- Role-based audio publishing controls  
+- Database row-level access enforcement  
+- Identity validation across sessions  
+- Scoped user activity tracking  
+
+---
+
+📈 Scalability Considerations
+
+Designed for production-style growth:
+
+- Horizontal WebSocket scaling  
+- Audio session isolation  
+- Queue-friendly AI processing  
+- Stateless API architecture  
+- Network-aware connection tuning  
+
+---
+
+🛠 Local Development
+
+Install dependencies:
+
+npm install
+
+Run development server:
+
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+🎯 Engineering Goals
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Hojo explores:
 
-## Learn More
+- Distributed real-time systems  
+- Live audio collaboration architecture  
+- AI integration in user workflows  
+- Scalable notification pipelines  
+- Secure multi-role session management  
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+📌 Future Improvements
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- WebSocket clustering  
+- Advanced audio load balancing  
+- AI request queue optimization  
+- Performance telemetry  
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Portfolio Summary
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-🚀 Bonus (for your CV/Portfolio bullet point):
-If you're listing this in a resume or portfolio description, you could write:
-
-Developed Hojo Media, a fullstack real-time platform combining verified news publishing and instant messaging, with robust WebSocket infrastructure, notification systems, and user activity tracking
-
-Integrated Supabase for real-time database + storage, Clerk for authentication, Sanity for CMS-powered article management, and Next.js (App Router) for SSR + API routes
-
-Built and deployed a custom Node.js WebSocket server with real-time features (message delivery, typing indicators, presence, follow alerts)
-
-Designed and enforced RLS (Row Level Security) policies for file uploads, notifications, and user data separation
-
-Enabled browser notifications, smart grouping, sound alerts, and user preferences for a scalable cross-device notification system
+Hojo demonstrates full-stack ownership, real-time engineering, live media orchestration, AI integration, and scalable system design — simulating production-level application architecture.
