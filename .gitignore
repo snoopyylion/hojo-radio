@@ -39,3 +39,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+app/sso-callback/page.tsx
+app/api/user-profile/route.ts
