@@ -6,7 +6,7 @@ export function useAuthRedirect() {
   const searchParams = useSearchParams();
   const processedRef = useRef(false);
 
-  const redirectUrl = searchParams.get('redirect_url') || '/blog';
+  const redirectUrl = searchParams.get('redirect_url') || '/home';
   const errorParam = searchParams.get('error');
 
   const buildOAuthCallbackUrl = useCallback((source: string, customRedirectUrl?: string) => {
@@ -14,8 +14,8 @@ export function useAuthRedirect() {
     
     const targetRedirectUrl = customRedirectUrl || redirectUrl;
     
-    // Only add redirect_url if it's not the default /blog
-    if (targetRedirectUrl && targetRedirectUrl !== '/blog') {
+    // Only add redirect_url if it's not the default /home
+    if (targetRedirectUrl && targetRedirectUrl !== '/home') {
       oauthCallbackUrl.searchParams.set('redirect_url', targetRedirectUrl);
     }
 
@@ -68,14 +68,14 @@ export function useAuthRedirect() {
 
   const buildSignUpUrl = useCallback(() => {
     const signUpUrl = '/authentication/sign-up';
-    return redirectUrl && redirectUrl !== '/blog' 
+    return redirectUrl && redirectUrl !== '/home' 
       ? `${signUpUrl}?redirect_url=${encodeURIComponent(redirectUrl)}`
       : signUpUrl;
   }, [redirectUrl]);
 
   const buildForgotPasswordUrl = useCallback(() => {
     const forgotPasswordUrl = '/authentication/forgot-password';
-    return redirectUrl && redirectUrl !== '/blog'
+    return redirectUrl && redirectUrl !== '/home'
       ? `${forgotPasswordUrl}?redirect_url=${encodeURIComponent(redirectUrl)}`
       : forgotPasswordUrl;
   }, [redirectUrl]);
