@@ -5,6 +5,24 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: 'von.gov.ng',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '**', // This allows any HTTPS hostname
+        port: '',
+        pathname: '**',
+      },
+      {
+        protocol: 'http',
+        hostname: '**', // This allows any HTTP hostname (use cautiously)
+        port: '',
+        pathname: '**',
+      },
+      {
+        protocol: 'https',
         hostname: 'www.gravatar.com',
         port: '',
         pathname: '/avatar/**',
