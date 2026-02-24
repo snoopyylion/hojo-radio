@@ -24,7 +24,7 @@ const HomePage = () => {
       <div className="first-row p-4">
         <div className="first-row">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white font-sora">
-            Welcome back, <span className="font-semibold text-capitalize">{name}</span> !
+            Welcome back, <span className="font-semibold text-capitalize font-sora">{name}</span> !
           </h1>
           <br />
           <p className="text-gray-700 dark:text-gray-400 font-sora">
