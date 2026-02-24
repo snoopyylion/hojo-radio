@@ -1,11 +1,13 @@
-// app/home/podcast/LivePodcastHub.tsx - UPDATED
+// app/home/podcast/LivePodcastHub.tsx - Fixed version
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation"; // 👈 Add this import
+import Link from "next/link"; // 👈 Add this import
 import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { LiveSession, User, DatabaseLiveSession } from "@/types/podcast";
 import AuthorStudioView from "./author/PodcastStudio";
 import ListenerView from "./ListenerView";
-import SessionCreationForm from "./author/SessionCreationForm";
+import SessionCreationForm from "./author/UnifiedSessionForm";
 import { supabaseClient } from "@/lib/supabase/client";
 import { Wifi, WifiOff, AlertCircle, RefreshCw } from "lucide-react";
 
@@ -21,6 +23,7 @@ interface NetworkQuality {
 }
 
 export default function LivePodcastHub({ user, liveSessions: initialSessions }: Props) {
+  const router = useRouter(); // 👈 Add this line
   const [liveSessions, setLiveSessions] = useState<LiveSession[]>(initialSessions);
   const [selectedSession, setSelectedSession] = useState<LiveSession | null>(null);
   const [mode, setMode] = useState<'browse' | 'create' | 'listen' | 'manage'>('browse');
@@ -324,7 +327,7 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
         <div className="p-8">
           <button
             onClick={backToBrowse}
-            className="mb-8 text-black dark:text-white hover:text-[#EF3866] dark:hover:text-[#EF3866] flex items-center text-sm font-medium transition-colors"
+            className="mb-8 text-black dark:text-white hover:text-[#EF3866] flex items-center text-sm font-medium transition-colors"
           >
             ← Back to Live Sessions
           </button>
@@ -332,6 +335,10 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
             user={user}
             onCancel={backToBrowse}
             onSessionCreated={handleSessionCreated}
+            onEpisodeCreated={(episodeId) => {
+              // Handle episode creation - redirect to upload page
+              router.push(`/home/podcast/episode/${episodeId}/upload`); // 👈 Now router is defined
+            }}
           />
         </div>
       </div>
@@ -408,14 +415,24 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
               </div>
             </div>
           </div>
-          {user.role === 'author' && !userSession && (
-            <button
-              onClick={createNewSession}
-              className="bg-[#EF3866] hover:bg-[#d12b56] text-white px-8 py-4 rounded-full font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg"
+          
+          {/* 👇 Updated header with Browse Podcasts and Start Broadcasting buttons */}
+          <div className="flex items-center gap-3">
+            <Link
+              href="/home/podcast/recorded"
+              className="border-[0.1px] border-gray-400 dark:border-white px-6 py-3 rounded-full text-sm font-semibold text-gray-600 font-sora dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all duration-200"
             >
-              Start Broadcasting
-            </button>
-          )}
+              Browse Podcasts
+            </Link>
+            {user.role === 'author' && !userSession && (
+              <button
+                onClick={createNewSession}
+                className="bg-[#EF3866] hover:bg-[#d12b56] font-sora text-white px-8 py-4 rounded-full font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg"
+              >
+                Start Broadcasting
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Network Quality Warning */}
@@ -464,11 +481,22 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
             <h2 className="text-2xl font-bold text-black dark:text-white">
               Live Now ({liveSessions.length})
             </h2>
-            {liveSessions.length > 0 && (
-              <div className="text-sm text-black dark:text-white opacity-60">
-                Click any session to join
-              </div>
-            )}
+            <div className="flex items-center gap-4">
+              {/* 👇 New "My Podcasts" link for authors */}
+              {user.role === 'author' && (
+                <Link 
+                  href="/home/podcast/create" 
+                  className="text-sm font-medium text-black dark:text-white opacity-60 hover:opacity-100 hover:text-[#EF3866] dark:hover:text-[#EF3866] transition-all duration-200 flex items-center gap-1"
+                >
+                  <span>+ New Podcast</span>
+                </Link>
+              )}
+              {liveSessions.length > 0 && (
+                <div className="text-sm text-black dark:text-white opacity-60">
+                  Click any session to join
+                </div>
+              )}
+            </div>
           </div>
 
           {liveSessions.length === 0 ? (

@@ -61,14 +61,14 @@ const CACHE_DURATION = 30000; // 30 seconds
 const cachedFetch = async (url: string, options?: RequestInit): Promise<ApiResponse> => {
   const cacheKey = `${url}${JSON.stringify(options)}`;
   const cached = apiCache.get(cacheKey);
-  
+
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
     return cached.data;
   }
-  
+
   const response = await fetch(url, options);
   const data = await response.json() as ApiResponse;
-  
+
   apiCache.set(cacheKey, { data, timestamp: Date.now() });
   return data;
 };
@@ -88,7 +88,7 @@ const useEngagementData = (postId: string) => {
 
   const fetchEngagementData = useCallback(async () => {
     if (state.isInitialized) return;
-    
+
     try {
       // Batch all API calls in parallel for better performance
       const [likeRes, bookmarkRes, commentRes] = await Promise.all([
@@ -143,20 +143,39 @@ const BlogTile = ({ post }: BlogTileProps) => {
     const now = new Date();
     const postDate = new Date(dateString);
     const diffInSeconds = Math.floor((now.getTime() - postDate.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return `${diffInSeconds}s`;
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
     return `${Math.floor(diffInSeconds / 86400)}d`;
   };
 
-  // Generate image URLs using Sanity's urlFor
-  const mainImageUrl = useMemo(() => 
-    post.mainImage ? urlFor(post.mainImage).width(600).height(600).url() : '',
+  const getImageDimensions = (image: SanityImage) => {
+    const ref = image.asset._ref;
+    // Sanity asset refs follow: image-{id}-{width}x{height}-{format}
+    const match = ref.match(/-(\d+)x(\d+)-/);
+    if (match) {
+      return { width: parseInt(match[1]), height: parseInt(match[2]) };
+    }
+    return { width: 1000, height: 1000 }; // fallback
+  };
+
+  const mainImageDimensions = useMemo(() =>
+    post.mainImage ? getImageDimensions(post.mainImage) : { width: 1000, height: 1000 },
     [post.mainImage]
   );
-  
-  const authorImageUrl = useMemo(() => 
+
+  const mainImageUrl = useMemo(() =>
+    post.mainImage
+      ? urlFor(post.mainImage)
+        .width(mainImageDimensions.width)
+        .height(mainImageDimensions.height)
+        .url()
+      : '',
+    [post.mainImage, mainImageDimensions]
+  );
+
+  const authorImageUrl = useMemo(() =>
     post.author.image ? urlFor(post.author.image).width(40).height(40).url() : '',
     [post.author.image]
   );
@@ -166,7 +185,7 @@ const BlogTile = ({ post }: BlogTileProps) => {
     // Don't navigate if clicking on interactive elements
     const target = e.target as HTMLElement;
     const isInteractiveElement = target.closest('button') || target.closest('a');
-    
+
     if (!isInteractiveElement) {
       router.push(`/home/post/${post._id}`);
     }
@@ -184,7 +203,7 @@ const BlogTile = ({ post }: BlogTileProps) => {
           fetchEngagementData();
         }
       },
-      { 
+      {
         threshold: 0.1,
         rootMargin: '50px' // Load data slightly before component is visible
       }
@@ -218,7 +237,7 @@ const BlogTile = ({ post }: BlogTileProps) => {
 
     // Optimistic update with previous state backup
     const previousState = { isLiked, likeCount };
-    
+
     setState(prev => ({
       ...prev,
       isLiked: !prev.isLiked,
@@ -288,7 +307,7 @@ const BlogTile = ({ post }: BlogTileProps) => {
 
     // Optimistic update with previous state backup
     const previousState = { isBookmarked, bookmarkCount };
-    
+
     setState(prev => ({
       ...prev,
       isBookmarked: !prev.isBookmarked,
@@ -372,7 +391,7 @@ const BlogTile = ({ post }: BlogTileProps) => {
   }, [setState]);
 
   return (
-    <article 
+    <article
       ref={elementRef}
       onClick={handleNavigateToPost}
       className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-lg mb-6 mx-auto cursor-pointer hover:shadow-md transition-shadow duration-200"
@@ -402,36 +421,37 @@ const BlogTile = ({ post }: BlogTileProps) => {
       </div>
 
       {/* Image */}
-      <div className="relative aspect-square bg-gray-100 dark:bg-gray-900">
+      <div className="relative w-full bg-gray-100 dark:bg-gray-900">
         <Image
           src={mainImageUrl || 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&h=600&fit=crop'}
           alt={post.title}
-          fill
-          className="object-cover"
+          width={1000}
+          height={800}
+          className="h-auto object-contain"
         />
       </div>
 
       {/* Action Buttons */}
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-4">
-          <button 
+          <button
             ref={likeRef}
             onClick={handleLike}
             disabled={isLoading}
             className={`hover:opacity-70 transition-opacity ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
           >
-            <Heart 
-              className={`w-6 h-6 ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-900 dark:text-white'} ${isLoading ? 'animate-pulse' : ''}`} 
+            <Heart
+              className={`w-6 h-6 ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-900 dark:text-white'} ${isLoading ? 'animate-pulse' : ''}`}
             />
           </button>
-          <button 
+          <button
             ref={commentRef}
             onClick={handleShowComments}
             className="hover:opacity-70 transition-opacity"
           >
             <MessageCircle className="w-6 h-6 text-gray-900 dark:text-white" />
           </button>
-          <button 
+          <button
             ref={shareRef}
             onClick={handleShare}
             className="hover:opacity-70 transition-opacity"
@@ -439,14 +459,14 @@ const BlogTile = ({ post }: BlogTileProps) => {
             <Share2 className="w-6 h-6 text-gray-900 dark:text-white" />
           </button>
         </div>
-        <button 
+        <button
           ref={bookmarkRef}
           onClick={handleBookmark}
           disabled={isBookmarkLoading}
           className={`hover:opacity-70 transition-opacity ${isBookmarkLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
         >
-          <Bookmark 
-            className={`w-6 h-6 ${isBookmarked ? 'fill-gray-900 dark:fill-white' : ''} text-gray-900 dark:text-white ${isBookmarkLoading ? 'animate-pulse' : ''}`} 
+          <Bookmark
+            className={`w-6 h-6 ${isBookmarked ? 'fill-gray-900 dark:fill-white' : ''} text-gray-900 dark:text-white ${isBookmarkLoading ? 'animate-pulse' : ''}`}
           />
         </button>
       </div>
@@ -470,7 +490,7 @@ const BlogTile = ({ post }: BlogTileProps) => {
 
       {/* View Comments */}
       <div className="px-4 pb-2">
-        <button 
+        <button
           onClick={handleShowComments}
           className="text-sm text-gray-500 dark:text-gray-400 hover:underline"
         >
@@ -482,8 +502,8 @@ const BlogTile = ({ post }: BlogTileProps) => {
       {showComments && (
         <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
           <div className="p-4">
-            <CommentSection 
-              postId={post._id} 
+            <CommentSection
+              postId={post._id}
               onCommentCountChange={updateCommentCount}
             />
           </div>

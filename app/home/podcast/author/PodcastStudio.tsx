@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
 import { LiveSession, User } from "@/types/podcast";
-import { Radio, Clock, Users } from "lucide-react";
+import { Radio, Clock, Users, Check } from "lucide-react";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 import { AudioControls } from "./components/AudioControls";
 import { useNetworkMonitoring } from "./hooks/useNetworkMonitoring";
@@ -13,6 +14,7 @@ import GuestManagement from "../GuestManagement";
 import { useSessionRoles } from "../author/hooks/useSessionRoles";
 import { GuestRequestsPanel } from "../components/GuestRequestsPanel";
 import { useAuth } from "@clerk/nextjs";
+import { RecordingControls } from "./components/RecordingControls";
 
 interface Props {
   session: LiveSession;
@@ -23,12 +25,14 @@ interface Props {
 
 export default function PodcastStudio({ session, onEndSession }: Props) {
   const { userId, isLoaded } = useAuth();
+  const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<
     "connecting" | "connected" | "disconnected"
   >("connecting");
+  const [recordedEpisodeId, setRecordedEpisodeId] = useState<string | null>(null);
 
   // 1. Use Clerk's userId consistently
   const {
@@ -38,7 +42,7 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
     promoteUser,
     demoteUser,
     refreshTokenForRole
-  } = useSessionRoles(session.id, userId || ''); // ← Changed from user.id
+  } = useSessionRoles(session.id, userId || '');
 
   const deviceType = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent)
     ? "mobile"
@@ -50,11 +54,10 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
       try {
         setIsConnecting(true);
         
-        // ✅ Use Clerk's userId instead of user.id
         const res = await fetch(
           `/api/livekit/token?room=${session.roomName}&identity=${userId}&role=host&networkQuality=${initialNetworkQuality}&deviceType=${deviceType}`,
           {
-            credentials: 'include', // ✅ Include cookies
+            credentials: 'include',
           }
         );
 
@@ -80,7 +83,6 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
       }
     }
 
-    // ✅ Only fetch if userId is available
     if (userId) {
       getAuthorToken();
     }
@@ -124,7 +126,6 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
     }
   };
 
-  // 2. Fix role change handler
   const handleRoleChange = async (targetUserId: string, newRole: string) => {
     try {
       if (newRole === 'guest') {
@@ -133,22 +134,18 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
         await demoteUser(targetUserId);
       }
 
-      // If it's the current user, refresh token and rejoin
-      if (targetUserId === userId) { // ← Changed from user.id
+      if (targetUserId === userId) {
         await refreshTokenForRole();
-        // In a real implementation, you'd want to reconnect with new permissions
       }
     } catch (error) {
       console.error('Role change failed:', error);
     }
   };
 
-  // 3. Fix approve request handler
   const handleApproveRequest = async (requestId: string, targetUserId: string) => {
     const toastId = toast.loading("Approving request...");
   
     try {
-      // 1️⃣ Update request to approved
       const updateResponse = await fetch("/api/podcast/guest-requests", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -163,11 +160,9 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
         throw new Error("Failed to update request status");
       }
   
-      // 2️⃣ Promote the user in database
       const success = await promoteUser(targetUserId);
   
       if (!success) {
-        // Rollback if promotion fails
         await fetch("/api/podcast/guest-requests", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -196,7 +191,7 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
         body: JSON.stringify({
           requestId,
           status: 'rejected',
-          respondedBy: userId // ← Changed from user.id
+          respondedBy: userId
         })
       });
     } catch (error) {
@@ -205,7 +200,11 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
     }
   };
 
-  // 4. Add safety check for userId
+  const handleRecordingComplete = (episodeId: string) => {
+    setRecordedEpisodeId(episodeId);
+    toast.success('✅ Episode recorded and published!');
+  };
+
   if (!isLoaded || !userId) {
     return (
       <div className="max-w-2xl mx-auto">
@@ -224,9 +223,14 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
           <h3 className="text-xl font-semibold text-black dark:text-white mb-2">
             Setting up your studio
           </h3>
-          <p className="text-sm text-black dark:text-white opacity-60">
+          <p className="text-sm text-black dark:text-white opacity-60 mb-2">
             Connecting to live audio room...
           </p>
+          {recordedEpisodeId && (
+            <p className="text-sm text-green-600 dark:text-green-400">
+              ✓ Episode recorded and published!
+            </p>
+          )}
           <div className="mt-4 text-xs text-black dark:text-white opacity-40">
             Device: {deviceType} | Network: {initialNetworkQuality}
           </div>
@@ -295,25 +299,50 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
             <span>Started {new Date(session.startedAt).toLocaleTimeString()}</span>
           </div>
         </div>
+
+        {/* Show success message when episode is recorded */}
+        {recordedEpisodeId && (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-500 rounded-xl p-4 mt-6">
+            <p className="text-green-600 dark:text-green-400 flex items-center justify-center gap-2">
+              <Check className="w-5 h-5" />
+              Episode recorded and published! 
+              <button 
+                onClick={() => router.push(`/home/podcast/episode/${recordedEpisodeId}`)}
+                className="underline ml-2 hover:text-green-700 dark:hover:text-green-300"
+              >
+                View Episode
+              </button>
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Controls */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Guest Requests Panel - Only show for host */}
+          {/* Guest Requests Panel & Recording Controls - Only show for host */}
           {isHost && (
-            <GuestRequestsPanel
-              sessionId={session.id}
-              onApproveRequest={handleApproveRequest}
-              onRejectRequest={handleRejectRequest}
-            />
+            <>
+              <GuestRequestsPanel
+                sessionId={session.id}
+                onApproveRequest={handleApproveRequest}
+                onRejectRequest={handleRejectRequest}
+              />
+              
+              <RecordingControls
+                sessionId={session.id}
+                userId={userId}
+                onRecordingComplete={handleRecordingComplete}
+              />
+            </>
           )}
 
-          {/* LiveKit Room */}
-           {/* Sound Effect Upload */}
+          {/* Sound Effect Upload */}
           <div className="flex justify-start">
             <SoundEffectsUpload onUpload={handleSoundEffectUpload} />
           </div>
+
+          {/* LiveKit Room */}
           <LiveKitRoom
             token={token}
             serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL!}

@@ -52,32 +52,32 @@ const DashboardGrid = () => {
       count: analytics?.totalViews || 0,
       weeklyChange: analytics ? `${analytics.weeklyViews} this week` : "0 this week",
       icon: <Eye size={20} />,
-      bgColor: "bg-blue-100",
-      iconColor: "text-blue-600",
+      accentColor: "#EF3866",
+      iconColorDark: "#00F0FF",       // Electric cyan – best complement
     },
     {
       title: "Unique Posts Read",
       count: analytics?.uniquePostsViewed || 0,
       weeklyChange: analytics ? `${analytics.weeklyViews} views this week` : "0 views this week",
       icon: <TrendingUp size={20} />,
-      bgColor: "bg-green-100",
-      iconColor: "text-green-600",
+      accentColor: "#EF3866",
+      iconColorDark: "#00FF9F",       // Neon lime – success/fresh energy
     },
     {
       title: "Podcasts Created",
       count: 12,
       weeklyChange: "+3 this week",
       icon: <Mic size={20} />,
-      bgColor: "bg-purple-100",
-      iconColor: "text-purple-600",
+      accentColor: "#EF3866",
+      iconColorDark: "#A020F0",       // Electric violet – premium feel
     },
     {
       title: "News Verified",
       count: 12,
       weeklyChange: "+3 this week",
       icon: <ShieldCheck size={20} />,
-      bgColor: "bg-orange-100",
-      iconColor: "text-orange-600",
+      accentColor: "#EF3866",
+      iconColorDark: "#00F0FF",       // Cyan again for balance
     },
   ];
 
