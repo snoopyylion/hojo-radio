@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Radio, Upload, Loader2, Calendar, Clock, ChevronDown } from "lucide-react";
 import toast from "react-hot-toast";
 import { User, LiveSession } from "@/types/podcast";
+import Link from "next/link";
 
 interface UnifiedSessionFormProps {
   user: User;
@@ -26,26 +27,26 @@ interface SeasonOption {
   title: string;
 }
 
-export default function UnifiedSessionForm({ 
-  user, 
-  onCancel, 
+export default function UnifiedSessionForm({
+  user,
+  onCancel,
   onSessionCreated,
-  onEpisodeCreated 
+  onEpisodeCreated
 }: UnifiedSessionFormProps) {
   const router = useRouter();
-  
+
   // Session type
   const [sessionType, setSessionType] = useState<'live' | 'recorded'>('live');
-  
+
   // Common fields
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  
+
   // Live session specific
   const [recordLiveSession, setRecordLiveSession] = useState(true);
   const [isPublic, setIsPublic] = useState(true);
-  
+
   // Recorded episode specific
   const [podcasts, setPodcasts] = useState<PodcastOption[]>([]);
   const [selectedPodcastId, setSelectedPodcastId] = useState("");
@@ -53,7 +54,7 @@ export default function UnifiedSessionForm({
   const [scheduleForLater, setScheduleForLater] = useState(false);
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
-  
+
   // Fetch user's podcasts for recorded episodes
   useEffect(() => {
     if (sessionType === 'recorded') {
@@ -61,7 +62,7 @@ export default function UnifiedSessionForm({
         .then(r => r.json())
         .then(async ({ podcasts: list }) => {
           if (!list?.length) return;
-          
+
           const enriched: PodcastOption[] = await Promise.all(
             list.map(async (p: { id: string; name: string }) => {
               const { seasons } = await fetch(
@@ -70,7 +71,7 @@ export default function UnifiedSessionForm({
               return { id: p.id, name: p.name, seasons: seasons || [] };
             })
           );
-          
+
           setPodcasts(enriched);
           if (enriched.length === 1) {
             setSelectedPodcastId(enriched[0].id);
@@ -119,11 +120,11 @@ export default function UnifiedSessionForm({
 
         const { session } = await response.json();
         toast.success('🎙️ Live session started!');
-        
+
         if (recordLiveSession) {
           toast('Recording will begin automatically when you go live', { duration: 4000 });
         }
-        
+
         onSessionCreated?.(session);
       } else {
         // Create recorded episode
@@ -151,13 +152,13 @@ export default function UnifiedSessionForm({
         }
 
         const { episode } = await response.json();
-        
+
         if (scheduleForLater) {
           toast.success('📅 Episode scheduled!');
         } else {
           toast.success('📝 Episode created! You can now upload audio');
         }
-        
+
         onEpisodeCreated?.(episode.id);
         router.push(`/home/podcast/episode/${episode.id}/upload`);
       }
@@ -174,22 +175,20 @@ export default function UnifiedSessionForm({
       <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-gray-900 rounded-2xl">
         <button
           onClick={() => setSessionType('live')}
-          className={`py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
-            sessionType === 'live' 
-              ? 'bg-[#EF3866] text-white shadow-lg' 
+          className={`py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${sessionType === 'live'
+              ? 'bg-[#EF3866] text-white shadow-lg'
               : 'text-black dark:text-white opacity-60 hover:opacity-100'
-          }`}
+            }`}
         >
           <Radio className="w-4 h-4" />
           Go Live Now
         </button>
         <button
           onClick={() => setSessionType('recorded')}
-          className={`py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
-            sessionType === 'recorded' 
-              ? 'bg-[#EF3866] text-white shadow-lg' 
+          className={`py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${sessionType === 'recorded'
+              ? 'bg-[#EF3866] text-white shadow-lg'
               : 'text-black dark:text-white opacity-60 hover:opacity-100'
-          }`}
+            }`}
         >
           <Upload className="w-4 h-4" />
           Upload Later
@@ -235,7 +234,7 @@ export default function UnifiedSessionForm({
       {sessionType === 'live' && (
         <div className="border border-black dark:border-white border-opacity-10 rounded-3xl p-6 space-y-4">
           <h3 className="font-medium text-black dark:text-white">Live Options</h3>
-          
+
           <label className="flex items-center justify-between cursor-pointer">
             <span className="text-sm text-black dark:text-white">Public Session</span>
             <input
@@ -274,12 +273,9 @@ export default function UnifiedSessionForm({
               <p className="text-sm text-black dark:text-white opacity-60 mb-3">
                 You don&apos;t have a podcast yet.
               </p>
-              <a
-                href="/home/podcast/create"
-                className="text-sm text-[#EF3866] underline"
-              >
+              <Link href="/home/podcast/create" className="text-sm text-[#EF3866] underline">
                 Create your first podcast →
-              </a>
+              </Link>
             </div>
           ) : (
             <>
