@@ -1,433 +1,668 @@
-// app/home/podcast/LivePodcastHub.tsx - Fixed version
 "use client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation"; // 👈 Add this import
-import Link from "next/link"; // 👈 Add this import
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+// app/home/podcast/LivePodcastHub.tsx
+
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { LiveSession, User, DatabaseLiveSession } from "@/types/podcast";
 import AuthorStudioView from "./author/PodcastStudio";
 import ListenerView from "./ListenerView";
 import SessionCreationForm from "./author/UnifiedSessionForm";
 import { supabaseClient } from "@/lib/supabase/client";
-import { Wifi, WifiOff, AlertCircle, RefreshCw } from "lucide-react";
+import {
+   WifiOff, RefreshCw, Radio, 
+  Play, Headphones, Users, ChevronRight, Flame, Clock,
+  ArrowUpRight, Signal,
+} from "lucide-react";
+
+// ─── Types ────────────────────────────────────────────────────
+interface NetworkQuality {
+  quality: "high" | "medium" | "low";
+  downloadMbps: number;
+  uploadMbps: number;
+  latencyMs: number;
+  tested: boolean;
+}
+
+interface EpisodePreview {
+  id: string;
+  episode_number: number;
+  title: string;
+  description?: string;
+  cover_image_url?: string;
+  duration_seconds: number;
+  play_count: number;
+  like_count: number;
+  published_at: string;
+  recording_status: string;
+  podcast: { id: string; name: string; slug: string; cover_image_url?: string; author_id: string };
+  season: { id: string; title: string; season_number: number };
+  author: { first_name: string; last_name: string };
+}
+
+interface PodcastPreview {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  cover_image_url?: string;
+  category: string;
+  total_episodes: number;
+  podcast_seasons: { count: number }[];
+  host: { first_name: string; last_name: string; image_url?: string }[];
+}
 
 interface Props {
   user: User;
   liveSessions: LiveSession[];
+  recentEpisodes: EpisodePreview[];
+  featuredPodcasts: PodcastPreview[];
 }
 
-interface NetworkQuality {
-  quality: 'high' | 'medium' | 'low';
-  speed: number; // Mbps
-  latency: number; // ms
+// ─── Helpers ──────────────────────────────────────────────────
+function formatDuration(s: number) {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
+function formatCount(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+function timeAgo(dateStr: string) {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
 }
 
-export default function LivePodcastHub({ user, liveSessions: initialSessions }: Props) {
-  const router = useRouter(); // 👈 Add this line
+// ─── Network Speed Test ───────────────────────────────────────
+// Accurate measurement strategy:
+//
+//  LATENCY:  5 sequential HEAD pings (no body). Sequential avoids TCP
+//            contention. We drop the max, take median of remaining 4.
+//            This gives true RTT, not a download-polluted number.
+//
+//  DOWNLOAD: Fetch 4MB incompressible binary. Use ReadableStream to
+//            record when the FIRST chunk arrives (TTFB). Subtract TTFB
+//            from total elapsed so we measure only transfer time.
+//            throughput = bytes / (elapsed − TTFB) in Mbps.
+//
+//  UPLOAD:   XMLHttpRequest with xhr.upload.onload event. This fires
+//            when the full request BODY has been sent to the server —
+//            BEFORE the server reads or responds. fetch() has no
+//            equivalent hook, so XHR is the only accurate upload method.
+//            Body is 2MB XOR-patterned (incompressible).
+
+async function measureNetworkSpeed(): Promise<NetworkQuality> {
+
+  // ── 1. Latency ───────────────────────────────────────────────
+  const pingOnce = async (): Promise<number> => {
+    try {
+      const t0 = performance.now();
+      await fetch("/api/podcast/network-test", { method: "HEAD", cache: "no-store" });
+      return performance.now() - t0;
+    } catch { return 9999; }
+  };
+
+  const pings: number[] = [];
+  for (let i = 0; i < 5; i++) pings.push(await pingOnce());
+  pings.sort((a, b) => a - b);
+  const validPings = pings.slice(0, 4); // drop the max
+  const latencyMs = Math.round(validPings[Math.floor(validPings.length / 2)]);
+
+  // ── 2. Download (TTFB-corrected) ────────────────────────────
+  const measureDownload = async (): Promise<number> => {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const t0 = performance.now();
+      const res = await fetch("/api/podcast/network-test?size=large", {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!res.ok || !res.body) return 0;
+
+      const reader = res.body.getReader();
+      let received = 0;
+      let ttfbMs = -1;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (ttfbMs < 0) ttfbMs = performance.now() - t0; // first byte
+        received += value.byteLength;
+      }
+
+      const totalSec = (performance.now() - t0) / 1000;
+      // Subtract TTFB — only count pure transfer time
+      const transferSec = Math.max(0.01, totalSec - (ttfbMs > 0 ? ttfbMs / 1000 : 0));
+      return (received * 8) / transferSec / 1_000_000;
+    } catch { return 0; }
+    finally { clearTimeout(tid); }
+  };
+
+  // ── 3. Upload (XHR — fires on request body sent, not response) ─
+  const measureUpload = (): Promise<number> =>
+    new Promise((resolve) => {
+      const BYTES = 2 * 1024 * 1024;
+      const buf = new Uint8Array(BYTES);
+      for (let i = 0; i < BYTES; i++) buf[i] = ((i * 0x9E3779B9) ^ (i >> 5)) & 0xFF;
+      const blob = new Blob([buf], { type: "application/octet-stream" });
+
+      const xhr = new XMLHttpRequest();
+      let t0 = 0;
+      let settled = false;
+      const done = (mbps: number) => { if (!settled) { settled = true; resolve(mbps); } };
+      const tid = setTimeout(() => done(0), 15_000);
+
+      xhr.upload.addEventListener("loadstart", () => { t0 = performance.now(); });
+      // "load" fires the instant the full body leaves the browser — before server ack
+      xhr.upload.addEventListener("load", () => {
+        clearTimeout(tid);
+        const secs = Math.max(0.01, (performance.now() - t0) / 1000);
+        done((BYTES * 8) / secs / 1_000_000);
+      });
+      xhr.upload.addEventListener("error", () => { clearTimeout(tid); done(0); });
+      xhr.upload.addEventListener("abort", () => { clearTimeout(tid); done(0); });
+      // Fallback in case upload.load never fires
+      xhr.addEventListener("load", () => {
+        clearTimeout(tid);
+        if (!settled && t0 > 0) {
+          const secs = Math.max(0.01, (performance.now() - t0) / 1000);
+          done((BYTES * 8) / secs / 1_000_000);
+        } else done(0);
+      });
+
+      xhr.open("POST", "/api/podcast/network-test");
+      xhr.setRequestHeader("Cache-Control", "no-store");
+      xhr.send(blob);
+    });
+
+  // Sequential (not parallel) — avoids bandwidth contention between tests
+  const downloadMbps = await measureDownload();
+  const uploadMbps   = await measureUpload();
+
+  // ── 4. Quality ───────────────────────────────────────────────
+  let quality: NetworkQuality["quality"] = "low";
+  if (downloadMbps >= 15 && latencyMs < 100) quality = "high";
+  else if (downloadMbps >= 3 || (downloadMbps >= 1 && latencyMs < 300)) quality = "medium";
+
+  return {
+    quality,
+    downloadMbps: parseFloat(Math.max(0, downloadMbps).toFixed(1)),
+    uploadMbps:   parseFloat(Math.max(0, uploadMbps).toFixed(1)),
+    latencyMs,
+    tested: true,
+  };
+}
+// ─── Mini Episode Card ────────────────────────────────────────
+function MiniEpisodeCard({ ep }: { ep: EpisodePreview }) {
+  const cover = ep.cover_image_url || ep.podcast.cover_image_url ||
+    "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=400&h=400&fit=crop";
+
+  return (
+    <Link
+      href={`/home/podcast/${ep.podcast.slug}/episode/${ep.id}`}
+      className="group flex-shrink-0 w-48 sm:w-52 block"
+    >
+      <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-900 mb-2.5">
+        <Image src={cover} alt={ep.title} fill className="object-cover group-hover:scale-105 transition-transform duration-400" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        {/* Play button */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <div className="w-11 h-11 bg-[#EF3866] rounded-full flex items-center justify-center shadow-xl shadow-[#EF3866]/30">
+            <Play className="w-4 h-4 text-white ml-0.5" />
+          </div>
+        </div>
+        {/* Episode badge */}
+        <div className="absolute top-2.5 left-2.5">
+          <span className="bg-[#EF3866] text-white text-[9px] font-sora font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+            Ep. {ep.episode_number}
+          </span>
+        </div>
+        {/* Duration */}
+        <div className="absolute bottom-2.5 right-2.5 bg-black/60 text-white text-[9px] font-sora px-1.5 py-0.5 rounded flex items-center gap-1">
+          <Clock className="w-2.5 h-2.5" />
+          {formatDuration(ep.duration_seconds)}
+        </div>
+      </div>
+      <p className="font-sora font-semibold text-xs text-gray-900 dark:text-white line-clamp-1 group-hover:text-[#EF3866] transition-colors mb-0.5">
+        {ep.title}
+      </p>
+      <p className="font-sora text-[10px] text-gray-400 truncate">{ep.podcast.name}</p>
+      <div className="flex items-center gap-2 mt-1">
+        <span className="font-sora text-[10px] text-gray-400 flex items-center gap-0.5">
+          <Headphones className="w-2.5 h-2.5" />{formatCount(ep.play_count)}
+        </span>
+        <span className="font-sora text-[10px] text-gray-400">{timeAgo(ep.published_at)}</span>
+      </div>
+    </Link>
+  );
+}
+
+// ─── Mini Podcast Card ────────────────────────────────────────
+function MiniPodcastCard({ p }: { p: PodcastPreview }) {
+  const cover = p.cover_image_url ||
+    "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=400&h=400&fit=crop";
+  const hostName = p.host?.[0]
+    ? `${p.host[0].first_name} ${p.host[0].last_name}`.trim()
+    : "";
+
+  return (
+    <Link
+      href={`/home/podcast/${p.slug}`}
+      className="group flex-shrink-0 w-36 sm:w-40 block"
+    >
+      <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-900 mb-2.5">
+        <Image src={cover} alt={p.name} fill className="object-cover group-hover:scale-105 transition-transform duration-400" />
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors duration-200 flex items-center justify-center">
+          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+            <Play className="w-4 h-4 text-[#EF3866] ml-0.5" />
+          </div>
+        </div>
+        <div className="absolute top-2 left-2">
+          <span className="text-[9px] font-sora bg-black/50 text-white px-1.5 py-0.5 rounded-full capitalize">
+            {p.category}
+          </span>
+        </div>
+      </div>
+      <p className="font-sora font-semibold text-xs text-gray-900 dark:text-white line-clamp-1 group-hover:text-[#EF3866] transition-colors mb-0.5">
+        {p.name}
+      </p>
+      {hostName && (
+        <p className="font-sora text-[10px] text-gray-400 truncate">{hostName}</p>
+      )}
+      <p className="font-sora text-[10px] text-gray-400 mt-0.5">
+        {p.total_episodes} ep{p.total_episodes !== 1 ? "s" : ""}
+      </p>
+    </Link>
+  );
+}
+
+// ─── Network Status Badge ─────────────────────────────────────
+function NetworkBadge({
+  net,
+  isTesting,
+  onTest,
+}: {
+  net: NetworkQuality;
+  isTesting: boolean;
+  onTest: () => void;
+}) {
+  const colorClass = {
+    high: "text-emerald-500",
+    medium: "text-amber-500",
+    low: "text-red-500",
+  }[net.quality];
+
+  const bgClass = {
+    high: "bg-emerald-500/10 border-emerald-500/20",
+    medium: "bg-amber-500/10 border-amber-500/20",
+    low: "bg-red-500/10 border-red-500/20",
+  }[net.quality];
+
+  return (
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-sora ${bgClass}`}>
+      {net.quality === "low"
+        ? <WifiOff className={`w-3.5 h-3.5 ${colorClass}`} />
+        : <Signal className={`w-3.5 h-3.5 ${colorClass}`} />
+      }
+      {net.tested ? (
+        <span className={colorClass}>
+          ↓{net.downloadMbps.toFixed(1)} ↑{net.uploadMbps.toFixed(1)} Mbps · {net.latencyMs}ms
+        </span>
+      ) : (
+        <span className="text-gray-400">Testing…</span>
+      )}
+      <button
+        onClick={onTest}
+        disabled={isTesting}
+        title="Re-test network"
+        className="ml-0.5 opacity-60 hover:opacity-100 transition-opacity"
+      >
+        <RefreshCw className={`w-3 h-3 ${isTesting ? "animate-spin" : ""} ${colorClass}`} />
+      </button>
+    </div>
+  );
+}
+
+// ─── Live Session Card ────────────────────────────────────────
+function LiveSessionCard({
+  session,
+  isOwn,
+  onJoin,
+}: {
+  session: LiveSession;
+  isOwn: boolean;
+  onJoin: () => void;
+}) {
+  return (
+    <div
+      onClick={onJoin}
+      className="group relative bg-white dark:bg-[#0a0a0a] border border-gray-100 dark:border-gray-800/70 rounded-2xl p-5 cursor-pointer hover:border-[#EF3866]/50 hover:shadow-xl hover:shadow-[#EF3866]/5 transition-all duration-300 flex flex-col gap-4"
+    >
+      {/* Top row */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#EF3866] opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#EF3866]" />
+          </span>
+          <span className="text-[10px] font-sora font-bold text-[#EF3866] uppercase tracking-widest">Live</span>
+        </div>
+        <div className="flex items-center gap-1 text-xs font-sora text-gray-400">
+          <Users className="w-3 h-3" />
+          <span>{session.listenerCount}</span>
+        </div>
+      </div>
+
+      {/* Title */}
+      <div>
+        <h3 className="font-sora font-semibold text-base text-gray-900 dark:text-white line-clamp-2 group-hover:text-[#EF3866] transition-colors leading-snug">
+          {session.title}
+        </h3>
+        <p className="text-xs font-sora text-gray-400 mt-1">by {session.authorName}</p>
+        {session.description && (
+          <p className="text-xs font-sora text-gray-500 dark:text-gray-400 mt-2 line-clamp-2 leading-relaxed">
+            {session.description}
+          </p>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800/60 mt-auto">
+        <span className="text-[10px] font-sora text-gray-400">
+          {new Date(session.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </span>
+        <span
+          className={`px-3.5 py-1.5 rounded-full text-[10px] font-sora font-bold uppercase tracking-wider transition-all duration-200 ${
+            isOwn
+              ? "bg-[#EF3866] text-white"
+              : "bg-gray-900 dark:bg-white text-white dark:text-black group-hover:bg-[#EF3866] group-hover:text-white"
+          }`}
+        >
+          {isOwn ? "Manage" : "Listen"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Section Header ────────────────────────────────────────────
+function SectionHeader({
+  icon: Icon,
+  title,
+  subtitle,
+  href,
+  linkLabel = "See all",
+}: {
+  icon: React.ComponentType<{ className: string }>;
+  title: string;
+  subtitle?: string;
+  href?: string;
+  linkLabel?: string;
+}) {
+  return (
+    <div className="flex items-end justify-between mb-5">
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 bg-[#EF3866]/10 rounded-xl flex items-center justify-center">
+          <Icon className="w-4 h-4 text-[#EF3866]" />
+        </div>
+        <div>
+          <h2 className="font-sora font-semibold text-lg text-gray-900 dark:text-white leading-tight">{title}</h2>
+          {subtitle && <p className="text-xs font-sora text-gray-400">{subtitle}</p>}
+        </div>
+      </div>
+      {href && (
+        <Link
+          href={href}
+          className="flex items-center gap-1 text-xs font-sora font-medium text-[#EF3866] hover:underline"
+        >
+          {linkLabel}
+          <ArrowUpRight className="w-3.5 h-3.5" />
+        </Link>
+      )}
+    </div>
+  );
+}
+
+// ─── Scrollable Row ────────────────────────────────────────────
+function ScrollRow({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="flex gap-4 overflow-x-auto pb-3"
+      style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+export default function LivePodcastHub({
+  user,
+  liveSessions: initialSessions,
+  recentEpisodes,
+  featuredPodcasts,
+}: Props) {
+  const router = useRouter();
+  const supabase = supabaseClient;
+
   const [liveSessions, setLiveSessions] = useState<LiveSession[]>(initialSessions);
   const [selectedSession, setSelectedSession] = useState<LiveSession | null>(null);
-  const [mode, setMode] = useState<'browse' | 'create' | 'listen' | 'manage'>('browse');
+  const [mode, setMode] = useState<"browse" | "create" | "listen" | "manage">("browse");
   const [userSession, setUserSession] = useState<LiveSession | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [networkQuality, setNetworkQuality] = useState<NetworkQuality>({
-    quality: 'medium',
-    speed: 0,
-    latency: 0
+    quality: "medium",
+    downloadMbps: 0,
+    uploadMbps: 0,
+    latencyMs: 0,
+    tested: false,
   });
-  const [isTestingNetwork, setIsTestingNetwork] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
 
-  const supabase = supabaseClient;
-
-  // Test network quality on component mount
-  useEffect(() => {
-    testNetworkQuality();
-
-    // Set up periodic network testing
-    const networkTestInterval = setInterval(testNetworkQuality, 30000); // Test every 30 seconds
-
-    return () => clearInterval(networkTestInterval);
-  }, [supabase]);
-
-  const testNetworkQuality = async () => {
-    setIsTestingNetwork(true);
+  // ── Real network speed test ──────────────────────────────────
+  const runNetworkTest = useCallback(async () => {
+    if (isTesting) return;
+    setIsTesting(true);
     try {
-      const startTime = performance.now();
-      await fetch('/api/podcast/network-test', {
-        method: 'HEAD',
-        cache: 'no-store'
-      });
-      const latency = performance.now() - startTime;
-
-      let quality: NetworkQuality['quality'] = 'medium';
-      let speed = 0;
-
-      if (latency < 100) {
-        quality = 'high';
-        speed = 10 + Math.random() * 10;
-      } else if (latency < 300) {
-        quality = 'medium';
-        speed = 5 + Math.random() * 5;
-      } else {
-        quality = 'low';
-        speed = 1 + Math.random() * 4;
-      }
-
-      setNetworkQuality({ quality, speed, latency });
-
-      // ✅ ONLY send monitoring data if we have an active session
-      if (userSession?.id) {
-        console.log('📊 Monitoring network for session:', userSession.id);
-
-        try {
-          // First check if session exists
-          const sessionCheck = await fetch(
-            `/api/podcast/session-check?sessionId=${userSession.id}`
-          );
-
-          if (sessionCheck.ok) {
-            const sessionData = await sessionCheck.json();
-
-            if (sessionData.exists && sessionData.isActive) {
-              console.log('✅ Session exists and is active, sending network data');
-
-              const response = await fetch('/api/podcast/network-monitor', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  sessionId: userSession.id,
-                  networkStats: {
-                    latency,
-                    bandwidth: speed,
-                    packetLoss: 0,
-                    jitter: 0
-                  },
-                  deviceInfo: navigator.userAgent,
-                  connectionType: 'unknown'
-                })
-              });
-
-              if (!response.ok) {
-                const error = await response.json();
-                console.warn('⚠️ Network monitor failed:', error);
-              } else {
-                console.log('✅ Network monitoring data sent successfully');
-              }
-            } else {
-              console.log('⚠️ Session inactive or not found:', sessionData);
-            }
-          } else {
-            console.log('⚠️ Session check failed, skipping monitoring');
-          }
-        } catch (error) {
-          console.error('❌ Network monitoring error:', error);
-          // Don't throw - just log and continue
-        }
-      } else {
-        console.log('ℹ️ No active session, skipping network monitoring');
-      }
-    } catch (error) {
-      console.error('Network test failed:', error);
-      setNetworkQuality({ quality: 'low', speed: 0, latency: 999 });
+      const result = await measureNetworkSpeed();
+      setNetworkQuality(result);
+    } catch {
+      setNetworkQuality((prev) => ({ ...prev, quality: "low", tested: true }));
     } finally {
-      setIsTestingNetwork(false);
+      setIsTesting(false);
     }
-  };
+  }, [isTesting]);
 
-  // Real-time subscription to live sessions
   useEffect(() => {
-    console.log('Setting up real-time subscription...');
+    runNetworkTest();
+    const id = setInterval(runNetworkTest, 45_000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    const channelName = `live-sessions-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-
+  // ── Realtime ─────────────────────────────────────────────────
+  useEffect(() => {
+    const channelName = `live-sessions-hub-${Date.now()}`;
     const channel = supabase
       .channel(channelName)
       .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'live_sessions',
-          filter: 'is_active=eq.true'
-        },
+        "postgres_changes",
+        { event: "*", schema: "public", table: "live_sessions", filter: "is_active=eq.true" },
         (payload: RealtimePostgresChangesPayload<DatabaseLiveSession>) => {
-          console.log('Real-time event received:', payload.eventType, payload);
-
-          const transformSession = (dbSession: DatabaseLiveSession): LiveSession => ({
-            id: dbSession.id,
-            authorId: dbSession.author_id,
-            authorName: dbSession.author_name,
-            title: dbSession.title,
-            description: dbSession.description || '',
-            roomName: dbSession.room_name,
-            startedAt: dbSession.started_at,
-            listenerCount: dbSession.listener_count || 0,
-            isActive: dbSession.is_active,
+          const tx = (db: DatabaseLiveSession): LiveSession => ({
+            id: db.id, authorId: db.author_id, authorName: db.author_name,
+            title: db.title, description: db.description || "",
+            roomName: db.room_name, startedAt: db.started_at,
+            listenerCount: db.listener_count || 0, isActive: db.is_active,
           });
-
-          if (payload.eventType === 'INSERT') {
-            const newSession = transformSession(payload.new);
-            console.log('Adding new session:', newSession);
-            setLiveSessions(prev => {
-              const exists = prev.some(session => session.id === newSession.id);
-              if (exists) return prev;
-              return [newSession, ...prev];
+          if (payload.eventType === "INSERT") {
+            setLiveSessions((p) => {
+              if (p.some((s) => s.id === payload.new.id)) return p;
+              return [tx(payload.new), ...p];
             });
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedSession = transformSession(payload.new);
-            console.log('Updating session:', updatedSession);
-            setLiveSessions(prev =>
-              prev.map(session =>
-                session.id === updatedSession.id ? updatedSession : session
-              )
-            );
-          } else if (payload.eventType === 'DELETE') {
-            console.log('Removing session:', payload.old.id);
-            setLiveSessions(prev =>
-              prev.filter(session => session.id !== payload.old.id)
-            );
+          } else if (payload.eventType === "UPDATE") {
+            setLiveSessions((p) => p.map((s) => s.id === payload.new.id ? tx(payload.new) : s));
+          } else if (payload.eventType === "DELETE") {
+            setLiveSessions((p) => p.filter((s) => s.id !== payload.old.id));
           }
         }
       )
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-        setIsConnected(status === 'SUBSCRIBED');
+      .subscribe((status) => setIsConnected(status === "SUBSCRIBED"));
+
+    // Refresh on connect
+    supabase
+      .from("live_sessions")
+      .select("*")
+      .eq("is_active", true)
+      .order("started_at", { ascending: false })
+      .then(({ data }) => {
+        if (!data) return;
+        setLiveSessions(data.map((db: DatabaseLiveSession) => ({
+          id: db.id, authorId: db.author_id, authorName: db.author_name,
+          title: db.title, description: db.description || "",
+          roomName: db.room_name, startedAt: db.started_at,
+          listenerCount: db.listener_count || 0, isActive: db.is_active,
+        })));
       });
 
-    const fetchLatestSessions = async () => {
-      try {
-        const { data: sessions, error } = await supabase
-          .from('live_sessions')
-          .select('*')
-          .eq('is_active', true)
-          .order('started_at', { ascending: false });
+    return () => { supabase.removeChannel(channel); };
+  }, [supabase]);
 
-        if (error) {
-          console.error('Error fetching latest sessions:', error);
-          return;
-        }
-
-        console.log('Fetched latest sessions:', sessions);
-
-        const transformedSessions = sessions?.map((dbSession: DatabaseLiveSession): LiveSession => ({
-          id: dbSession.id,
-          authorId: dbSession.author_id,
-          authorName: dbSession.author_name,
-          title: dbSession.title,
-          description: dbSession.description || '',
-          roomName: dbSession.room_name,
-          startedAt: dbSession.started_at,
-          listenerCount: dbSession.listener_count || 0,
-          isActive: dbSession.is_active,
-        })) || [];
-
-        setLiveSessions(transformedSessions);
-      } catch (error) {
-        console.error('Error in fetchLatestSessions:', error);
-      }
-    };
-
-    fetchLatestSessions();
-
-    return () => {
-      console.log('Cleaning up real-time subscription');
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  // Check if user has an active session
   useEffect(() => {
-    const userActiveSession = liveSessions.find(
-      session => session.authorId === user.id && session.isActive
-    );
-    setUserSession(userActiveSession || null);
+    setUserSession(liveSessions.find((s) => s.authorId === user.id && s.isActive) || null);
   }, [liveSessions, user.id]);
 
+  // ── Actions ──────────────────────────────────────────────────
   const joinSession = async (session: LiveSession) => {
-    // Check network quality before joining
-    if (networkQuality.quality === 'low') {
-      const useQuickJoin = window.confirm(
-        `Your network connection is poor (${Math.round(networkQuality.speed)} Mbps). ` +
-        `Would you like to use quick join mode for better stability?`
+    if (networkQuality.quality === "low") {
+      const go = window.confirm(
+        `Your connection is weak (↓${networkQuality.downloadMbps} Mbps, ${networkQuality.latencyMs}ms). Audio quality may be reduced. Continue?`
       );
-
-      if (useQuickJoin) {
-        try {
-          const response = await fetch('/api/podcast/quick-join', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sessionId: session.id,
-              networkQuality: 'low',
-              deviceType: /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
-              connectionSpeed: networkQuality.speed
-            })
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            console.log('Quick join configured:', data);
-          }
-        } catch (error) {
-          console.error('Quick join setup failed:', error);
-        }
-      }
+      if (!go) return;
     }
-
     setSelectedSession(session);
-    if (session.authorId === user.id) {
-      setMode('manage');
-    } else {
-      setMode('listen');
-    }
+    setMode(session.authorId === user.id ? "manage" : "listen");
   };
 
-  const createNewSession = () => {
-    setMode('create');
-  };
-
-  const backToBrowse = () => {
-    setMode('browse');
-    setSelectedSession(null);
-  };
-
-  const handleSessionEnd = () => {
-    setUserSession(null);
-    setMode('browse');
-    setSelectedSession(null);
-  };
-
+  const backToBrowse = () => { setMode("browse"); setSelectedSession(null); };
+  const handleSessionEnd = () => { setUserSession(null); setMode("browse"); setSelectedSession(null); };
   const handleSessionCreated = (session: LiveSession) => {
-    setUserSession(session);
-    setSelectedSession(session);
-    setMode('manage');
+    setUserSession(session); setSelectedSession(session); setMode("manage");
   };
 
-  const getNetworkQualityColor = () => {
-    switch (networkQuality.quality) {
-      case 'high': return 'text-green-500';
-      case 'medium': return 'text-yellow-500';
-      case 'low': return 'text-red-500';
-      default: return 'text-gray-500';
-    }
-  };
+  // ── Sub-view renders ─────────────────────────────────────────
+  const backBtn = (label: string) => (
+    <button
+      onClick={backToBrowse}
+      className="mb-8 inline-flex items-center gap-2 text-xs font-sora font-medium text-gray-400 hover:text-[#EF3866] transition-colors group"
+    >
+      <ChevronRight className="w-4 h-4 rotate-180 group-hover:-translate-x-0.5 transition-transform" />
+      {label}
+    </button>
+  );
 
-  const getNetworkQualityIcon = () => {
-    switch (networkQuality.quality) {
-      case 'high': return <Wifi className="w-4 h-4" />;
-      case 'medium': return <Wifi className="w-4 h-4" />;
-      case 'low': return <WifiOff className="w-4 h-4" />;
-      default: return <AlertCircle className="w-4 h-4" />;
-    }
-  };
-
-  // Show session creation form
-  if (mode === 'create') {
+  if (mode === "create") {
     return (
-      <div className="min-h-screen bg-white dark:bg-black">
-        <div className="p-8">
-          <button
-            onClick={backToBrowse}
-            className="mb-8 text-black dark:text-white hover:text-[#EF3866] flex items-center text-sm font-medium transition-colors"
-          >
-            ← Back to Live Sessions
-          </button>
+      <div className="min-h-screen bg-white dark:bg-black font-sora">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+          {backBtn("Back to Live")}
           <SessionCreationForm
             user={user}
             onCancel={backToBrowse}
             onSessionCreated={handleSessionCreated}
-            onEpisodeCreated={(episodeId) => {
-              // Handle episode creation - redirect to upload page
-              router.push(`/home/podcast/episode/${episodeId}/upload`); // 👈 Now router is defined
-            }}
+            onEpisodeCreated={(episodeId) => router.push(`/home/podcast/episode/${episodeId}/upload`)}
           />
         </div>
       </div>
     );
   }
 
-  if (mode === 'manage' && selectedSession && selectedSession.authorId === user.id) {
+  if (mode === "manage" && selectedSession?.authorId === user.id) {
     return (
-      <div className="min-h-screen bg-white dark:bg-black">
-        <div className="p-8">
-          <button
-            onClick={backToBrowse}
-            className="mb-8 text-black dark:text-white hover:text-[#EF3866] dark:hover:text-[#EF3866] flex items-center text-sm font-medium transition-colors"
-          >
-            ← Back to Live Sessions
-          </button>
+      <div className="min-h-screen bg-white dark:bg-black font-sora">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+          {backBtn("Back to Live")}
           <AuthorStudioView
-            {...({ session: selectedSession, user: user, onEndSession: handleSessionEnd, networkQuality: networkQuality.quality } as React.ComponentProps<typeof AuthorStudioView>)}
+            {...({ session: selectedSession, user, onEndSession: handleSessionEnd, networkQuality: networkQuality.quality } as React.ComponentProps<typeof AuthorStudioView>)}
           />
         </div>
       </div>
     );
   }
 
-  if (mode === 'listen' && selectedSession) {
+  if (mode === "listen" && selectedSession) {
     return (
-      <div className="min-h-screen bg-white dark:bg-black">
-        <div className="p-8">
-          <button
-            onClick={backToBrowse}
-            className="mb-8 text-black dark:text-white hover:text-[#EF3866] dark:hover:text-[#EF3866] flex items-center text-sm font-medium transition-colors"
-          >
-            ← Back to Live Sessions
-          </button>
+      <div className="min-h-screen bg-white dark:bg-black font-sora">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+          {backBtn("Back to Live")}
           <ListenerView
-            {...({ session: selectedSession, user: user, onEndSession: handleSessionEnd, networkQuality: networkQuality.quality } as React.ComponentProps<typeof ListenerView>)}
+            {...({ session: selectedSession, user, onEndSession: handleSessionEnd, networkQuality: networkQuality.quality } as React.ComponentProps<typeof ListenerView>)}
           />
         </div>
       </div>
     );
   }
 
+  // ── Browse view ──────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-white dark:bg-black">
-      <div className="max-w-7xl mx-auto px-8 py-12">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-12">
-          <div className="space-y-3">
-            <h1 className="text-4xl md:text-5xl font-bold text-black dark:text-white">
-              Live Podcasts
-            </h1>
-            <div className="flex items-center space-x-4">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#EF3866]' : 'bg-black dark:bg-white'} ${isConnected && 'animate-pulse'}`}></div>
-              <span className="text-sm text-black dark:text-white opacity-60">
-                {isConnected ? 'Live' : 'Reconnecting...'}
-              </span>
+    <div className="min-h-screen bg-white dark:bg-black font-sora">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
 
-              {/* Network Status */}
-              <div className="flex items-center space-x-2">
-                <div className={`flex items-center space-x-1 ${getNetworkQualityColor()}`}>
-                  {getNetworkQualityIcon()}
-                  <span className="text-sm capitalize">
-                    {networkQuality.quality} ({Math.round(networkQuality.speed)} Mbps)
-                  </span>
-                </div>
-                <button
-                  onClick={testNetworkQuality}
-                  disabled={isTestingNetwork}
-                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                  title="Test network quality"
-                >
-                  <RefreshCw className={`w-3 h-3 ${isTestingNetwork ? 'animate-spin' : ''}`} />
-                </button>
+        {/* ── Page Header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5 mb-10">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="inline-block w-1.5 h-5 bg-[#EF3866] rounded-full" />
+              <p className="text-xs font-sora font-medium text-[#EF3866] uppercase tracking-widest">Hojo Media</p>
+            </div>
+            <h1 className="font-sora font-semibold text-3xl sm:text-4xl text-gray-900 dark:text-white">
+              Podcast Hub
+            </h1>
+
+            {/* Status row */}
+            <div className="flex flex-wrap items-center gap-3 mt-3">
+              {/* Live dot */}
+              <div className="flex items-center gap-1.5">
+                <span className={`relative flex h-2 w-2`}>
+                  {isConnected && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#EF3866] opacity-75" />}
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? "bg-[#EF3866]" : "bg-gray-400"}`} />
+                </span>
+                <span className="text-xs font-sora text-gray-400">
+                  {isConnected ? "Realtime connected" : "Connecting…"}
+                </span>
               </div>
+
+              <span className="w-px h-3 bg-gray-200 dark:bg-gray-700" />
+
+              {/* Network badge */}
+              <NetworkBadge net={networkQuality} isTesting={isTesting} onTest={runNetworkTest} />
             </div>
           </div>
-          
-          {/* 👇 Updated header with Browse Podcasts and Start Broadcasting buttons */}
-          <div className="flex items-center gap-3">
+
+          {/* CTA buttons */}
+          <div className="flex items-center gap-2.5 flex-shrink-0">
             <Link
               href="/home/podcast/recorded"
-              className="border-[0.1px] border-gray-400 dark:border-white px-6 py-3 rounded-full text-sm font-semibold text-gray-600 font-sora dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all duration-200"
+              className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-sora font-medium text-gray-600 dark:text-gray-300 hover:border-[#EF3866] hover:text-[#EF3866] transition-all duration-200"
             >
               Browse Podcasts
             </Link>
-            {user.role === 'author' && !userSession && (
+            {user.role === "author" && !userSession && (
               <button
-                onClick={createNewSession}
-                className="bg-[#EF3866] hover:bg-[#d12b56] font-sora text-white px-8 py-4 rounded-full font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg"
+                onClick={() => setMode("create")}
+                className="px-5 py-2.5 rounded-xl bg-[#EF3866] hover:bg-[#d12b56] text-white text-sm font-sora font-semibold transition-all duration-200 shadow-md shadow-[#EF3866]/20 active:scale-95"
               >
                 Start Broadcasting
               </button>
@@ -435,39 +670,44 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
           </div>
         </div>
 
-        {/* Network Quality Warning */}
-        {networkQuality.quality === 'low' && (
-          <div className="bg-yellow-100 dark:bg-yellow-900 border border-yellow-400 dark:border-yellow-600 text-yellow-800 dark:text-yellow-200 p-4 rounded-lg mb-8">
-            <div className="flex items-center space-x-3">
-              <AlertCircle className="w-5 h-5" />
-              <div>
-                <p className="font-medium">Poor Network Connection</p>
-                <p className="text-sm opacity-80">
-                  Your connection speed is low. Sessions may use optimized audio quality for better stability.
-                </p>
-              </div>
+        {/* ── Network warning ── */}
+        {/* {networkQuality.quality === "low" && networkQuality.tested && (
+          <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-2xl p-4 mb-8">
+            <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-sora font-semibold text-sm text-amber-800 dark:text-amber-300">Weak connection detected</p>
+              <p className="font-sora text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                Download {networkQuality.downloadMbps} Mbps · {networkQuality.latencyMs}ms latency. Live audio may drop or use reduced quality.
+              </p>
             </div>
           </div>
-        )}
+        )} */}
 
-        {/* User's Active Session */}
+        {/* ── Your active session banner ── */}
         {userSession && (
-          <div className="bg-[#EF3866] text-white p-8 rounded-3xl mb-12 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-4 h-4 bg-white rounded-full animate-pulse"></div>
-                  <span className="text-sm font-bold uppercase tracking-wider">Your Live Session</span>
+          <div className="relative overflow-hidden bg-[#EF3866] text-white rounded-2xl p-6 sm:p-8 mb-10 shadow-xl shadow-[#EF3866]/20">
+            {/* Decorative rings */}
+            <div className="absolute -top-8 -right-8 w-40 h-40 border-2 border-white/10 rounded-full" />
+            <div className="absolute -top-4 -right-4 w-24 h-24 border-2 border-white/10 rounded-full" />
+
+            <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
+                  </span>
+                  <span className="text-[10px] font-sora font-bold uppercase tracking-widest opacity-80">Your Live Session</span>
                 </div>
-                <h3 className="text-2xl font-bold">{userSession.title}</h3>
-                <div className="flex items-center space-x-8 text-sm opacity-90">
-                  <span>{userSession.listenerCount} listeners</span>
-                  <span>Started {new Date(userSession.startedAt).toLocaleTimeString()}</span>
+                <h3 className="font-sora font-semibold text-xl sm:text-2xl leading-tight">{userSession.title}</h3>
+                <div className="flex items-center gap-4 mt-2 text-sm opacity-80">
+                  <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{userSession.listenerCount} listeners</span>
+                  <span>Started {new Date(userSession.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                 </div>
               </div>
               <button
                 onClick={() => joinSession(userSession)}
-                className="bg-white text-[#EF3866] px-6 py-3 rounded-full font-semibold hover:bg-black hover:text-white transition-all duration-200"
+                className="flex-shrink-0 bg-white text-[#EF3866] hover:bg-gray-50 px-6 py-3 rounded-xl text-sm font-sora font-bold transition-colors shadow-lg"
               >
                 Manage Studio
               </button>
@@ -475,129 +715,122 @@ export default function LivePodcastHub({ user, liveSessions: initialSessions }: 
           </div>
         )}
 
-        {/* Live Sessions Grid */}
-        <div className="space-y-8">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-black dark:text-white">
-              Live Now ({liveSessions.length})
-            </h2>
-            <div className="flex items-center gap-4">
-              {/* 👇 New "My Podcasts" link for authors */}
-              {user.role === 'author' && (
-                <Link 
-                  href="/home/podcast/create" 
-                  className="text-sm font-medium text-black dark:text-white opacity-60 hover:opacity-100 hover:text-[#EF3866] dark:hover:text-[#EF3866] transition-all duration-200 flex items-center gap-1"
-                >
-                  <span>+ New Podcast</span>
-                </Link>
-              )}
-              {liveSessions.length > 0 && (
-                <div className="text-sm text-black dark:text-white opacity-60">
-                  Click any session to join
-                </div>
-              )}
+        {/* ══════════════════════════════════════
+            LIVE SESSIONS
+        ══════════════════════════════════════ */}
+        <section className="mb-14">
+          <div className="flex items-end justify-between mb-5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 bg-[#EF3866]/10 rounded-xl flex items-center justify-center">
+                <Radio className="w-4 h-4 text-[#EF3866]" />
+              </div>
+              <div>
+                <h2 className="font-sora font-semibold text-lg text-gray-900 dark:text-white leading-tight">
+                  Live Now
+                </h2>
+                <p className="text-xs font-sora text-gray-400">
+                  {liveSessions.length} active session{liveSessions.length !== 1 ? "s" : ""}
+                </p>
+              </div>
             </div>
+            {user.role === "author" && (
+              <Link
+                href="/home/podcast/create"
+                className="flex items-center gap-1 text-xs font-sora font-medium text-[#EF3866] hover:underline"
+              >
+                + New Podcast
+              </Link>
+            )}
           </div>
 
           {liveSessions.length === 0 ? (
-            <div className="text-center py-24 space-y-6">
-              <div className="w-24 h-24 mx-auto bg-black dark:bg-white rounded-full flex items-center justify-center">
-                <svg className="w-12 h-12 text-white dark:text-black" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM15.657 6.343a1 1 0 011.414 0A9.972 9.972 0 0119 12a9.972 9.972 0 01-1.929 5.657 1 1 0 11-1.414-1.414A7.971 7.971 0 0017 12a7.971 7.971 0 00-1.343-4.243 1 1 0 010-1.414z" clipRule="evenodd" />
-                  <path fillRule="evenodd" d="M13.828 7.172a1 1 0 011.414 0A5.983 5.983 0 0117 12a5.983 5.983 0 01-1.758 4.828 1 1 0 11-1.414-1.414A3.983 3.983 0 0015 12a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+            <div className="flex flex-col items-center justify-center py-16 border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl">
+              <div className="w-14 h-14 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mb-4">
+                <Radio className="w-6 h-6 text-gray-300 dark:text-gray-600" />
               </div>
-              <div className="space-y-2">
-                <p className="text-xl font-semibold text-black dark:text-white">No live podcasts right now</p>
-                <p className="text-black dark:text-white opacity-60">Be the first to go live and share your voice</p>
-              </div>
-              {user.role === 'author' && (
+              <p className="font-sora text-sm text-gray-500 dark:text-gray-400 font-medium">No live podcasts right now</p>
+              <p className="font-sora text-xs text-gray-400 dark:text-gray-500 mt-1">Be the first to go live and share your voice</p>
+              {user.role === "author" && (
                 <button
-                  onClick={createNewSession}
-                  className="bg-black dark:bg-white text-white dark:text-black px-8 py-4 rounded-full font-semibold hover:bg-[#EF3866] hover:text-white transition-all duration-200 transform hover:scale-105"
+                  onClick={() => setMode("create")}
+                  className="mt-5 px-5 py-2.5 bg-[#EF3866] hover:bg-[#d12b56] text-white text-xs font-sora font-semibold rounded-xl transition-colors shadow-md shadow-[#EF3866]/20"
                 >
-                  Start Your First Live Session
+                  Start Your First Session
                 </button>
               )}
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {liveSessions.map((session) => (
-                <div
+                <LiveSessionCard
                   key={session.id}
-                  className="group bg-white dark:bg-black border-2 border-black dark:border-white p-6 rounded-3xl transition-all duration-200 hover:border-[#EF3866] hover:shadow-2xl cursor-pointer"
-                  onClick={() => joinSession(session)}
-                >
-                  {/* Live indicator */}
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-[#EF3866] rounded-full animate-pulse"></div>
-                      <span className="text-xs font-bold text-[#EF3866] uppercase tracking-wider">Live</span>
-                    </div>
-                    <div className="flex items-center space-x-1 text-xs text-black dark:text-white opacity-60">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
-                      </svg>
-                      <span>{session.listenerCount}</span>
-                    </div>
-                  </div>
+                  session={session}
+                  isOwn={session.authorId === user.id}
+                  onJoin={() => joinSession(session)}
+                />
+              ))}
+            </div>
+          )}
 
-                  {/* Content */}
-                  <div className="space-y-4 mb-6">
-                    <h3 className="font-bold text-xl text-black dark:text-white line-clamp-2 group-hover:text-[#EF3866] transition-colors">
-                      {session.title}
-                    </h3>
-                    <p className="text-sm text-black dark:text-white opacity-60">
-                      by {session.authorName}
-                    </p>
-                    {session.description && (
-                      <p className="text-sm text-black dark:text-white opacity-80 line-clamp-3">
-                        {session.description}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Footer */}
-                  <div className="flex items-center justify-between pt-4 border-t border-black dark:border-white border-opacity-10 dark:border-opacity-10">
-                    <span className="text-xs text-black dark:text-white opacity-40">
-                      {new Date(session.startedAt).toLocaleTimeString()}
-                    </span>
-                    <div className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 ${session.authorId === user.id
-                      ? 'bg-[#EF3866] text-white group-hover:bg-black group-hover:text-white'
-                      : 'bg-black dark:bg-white text-white dark:text-black group-hover:bg-[#EF3866] group-hover:text-white'
-                      }`}>
-                      {session.authorId === user.id ? 'Manage' : 'Listen'}
-                    </div>
-                  </div>
+          {/* Stats row */}
+          {liveSessions.length > 0 && (
+            <div className="grid grid-cols-3 gap-4 mt-6 p-4 bg-gray-50 dark:bg-gray-900/40 rounded-2xl border border-gray-100 dark:border-gray-800/60">
+              {[
+                { label: "Live Sessions", value: liveSessions.length, accent: true },
+                { label: "Total Listeners", value: liveSessions.reduce((t, s) => t + s.listenerCount, 0), accent: false },
+                { label: "Available to Join", value: liveSessions.filter((s) => s.authorId !== user.id).length, accent: false },
+              ].map(({ label, value, accent }) => (
+                <div key={label} className="text-center">
+                  <p className={`font-sora font-bold text-2xl ${accent ? "text-[#EF3866]" : "text-gray-900 dark:text-white"}`}>
+                    {value}
+                  </p>
+                  <p className="font-sora text-[10px] text-gray-400 mt-0.5">{label}</p>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Stats Footer */}
-        {liveSessions.length > 0 && (
-          <div className="mt-16 pt-12 border-t border-black dark:border-white border-opacity-10 dark:border-opacity-10">
-            <div className="grid grid-cols-3 gap-8 text-center">
-              <div className="space-y-2">
-                <div className="text-3xl font-bold text-[#EF3866]">{liveSessions.length}</div>
-                <div className="text-sm text-black dark:text-white opacity-60">Live Sessions</div>
-              </div>
-              <div className="space-y-2">
-                <div className="text-3xl font-bold text-black dark:text-white">
-                  {liveSessions.reduce((total, session) => total + session.listenerCount, 0)}
-                </div>
-                <div className="text-sm text-black dark:text-white opacity-60">Total Listeners</div>
-              </div>
-              <div className="space-y-2">
-                <div className="text-3xl font-bold text-black dark:text-white">
-                  {liveSessions.filter(s => s.authorId !== user.id).length}
-                </div>
-                <div className="text-sm text-black dark:text-white opacity-60">Available to Join</div>
-              </div>
-            </div>
-          </div>
+        {/* ══════════════════════════════════════
+            LATEST EPISODES
+        ══════════════════════════════════════ */}
+        {recentEpisodes.length > 0 && (
+          <section className="mb-14">
+            <SectionHeader
+              icon={Flame}
+              title="Latest Episodes"
+              subtitle="Fresh drops from your favourite creators"
+              href="/home/podcast/recorded"
+              linkLabel="See all episodes"
+            />
+            <ScrollRow>
+              {recentEpisodes.map((ep) => (
+                <MiniEpisodeCard key={ep.id} ep={ep} />
+              ))}
+            </ScrollRow>
+          </section>
         )}
+
+        {/* ══════════════════════════════════════
+            FEATURED SHOWS
+        ══════════════════════════════════════ */}
+        {featuredPodcasts.length > 0 && (
+          <section className="mb-14">
+            <SectionHeader
+              icon={Headphones}
+              title="Featured Shows"
+              subtitle="Explore the podcast library"
+              href="/home/podcast/recorded"
+              linkLabel="Browse all shows"
+            />
+            <ScrollRow>
+              {featuredPodcasts.map((p) => (
+                <MiniPodcastCard key={p.id} p={p} />
+              ))}
+            </ScrollRow>
+          </section>
+        )}
+
       </div>
     </div>
   );

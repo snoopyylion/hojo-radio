@@ -23,6 +23,7 @@ export class PodcastAudioManager {
   private currentlyPlaying: string | null = null;
   private effectBuffers: Map<string, AudioBuffer> = new Map();
   private activeEffectNodes: Map<string, AudioBufferSourceNode[]> = new Map();
+  private onTrackEndedCallback: ((trackId: string) => void) | null = null; // ← ADD THIS
 
   constructor() {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -31,6 +32,11 @@ export class PodcastAudioManager {
     this.destination = this.audioContext.createMediaStreamDestination();
     this.masterGain.connect(this.destination);
     this.masterGain.connect(this.audioContext.destination);
+  }
+
+  // ADD THIS METHOD
+  setOnTrackEnded(callback: (trackId: string) => void): void {
+    this.onTrackEndedCallback = callback;
   }
 
   async addTrack(file: File): Promise<string> {
@@ -90,15 +96,18 @@ export class PodcastAudioManager {
       track.isPlaying = true;
       this.currentlyPlaying = trackId;
 
+      // REPLACE the old handleEnded with this:
       const handleEnded = () => {
         track.isPlaying = false;
         if (this.currentlyPlaying === trackId) {
           this.currentlyPlaying = null;
         }
-        track.audioElement.removeEventListener('ended', handleEnded);
+        console.log('🎵 PodcastAudioManager: track ended, firing callback for', trackId);
+        this.onTrackEndedCallback?.(trackId); // ← NOTIFY THE HOOK
       };
-      
-      track.audioElement.addEventListener('ended', handleEnded, { once: true });
+
+      // Remove any previous listener before adding new one to avoid duplicates
+      track.audioElement.onended = handleEnded; // use onended instead of addEventListener
 
     } catch (error) {
       console.error('Failed to play track:', error);
@@ -110,6 +119,7 @@ export class PodcastAudioManager {
     const track = this.tracks.get(trackId);
     if (!track) return;
 
+    track.audioElement.onended = null; // ← CLEAR handler so stop doesn't trigger autoplay
     track.audioElement.pause();
     track.audioElement.currentTime = 0;
     track.isPlaying = false;
@@ -123,6 +133,7 @@ export class PodcastAudioManager {
     const track = this.tracks.get(trackId);
     if (!track || !track.isPlaying) return;
 
+    track.audioElement.onended = null; // ← CLEAR so pause doesn't accidentally trigger
     track.audioElement.pause();
     track.isPlaying = false;
     

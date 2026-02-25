@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
 import { LiveSession, User } from "@/types/podcast";
-import { Radio, Clock, Users, Check } from "lucide-react";
+import { Radio, Clock, Users, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
@@ -53,7 +53,7 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
     async function getAuthorToken() {
       try {
         setIsConnecting(true);
-        
+
         const res = await fetch(
           `/api/livekit/token?room=${session.roomName}&identity=${userId}&role=host&networkQuality=${initialNetworkQuality}&deviceType=${deviceType}`,
           {
@@ -144,7 +144,7 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
 
   const handleApproveRequest = async (requestId: string, targetUserId: string) => {
     const toastId = toast.loading("Approving request...");
-  
+
     try {
       const updateResponse = await fetch("/api/podcast/guest-requests", {
         method: "PUT",
@@ -155,13 +155,13 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
           respondedBy: userId,
         }),
       });
-  
+
       if (!updateResponse.ok) {
         throw new Error("Failed to update request status");
       }
-  
+
       const success = await promoteUser(targetUserId);
-  
+
       if (!success) {
         await fetch("/api/podcast/guest-requests", {
           method: "PUT",
@@ -174,9 +174,9 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
         });
         throw new Error("Failed to promote user");
       }
-  
+
       toast.success("✅ Guest approved! They'll reconnect automatically.", { id: toastId });
-      
+
     } catch (error) {
       console.error("❌ Failed to approve request:", error);
       toast.error("Failed to approve request. Please try again.", { id: toastId });
@@ -271,50 +271,158 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Session Header */}
-      <div className="text-center border border-black dark:border-white rounded-3xl p-8">
-        <div className="flex items-center justify-center space-x-3 mb-4">
-          <div className="w-4 h-4 bg-[#EF3866] rounded-full animate-pulse"></div>
-          <span className="text-[#EF3866] font-bold uppercase tracking-wider text-sm">
-            Live Broadcasting • {userRole === 'host' ? 'Host' : 'Guest'}
-          </span>
+      <div className="border border-black/10 dark:border-white/10 backdrop-blur-sm rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm dark:shadow-none transition-all duration-300">
+
+        {/* Top accent bar + status */}
+        <div className="
+    px-5 sm:px-6 py-3 sm:py-4 
+    bg-gradient-to-r from-[#EF3866]/10 to-transparent 
+    border-b border-black/5 dark:border-white/5
+    flex items-center justify-between gap-4
+  ">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="
+        w-3 h-3 sm:w-3.5 sm:h-3.5 
+        bg-[#EF3866] rounded-full 
+        animate-pulse ring-4 ring-[#EF3866]/20
+      "/>
+            <span className="
+        font-sora font-bold uppercase tracking-wider 
+        text-xs sm:text-sm 
+        text-[#EF3866]
+      ">
+              LIVE BROADCASTING
+            </span>
+            <span className="
+        text-[10px] sm:text-xs 
+        font-medium text-black/50 dark:text-white/50
+        px-2 py-0.5 rounded-full 
+        bg-black/5 dark:bg-white/5
+      ">
+              {userRole === 'host' ? 'Host Mode' : 'Guest Mode'}
+            </span>
+          </div>
+
+          {/* Listener count - moved here for better mobile visibility */}
+          <div className="
+      flex items-center gap-1.5 sm:gap-2 
+      text-xs sm:text-sm 
+      font-medium text-black/70 dark:text-white/70
+    ">
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>{session.listenerCount}</span>
+            <span className="hidden sm:inline opacity-60">listening</span>
+          </div>
         </div>
 
-        <h1 className="text-3xl font-bold text-black dark:text-white mb-3">
-          {session.title}
-        </h1>
+        {/* Main content */}
+        <div className="px-5 sm:px-7 py-6 sm:py-8">
+          <h1 className="
+      font-sora font-semibold 
+      text-xl sm:text-2xl lg:text-3xl 
+      text-black dark:text-white 
+      leading-tight mb-3 sm:mb-4
+      line-clamp-2
+    ">
+            {session.title}
+          </h1>
 
-        {session.description && (
-          <p className="text-black dark:text-white opacity-70 mb-4 max-w-md mx-auto">
-            {session.description}
-          </p>
-        )}
-
-        <div className="flex items-center justify-center space-x-8 text-sm text-black dark:text-white opacity-60">
-          <div className="flex items-center space-x-2">
-            <Users className="w-4 h-4" />
-            <span>{session.listenerCount} listening</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Clock className="w-4 h-4" />
-            <span>Started {new Date(session.startedAt).toLocaleTimeString()}</span>
-          </div>
-        </div>
-
-        {/* Show success message when episode is recorded */}
-        {recordedEpisodeId && (
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-500 rounded-xl p-4 mt-6">
-            <p className="text-green-600 dark:text-green-400 flex items-center justify-center gap-2">
-              <Check className="w-5 h-5" />
-              Episode recorded and published! 
-              <button 
-                onClick={() => router.push(`/home/podcast/episode/${recordedEpisodeId}`)}
-                className="underline ml-2 hover:text-green-700 dark:hover:text-green-300"
-              >
-                View Episode
-              </button>
+          {session.description && (
+            <p className="
+        font-sora text-sm sm:text-base 
+        text-black/70 dark:text-white/70 
+        leading-relaxed mb-5 sm:mb-6 
+        line-clamp-3 sm:line-clamp-4
+        max-w-2xl
+      ">
+              {session.description}
             </p>
+          )}
+
+          {/* Meta row - started time + listener count (mobile shows listener here too) */}
+          <div className="
+      flex flex-wrap items-center gap-4 sm:gap-6 
+      text-xs sm:text-sm 
+      text-black/60 dark:text-white/60
+    ">
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span>
+                Started {new Date(session.startedAt).toLocaleTimeString([], {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}
+              </span>
+            </div>
+
+            {/* Mobile-only listener count repeat (hidden on sm+) */}
+            <div className="flex items-center gap-1.5 sm:hidden">
+              <Users className="w-3.5 h-3.5" />
+              <span>{session.listenerCount} listening</span>
+            </div>
           </div>
-        )}
+
+          {/* Success message - full width, nice styling */}
+          {recordedEpisodeId && (
+            <div className="
+        mt-6 sm:mt-8 
+        bg-gradient-to-r from-green-50 to-green-50/50 
+        dark:from-green-950/30 dark:to-green-950/20 
+        border border-green-200 dark:border-green-800/40 
+        rounded-xl sm:rounded-2xl 
+        p-4 sm:p-5
+      ">
+              <div className="
+          flex flex-col sm:flex-row 
+          items-start sm:items-center 
+          justify-between gap-3 sm:gap-4
+        ">
+                <div className="flex items-center gap-3">
+                  <div className="
+              w-9 h-9 sm:w-10 sm:h-10 
+              bg-green-100 dark:bg-green-900/40 
+              rounded-full flex items-center justify-center
+            ">
+                    <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <p className="
+                font-sora font-medium 
+                text-sm sm:text-base 
+                text-green-700 dark:text-green-300
+              ">
+                      Episode successfully recorded & published!
+                    </p>
+                    <p className="
+                text-xs sm:text-sm 
+                text-green-600/80 dark:text-green-400/80 
+                mt-0.5
+              ">
+                      Ready to share or edit
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => router.push(`/home/podcast/episode/${recordedEpisodeId}`)}
+                  className="
+              px-5 sm:px-6 py-2.5 sm:py-3 
+              bg-green-600 hover:bg-green-700 
+              text-white font-medium text-sm 
+              rounded-xl transition-all duration-200
+              flex items-center gap-2 whitespace-nowrap
+            "
+                >
+                  View Episode
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -328,7 +436,7 @@ export default function PodcastStudio({ session, onEndSession }: Props) {
                 onApproveRequest={handleApproveRequest}
                 onRejectRequest={handleRejectRequest}
               />
-              
+
               <RecordingControls
                 sessionId={session.id}
                 userId={userId}

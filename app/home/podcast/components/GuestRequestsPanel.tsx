@@ -369,120 +369,132 @@ export function GuestRequestsPanel({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center justify-center py-4">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-          <span className="ml-2 text-sm text-gray-600">Loading guest requests...</span>
+      <div className="border border-black/10 dark:border-white/10 rounded-2xl p-5 bg-white dark:bg-black">
+        <div className="flex items-center gap-2 justify-center py-4">
+          <div className="w-4 h-4 border-2 border-[#EF3866] border-t-transparent rounded-full animate-spin" />
+          <span className="font-sora text-xs text-black/50 dark:text-white/50">Loading requests…</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center space-x-2">
-          <Mic className="w-5 h-5 text-yellow-600" />
-          <h4 className="font-semibold text-yellow-800">Guest Requests ({requests.length})</h4>
+    <div className="border border-black/10 dark:border-white/10 rounded-2xl bg-white dark:bg-black overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 dark:border-white/5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-[#EF3866]/10 rounded-xl flex items-center justify-center">
+            <Mic className="w-4 h-4 text-[#EF3866]" />
+          </div>
+          <div>
+            <h4 className="font-sora font-semibold text-sm text-black dark:text-white">
+              Speaker Requests
+            </h4>
+            {requests.length > 0 && (
+              <p className="font-sora text-[10px] text-[#EF3866]">{requests.length} pending</p>
+            )}
+          </div>
         </div>
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-1">
-            <div className={`w-2 h-2 rounded-full ${
-              connectionStatus === 'connected' ? 'bg-green-500' :
-              connectionStatus === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
-            }`}></div>
-            <span className="text-xs font-medium capitalize text-yellow-700">
+
+        <div className="flex items-center gap-2">
+          {/* Connection pill */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-black/10 dark:border-white/10">
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              connectionStatus === 'connected'  ? 'bg-emerald-500' :
+              connectionStatus === 'connecting' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'
+            }`} />
+            <span className="font-sora text-[10px] font-medium text-black/60 dark:text-white/60 capitalize">
               {connectionStatus}
             </span>
           </div>
           <button
             onClick={handleRefresh}
-            className="p-1 hover:bg-yellow-100 rounded-full transition-colors"
-            aria-label="Refresh guest requests"
+            className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
           >
-            <RefreshCw className="w-4 h-4 text-yellow-600" />
+            <RefreshCw className="w-3.5 h-3.5 text-black/40 dark:text-white/40" />
           </button>
         </div>
       </div>
 
-      {/* Connection Status Info */}
+      {/* Disconnected banner */}
       {connectionStatus !== 'connected' && (
-        <div className={`mb-3 p-2 rounded text-sm flex items-center space-x-2 ${
-          connectionStatus === 'connecting' 
-            ? 'bg-blue-50 text-blue-700 border border-blue-100' 
-            : 'bg-red-50 text-red-700 border border-red-100'
+        <div className={`mx-4 mt-3 px-3 py-2 rounded-xl text-xs font-sora flex items-center gap-2 ${
+          connectionStatus === 'connecting'
+            ? 'bg-amber-500/10 text-amber-600'
+            : 'bg-red-500/10 text-red-500'
         }`}>
           {connectionStatus === 'connecting' ? (
-            <>
-              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
-              <span>Connecting to live updates...</span>
-            </>
+            <><div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />Connecting to live updates…</>
           ) : (
-            <>
-              <AlertCircle className="w-4 h-4" />
-              <span>Disconnected - Attempting to reconnect...</span>
-            </>
+            <><AlertCircle className="w-3.5 h-3.5 shrink-0" />Disconnected — attempting to reconnect</>
           )}
         </div>
       )}
 
-      {requests.length === 0 ? (
-        <div className="text-center py-4 text-yellow-700">
-          <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm font-medium">No pending guest requests</p>
-          <p className="text-xs opacity-75 mt-1">Listeners will appear here when they request to speak</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {requests.map((request) => (
-            <div key={request.id} className="flex items-center justify-between p-3 bg-white rounded border border-yellow-100 shadow-sm">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-1">
-                  <User className="w-4 h-4 text-gray-500" />
-                  <div className="font-medium text-gray-900 dark:text-white">
-                    {getDisplayName(request)}
+      {/* Body */}
+      <div className="p-4">
+        {requests.length === 0 ? (
+          <div className="text-center py-8">
+            <CheckCircle className="w-7 h-7 mx-auto mb-2 text-black/15 dark:text-white/15" />
+            <p className="font-sora text-xs font-medium text-black/40 dark:text-white/40">No pending requests</p>
+            <p className="font-sora text-[11px] text-black/25 dark:text-white/25 mt-0.5">
+              Listeners will appear here when they request to speak
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {requests.map((request) => (
+              <div
+                key={request.id}
+                className="flex items-center justify-between p-3.5 border border-[#EF3866]/20 bg-[#EF3866]/3 rounded-xl"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-6 h-6 bg-[#EF3866]/10 rounded-lg flex items-center justify-center shrink-0">
+                      <User className="w-3.5 h-3.5 text-[#EF3866]" />
+                    </div>
+                    <p className="font-sora text-sm font-semibold text-black dark:text-white truncate">
+                      {getDisplayName(request)}
+                    </p>
+                  </div>
+                  {request.message && (
+                    <p className="font-sora text-xs text-black/60 dark:text-white/60 ml-8 line-clamp-1">
+                      &quot;{request.message}&quot;
+                    </p>
+                  )}
+                  <div className="flex items-center gap-1 ml-8 mt-1">
+                    <Clock className="w-3 h-3 text-black/30 dark:text-white/30" />
+                    <span className="font-sora text-[10px] text-black/30 dark:text-white/30">
+                      {new Date(request.requested_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
                 </div>
-                <div className="text-sm text-gray-600 mb-2">{request.message}</div>
-                <div className="flex items-center space-x-2 text-xs text-gray-500">
-                  <Clock className="w-3 h-3" />
-                  <span>{new Date(request.requested_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+
+                <div className="flex gap-2 ml-4 shrink-0">
+                  <button
+                    onClick={() => handleApprove(request.id, request.user_id)}
+                    className="px-3.5 py-1.5 bg-emerald-500 text-white font-sora text-[11px] font-semibold rounded-lg hover:bg-emerald-600 transition-colors"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleReject(request.id)}
+                    className="px-3.5 py-1.5 border border-black/15 dark:border-white/15 text-black/60 dark:text-white/60 font-sora text-[11px] font-semibold rounded-lg hover:border-red-400 hover:text-red-500 transition-colors"
+                  >
+                    Decline
+                  </button>
                 </div>
               </div>
-              <div className="flex space-x-2 ml-4">
-                <button
-                  onClick={() => handleApprove(request.id, request.user_id)}
-                  className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600 transition-colors font-medium shadow-sm"
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={() => handleReject(request.id)}
-                  className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-colors font-medium shadow-sm"
-                >
-                  Reject
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
 
-      {/* Debug info */}
-      <div className="mt-3 pt-3 border-t border-yellow-200">
-        <div className="text-xs text-yellow-700 opacity-75 space-y-1">
-          <div className="flex justify-between">
-            <span>Session:</span>
-            <span className="font-mono">{sessionId?.slice(-8)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Connection:</span>
-            <span className="font-medium capitalize">{connectionStatus}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Requests:</span>
-            <span className="font-medium">{requests.length} pending</span>
-          </div>
+      {/* Footer debug */}
+      <div className="px-5 py-2.5 border-t border-black/5 dark:border-white/5">
+        <div className="flex justify-between font-sora text-[10px] text-black/25 dark:text-white/25 font-mono">
+          <span>session:{sessionId?.slice(-6)}</span>
+          <span>{requests.length} pending</span>
         </div>
       </div>
     </div>
