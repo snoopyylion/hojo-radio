@@ -1,14 +1,13 @@
 // app/api/users/[userId]/route.ts
+//
+// Returns a single user's profile from Supabase including is_admin.
+// Used by the Settings page to determine role, author_request status, and admin flag.
+
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-// ✅ CORRECT Next.js 15+ App Router signature
+// ✅ CORRECT Next.js 15+ App Router signature with Promise params
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
@@ -20,33 +19,29 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // ✅ Await the params Promise
+    // ✅ Await the params Promise (Next.js 15+ requirement)
     const { userId } = await params;
 
     if (!userId) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
     }
 
-    const { data: user, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('users')
-      .select('id, username, first_name, last_name, email, image_url')
+      .select(
+        'id, email, role, author_request, first_name, last_name, username, image_url, is_admin'
+      )
       .eq('id', userId)
       .single();
 
-    if (error || !user) {
+    if (error || !data) {
+      console.error('Error fetching user:', error);
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json({
-      user_id: user.id,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      username: user.username,
-      email: user.email,
-      image_url: user.image_url,
-    });
+    return NextResponse.json(data, { status: 200 });
   } catch (error) {
-    console.error('Error fetching user:', error);
+    console.error('Server error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch user information' },
       { status: 500 }
