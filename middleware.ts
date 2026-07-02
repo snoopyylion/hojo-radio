@@ -28,6 +28,32 @@ const isAuthRoute = createRouteMatcher([
 // API routes that should be excluded from middleware auth checks
 const isApiRoute = createRouteMatcher(['/api(.*)']);
 
+// ─── CORS ─────────────────────────────────────────────────────────────────────
+// Expo web runs on localhost:8081; native iOS/Android has no CORS restriction.
+// In production lock ALLOWED_ORIGINS to your real domain.
+const ALLOWED_ORIGINS = [
+  'http://localhost:8081',
+  'http://localhost:3000',
+  'http://localhost:19006',
+  'exp://localhost:8081',
+];
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : '*';
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,PATCH,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+    'Access-Control-Max-Age': '86400',
+  };
+}
+
+function withCors(response: NextResponse, origin: string | null): NextResponse {
+  const headers = getCorsHeaders(origin);
+  Object.entries(headers).forEach(([k, v]) => response.headers.set(k, v));
+  return response;
+}
+
 // Public API routes that don't require authentication
 const isPublicApiRoute = createRouteMatcher([
   '/api/post/trending(.*)',
@@ -73,36 +99,48 @@ function isProfileComplete(userProfile: UserProfile | null): boolean {
 }
 
 export default clerkMiddleware(async (auth, req) => {
+  // Handle CORS preflight before any Clerk auth check.
+  // Browsers send OPTIONS before every cross-origin request; it must return
+  // immediately with the CORS headers or the actual request will never fire.
+  if (req.method === 'OPTIONS' && isApiRoute(req)) {
+    return new NextResponse(null, {
+      status: 204,
+      headers: getCorsHeaders(req.headers.get('origin')),
+    });
+  }
+
   const { userId } = await auth();
-  
+
   console.log(`🔍 Middleware check - Path: ${req.nextUrl.pathname}, UserId: ${userId || 'none'}`);
-  
+
   // For API routes, we need to ensure authentication context is available
   if (isApiRoute(req)) {
+    const origin = req.headers.get('origin');
+
     console.log('🔧 API route detected, checking if public or protected');
-    
+
     // Allow public API routes without authentication
     if (isPublicApiRoute(req)) {
       console.log('🌐 Public API route detected, allowing access');
-      return NextResponse.next();
+      return withCors(NextResponse.next(), origin);
     }
-    
+
     // Special handling for YouTube OAuth callback
     if (req.nextUrl.pathname.startsWith('/api/auth/youtube/callback')) {
       console.log('🔄 YouTube OAuth callback detected, allowing access');
-      return NextResponse.next();
+      return withCors(NextResponse.next(), origin);
     }
-    
+
     // Special handling for YouTube OAuth completion
     if (req.nextUrl.pathname.startsWith('/api/auth/youtube/complete')) {
       console.log('🔄 YouTube OAuth completion detected, allowing access');
-      return NextResponse.next();
+      return withCors(NextResponse.next(), origin);
     }
-    
+
     // For protected API routes, let Clerk handle authentication
     // Don't block them here - let the API route's auth() function handle it
     console.log('🔐 Protected API route detected, allowing Clerk to handle auth');
-    return NextResponse.next();
+    return withCors(NextResponse.next(), origin);
   }
   
   // Allow OAuth callback route to process without any interference
