@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     const nextCursor = posts?.length === limit ? posts[posts.length - 1].created_at : null;
 
     return NextResponse.json({ posts: enriched, nextCursor });
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
