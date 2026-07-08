@@ -81,17 +81,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Update the role
-    const { data, error } = await supabase
+    const now = new Date().toISOString();
+
+    // Insert-or-update: a promoted listener may not have a session_roles row yet
+    // (e.g. mobile listeners, whose row isn't created on join). Update if it
+    // exists, otherwise insert one — so promotion never fails on a missing row.
+    const { data: existing } = await supabase
       .from('session_roles')
-      .update({ 
-        role: newRole,
-        promoted_at: new Date().toISOString()
-      })
+      .select('id')
       .eq('session_id', sessionId)
       .eq('user_id', targetUserId)
-      .select()
-      .single();
+      .maybeSingle();
+
+    let data;
+    let error;
+    if (existing) {
+      ({ data, error } = await supabase
+        .from('session_roles')
+        .update({ role: newRole, promoted_at: now })
+        .eq('session_id', sessionId)
+        .eq('user_id', targetUserId)
+        .select()
+        .single());
+    } else {
+      ({ data, error } = await supabase
+        .from('session_roles')
+        .insert({ session_id: sessionId, user_id: targetUserId, role: newRole, promoted_at: now, created_at: now })
+        .select()
+        .single());
+    }
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
