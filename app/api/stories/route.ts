@@ -16,12 +16,16 @@ export async function GET() {
 
     if (error) return NextResponse.json({ error: 'Database error' }, { status: 500 });
 
-    // Group by author_id, preserving insertion order (most-recent author first)
-    const grouped: Record<string, { author: unknown; stories: unknown[] }> = {};
+    // Group by author_id, preserving insertion order (most-recent author first).
+    // Supabase types embedded joins as arrays, so normalize author to one object.
+    type StoryAuthor = { id: string; username: string; first_name: string; last_name: string; image_url?: string };
+    const grouped: Record<string, { author: StoryAuthor; stories: unknown[] }> = {};
     for (const story of data ?? []) {
-      const authorId = (story.author as { id: string } | null)?.id;
+      const rawAuthor = story.author as unknown as StoryAuthor | StoryAuthor[] | null;
+      const author = Array.isArray(rawAuthor) ? rawAuthor[0] : rawAuthor;
+      const authorId = author?.id;
       if (!authorId) continue;
-      if (!grouped[authorId]) grouped[authorId] = { author: story.author, stories: [] };
+      if (!grouped[authorId]) grouped[authorId] = { author, stories: [] };
       grouped[authorId].stories.push(story);
     }
 
