@@ -16,7 +16,11 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Body: { folder?: 'feed' | 'stories' | 'podcasts' | 'avatars' | 'music', eager?: string }
+// Body: { folder?: 'feed' | 'stories' | 'podcasts' | 'avatars' | 'music', transformation?: string }
+//
+// Cloudinary verifies the signature against EVERY upload parameter except
+// file, api_key and resource_type. So whatever the client will send must be
+// signed here too, or the upload fails with "Invalid Signature".
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
@@ -27,13 +31,19 @@ export async function POST(request: NextRequest) {
       ? `voxra/${body.folder}`
       : 'voxra/feed') as string;
 
+    const transformation = typeof body.transformation === 'string' && body.transformation
+      ? body.transformation
+      : undefined;
+
+    // Only send a preset if one is actually configured; a non-existent preset
+    // name is rejected by Cloudinary.
+    const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET || undefined;
+
     const timestamp = Math.round(Date.now() / 1000);
 
-    const params: Record<string, string | number> = {
-      folder,
-      timestamp,
-      upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET ?? 'voxra_uploads',
-    };
+    const params: Record<string, string | number> = { folder, timestamp };
+    if (transformation) params.transformation = transformation;
+    if (uploadPreset) params.upload_preset = uploadPreset;
 
     const signature = cloudinary.utils.api_sign_request(
       params,
@@ -46,9 +56,11 @@ export async function POST(request: NextRequest) {
       cloudName: process.env.CLOUDINARY_CLOUD_NAME,
       apiKey: process.env.CLOUDINARY_API_KEY,
       folder,
-      uploadPreset: params.upload_preset,
+      transformation,
+      uploadPreset,
     });
-  } catch {
+  } catch (error) {
+    console.error('/api/media/sign error:', error);
     return NextResponse.json({ error: 'Failed to generate upload signature' }, { status: 500 });
   }
 }
