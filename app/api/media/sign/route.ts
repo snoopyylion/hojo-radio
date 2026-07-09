@@ -16,14 +16,14 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Body: { folder?: 'feed' | 'stories' | 'podcasts', eager?: string }
+// Body: { folder?: 'feed' | 'stories' | 'podcasts' | 'avatars' | 'music', eager?: string }
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
 
     const body = await request.json().catch(() => ({}));
-    const folder = (['feed', 'stories', 'podcasts', 'avatars'].includes(body.folder)
+    const folder = (['feed', 'stories', 'podcasts', 'avatars', 'music'].includes(body.folder)
       ? `voxra/${body.folder}`
       : 'voxra/feed') as string;
 
