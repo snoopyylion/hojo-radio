@@ -276,14 +276,6 @@ export async function GET(req: NextRequest) {
         
         console.log("📋 Query params:", { type, podcastId, seasonId, authorId, offset, limit });
 
-        // Test Supabase connection first
-        const { error: testError } = await supabase.from("podcasts").select("count").limit(1);
-        if (testError) {
-            console.error("❌ Supabase connection error:", testError);
-            throw new Error(`Supabase connection failed: ${testError.message}`);
-        }
-        console.log("✅ Supabase connected");
-
         if (type === "podcasts") {
             console.log("📡 Fetching podcasts...");
             
@@ -342,30 +334,23 @@ export async function GET(req: NextRequest) {
             
             console.log(`✅ Found ${seasons?.length || 0} seasons`);
 
-            // Then, get episode counts for each season separately
-            const seasonsWithCounts = await Promise.all(
-                (seasons || []).map(async (season) => {
-                    const { count, error: countError } = await supabase
-                        .from("podcast_episodes")
-                        .select("*", { count: "exact", head: true })
-                        .eq("season_id", season.id);
+            // Count episodes per season in one query rather than one per season.
+            const { data: epRows, error: countError } = await supabase
+                .from("podcast_episodes")
+                .select("season_id")
+                .eq("podcast_id", podcastId);
 
-                    if (countError) {
-                        console.error(`❌ Error counting episodes for season ${season.id}:`, countError);
-                        return {
-                            ...season,
-                            episode_count: 0,
-                            podcast_episodes: [{ count: 0 }]
-                        };
-                    }
+            if (countError) console.error("❌ Error counting episodes:", countError);
 
-                    return {
-                        ...season,
-                        episode_count: count || 0,
-                        podcast_episodes: [{ count: count || 0 }]
-                    };
-                })
-            );
+            const countsBySeason = new Map<string, number>();
+            for (const row of epRows || []) {
+                countsBySeason.set(row.season_id, (countsBySeason.get(row.season_id) || 0) + 1);
+            }
+
+            const seasonsWithCounts = (seasons || []).map((season) => {
+                const count = countsBySeason.get(season.id) || 0;
+                return { ...season, episode_count: count, podcast_episodes: [{ count }] };
+            });
 
             console.log("📦 Seasons data with counts:", seasonsWithCounts);
             return NextResponse.json({ seasons: seasonsWithCounts || [] });
