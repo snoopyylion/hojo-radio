@@ -34,23 +34,6 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Verify user is participant in conversation
-        const { data: participant, error: participantError } = await supabase
-            .from('conversation_participants')
-            .select('id')
-            .eq('conversation_id', conversationId)
-            .eq('user_id', userId)
-            .is('left_at', null)
-            .single();
-
-        if (participantError || !participant) {
-            console.error('Participant check error:', participantError);
-            return NextResponse.json(
-                { error: 'Access denied to this conversation' },
-                { status: 403 }
-            );
-        }
-
         // Build query
         let query = supabase
             .from('messages')
@@ -75,7 +58,30 @@ export async function GET(request: NextRequest) {
             query = query.lt('created_at', before);
         }
 
-        const { data: messages, error: messagesError } = await query;
+        // Wave 1: the participant check gates the response, but it doesn't feed
+        // the message query — so run both at once and discard on 403 rather than
+        // paying two serial round-trips. Nothing is returned before authorizing.
+        const [
+            { data: participant, error: participantError },
+            { data: messages, error: messagesError },
+        ] = await Promise.all([
+            supabase
+                .from('conversation_participants')
+                .select('id')
+                .eq('conversation_id', conversationId)
+                .eq('user_id', userId)
+                .is('left_at', null)
+                .single(),
+            query,
+        ]);
+
+        if (participantError || !participant) {
+            console.error('Participant check error:', participantError);
+            return NextResponse.json(
+                { error: 'Access denied to this conversation' },
+                { status: 403 }
+            );
+        }
 
         if (messagesError) {
             console.error('Messages fetch error:', messagesError);
@@ -86,55 +92,44 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ messages: [] });
         }
 
-        // Get sender details
         const senderIds = [...new Set(messages.map(m => m.sender_id))];
-        const { data: senders, error: sendersError } = await supabase
-            .from('users')
-            .select('id, username, image_url, first_name, last_name')
-            .in('id', senderIds);
+        const replyToIds = messages
+            .filter(m => m.reply_to_id)
+            .map(m => m.reply_to_id);
+        const messageIds = messages.map(m => m.id);
 
+        type PartialReplyMessage = Pick<Message, 'id' | 'content' | 'sender_id' | 'created_at'>;
+
+        // Wave 2: senders, reply-targets and reactions each depend only on the
+        // messages above, never on each other. Fetch them concurrently.
+        const [sendersRes, repliesRes, reactionsRes] = await Promise.all([
+            supabase
+                .from('users')
+                .select('id, username, image_url, first_name, last_name')
+                .in('id', senderIds),
+            replyToIds.length > 0
+                ? supabase
+                    .from('messages')
+                    .select('id, content, sender_id, created_at')
+                    .in('id', replyToIds)
+                : Promise.resolve({ data: [] as PartialReplyMessage[], error: null }),
+            supabase
+                .from('message_reactions')
+                .select('id, message_id, user_id, emoji, created_at')
+                .in('message_id', messageIds),
+        ]);
+
+        const { data: senders, error: sendersError } = sendersRes;
         if (sendersError) {
             console.error('Senders fetch error:', sendersError);
             // Continue without sender details instead of throwing
         }
 
-        // Get reply-to messages if any
-        const replyToIds = messages
-            .filter(m => m.reply_to_id)
-            .map(m => m.reply_to_id);
+        const replyToMessages: PartialReplyMessage[] = repliesRes.error
+            ? []
+            : (repliesRes.data as PartialReplyMessage[] ?? []);
 
-        type PartialReplyMessage = Pick<Message, 'id' | 'content' | 'sender_id' | 'created_at'>;
-        let replyToMessages: PartialReplyMessage[] = [];
-
-        if (replyToIds.length > 0) {
-            const { data, error } = await supabase
-                .from('messages')
-                .select(`
-                    id, 
-                    content, 
-                    sender_id, 
-                    created_at
-                `)
-                .in('id', replyToIds);
-
-            if (!error && data) {
-                replyToMessages = data;
-            }
-        }
-
-        // Get reactions for messages
-        const messageIds = messages.map(m => m.id);
-        const { data: reactions, error: reactionsError } = await supabase
-            .from('message_reactions')
-            .select(`
-                id,
-                message_id,
-                user_id,
-                emoji,
-                created_at
-            `)
-            .in('message_id', messageIds);
-
+        const { data: reactions, error: reactionsError } = reactionsRes;
         if (reactionsError) {
             console.error('Reactions fetch error:', reactionsError);
             // Continue without reactions instead of throwing
