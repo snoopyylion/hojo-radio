@@ -1,0 +1,18 @@
+{
+  "default_branch": "master",
+  "branches": [
+    "feature-task",
+    "master",
+    "origin"
+  ],
+  "parent": {
+    "feature-task": "master",
+    "master": null,
+    "origin": "master"
+  },
+  "order": [
+    "master",
+    "feature-task",
+    "origin"
+  ]
+}
