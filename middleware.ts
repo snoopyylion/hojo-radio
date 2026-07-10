@@ -3,6 +3,11 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
+// Middleware runs on every request; logging there costs latency on each one.
+// Set MIDDLEWARE_DEBUG=1 to turn it back on.
+const DEBUG = process.env.MIDDLEWARE_DEBUG === '1';
+const log = (...args: unknown[]) => { if (DEBUG) console.log(...args); };
+
 
 const isProtectedRoute = createRouteMatcher([
   '/blog(.*)',
@@ -87,7 +92,7 @@ function isProfileComplete(userProfile: UserProfile | null): boolean {
   
   const isComplete = hasFirstName && hasLastName && hasUsername && isMarkedComplete;
   
-  console.log('📋 Profile completion check:', {
+  log('📋 Profile completion check:', {
     hasFirstName,
     hasLastName,
     hasUsername,
@@ -111,47 +116,47 @@ export default clerkMiddleware(async (auth, req) => {
 
   const { userId } = await auth();
 
-  console.log(`🔍 Middleware check - Path: ${req.nextUrl.pathname}, UserId: ${userId || 'none'}`);
+  log(`🔍 Middleware check - Path: ${req.nextUrl.pathname}, UserId: ${userId || 'none'}`);
 
   // For API routes, we need to ensure authentication context is available
   if (isApiRoute(req)) {
     const origin = req.headers.get('origin');
 
-    console.log('🔧 API route detected, checking if public or protected');
+    log('🔧 API route detected, checking if public or protected');
 
     // Allow public API routes without authentication
     if (isPublicApiRoute(req)) {
-      console.log('🌐 Public API route detected, allowing access');
+      log('🌐 Public API route detected, allowing access');
       return withCors(NextResponse.next(), origin);
     }
 
     // Special handling for YouTube OAuth callback
     if (req.nextUrl.pathname.startsWith('/api/auth/youtube/callback')) {
-      console.log('🔄 YouTube OAuth callback detected, allowing access');
+      log('🔄 YouTube OAuth callback detected, allowing access');
       return withCors(NextResponse.next(), origin);
     }
 
     // Special handling for YouTube OAuth completion
     if (req.nextUrl.pathname.startsWith('/api/auth/youtube/complete')) {
-      console.log('🔄 YouTube OAuth completion detected, allowing access');
+      log('🔄 YouTube OAuth completion detected, allowing access');
       return withCors(NextResponse.next(), origin);
     }
 
     // For protected API routes, let Clerk handle authentication
     // Don't block them here - let the API route's auth() function handle it
-    console.log('🔐 Protected API route detected, allowing Clerk to handle auth');
+    log('🔐 Protected API route detected, allowing Clerk to handle auth');
     return withCors(NextResponse.next(), origin);
   }
   
   // Allow OAuth callback route to process without any interference
   if (isOAuthCallbackRoute(req)) {
-    console.log('🔄 OAuth callback route accessed, allowing through');
+    log('🔄 OAuth callback route accessed, allowing through');
     return NextResponse.next();
   }
 
   // If user is not signed in and trying to access protected routes
   if (!userId && isProtectedRoute(req)) {
-    console.log('🚫 Unauthorized access to protected route, redirecting to sign-in');
+    log('🚫 Unauthorized access to protected route, redirecting to sign-in');
     const signInUrl = new URL('/authentication/sign-in', req.url);
     const fullPath = req.nextUrl.pathname + req.nextUrl.search;
     signInUrl.searchParams.set('redirect_url', fullPath);
@@ -160,7 +165,7 @@ export default clerkMiddleware(async (auth, req) => {
 
   // If user is signed in and trying to access auth routes (sign-in/sign-up)
   if (userId && isAuthRoute(req)) {
-  console.log('👤 Signed-in user accessing auth route, checking profile...');
+  log('👤 Signed-in user accessing auth route, checking profile...');
   
   try {
     // Check if user profile exists and is complete in database
@@ -173,13 +178,13 @@ export default clerkMiddleware(async (auth, req) => {
     if (error && error.code !== 'PGRST116') {
       console.error('❌ Database error checking user profile:', error);
       const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/home';
-      console.log('🔄 Database error, redirecting to:', redirectUrl);
+      log('🔄 Database error, redirecting to:', redirectUrl);
       return NextResponse.redirect(new URL(redirectUrl, req.url));
     }
 
     // If user doesn't exist in database or profile is incomplete
     if (!userProfile || !isProfileComplete(userProfile)) {
-      console.log('📝 User profile needs completion, redirecting to complete-profile');
+      log('📝 User profile needs completion, redirecting to complete-profile');
       const completeProfileUrl = new URL('/authentication/complete-profile', req.url);
       const redirectUrl = req.nextUrl.searchParams.get('redirect_url');
       if (redirectUrl && redirectUrl !== '/home') {
@@ -190,7 +195,7 @@ export default clerkMiddleware(async (auth, req) => {
 
     // Profile is complete, redirect to intended destination
     const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/home';
-    console.log('✅ Profile complete, redirecting to:', redirectUrl);
+    log('✅ Profile complete, redirecting to:', redirectUrl);
     return NextResponse.redirect(new URL(redirectUrl, req.url));
     
   } catch (error) {
@@ -203,7 +208,7 @@ export default clerkMiddleware(async (auth, req) => {
 
   // If user is signed in and accessing profile completion route
   if (userId && isProfileCompletionRoute(req)) {
-    console.log('📝 User accessing profile completion route');
+    log('📝 User accessing profile completion route');
     
     try {
       // Check if profile is already complete
@@ -215,13 +220,13 @@ export default clerkMiddleware(async (auth, req) => {
 
       // If profile is complete, redirect away from completion route
       if (!error && userProfile && isProfileComplete(userProfile)) {
-        console.log('✅ Profile already complete, redirecting away from completion route');
+        log('✅ Profile already complete, redirecting away from completion route');
         const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/home';
         return NextResponse.redirect(new URL(redirectUrl, req.url));
       }
 
       // Profile needs completion, allow access to completion route
-      console.log('📝 Profile needs completion, allowing access to completion route');
+      log('📝 Profile needs completion, allowing access to completion route');
       return NextResponse.next();
       
     } catch (error) {
@@ -232,7 +237,7 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   if (userId && isAuthRoute(req)) {
-  console.log('👤 Signed-in user accessing auth route, checking profile...');
+  log('👤 Signed-in user accessing auth route, checking profile...');
   
   try {
     // Check if user profile exists and is complete in database
@@ -245,7 +250,7 @@ export default clerkMiddleware(async (auth, req) => {
     if (error && error.code !== 'PGRST116') {
       console.error('❌ Database error checking user profile:', error);
       const redirectUrl = req.nextUrl.searchParams.get('redirect_url') || '/home';
-      console.log('🔄 Database error, redirecting to:', redirectUrl);
+      log('🔄 Database error, redirecting to:', redirectUrl);
       return NextResponse.redirect(new URL(redirectUrl, req.url));
     }
 
@@ -254,7 +259,7 @@ export default clerkMiddleware(async (auth, req) => {
 
     // If user doesn't exist in database or profile is incomplete
     if (!userProfile || !isProfileComplete(userProfile)) {
-      console.log('📝 User profile needs completion, redirecting to complete-profile');
+      log('📝 User profile needs completion, redirecting to complete-profile');
       const completeProfileUrl = new URL('/authentication/complete-profile', req.url);
       if (redirectUrl && redirectUrl !== '/home') {
         completeProfileUrl.searchParams.set('redirect_url', redirectUrl);
@@ -263,7 +268,7 @@ export default clerkMiddleware(async (auth, req) => {
     }
 
     // Profile is complete, redirect to intended destination
-    console.log('✅ Profile complete, redirecting to:', redirectUrl);
+    log('✅ Profile complete, redirecting to:', redirectUrl);
     return NextResponse.redirect(new URL(redirectUrl, req.url));
     
   } catch (error) {
@@ -275,7 +280,7 @@ export default clerkMiddleware(async (auth, req) => {
 
   // If user is signed in and accessing other protected routes
   if (userId && isProtectedRoute(req) && !isProfileCompletionRoute(req)) {
-    console.log('🔒 Signed-in user accessing protected route, checking profile completion...');
+    log('🔒 Signed-in user accessing protected route, checking profile completion...');
     
     try {
       // Check if user profile exists and is complete
@@ -293,7 +298,7 @@ export default clerkMiddleware(async (auth, req) => {
 
       // If user doesn't exist or profile is incomplete, redirect to complete profile
       if (!userProfile || !isProfileComplete(userProfile)) {
-        console.log('📝 Incomplete profile detected, redirecting to complete-profile');
+        log('📝 Incomplete profile detected, redirecting to complete-profile');
         const completeProfileUrl = new URL('/authentication/complete-profile', req.url);
         const currentPath = req.nextUrl.pathname + req.nextUrl.search;
         if (currentPath !== '/home') {
@@ -303,7 +308,7 @@ export default clerkMiddleware(async (auth, req) => {
       }
 
       // Profile is complete, allow access
-      console.log('✅ Profile complete, allowing access to protected route');
+      log('✅ Profile complete, allowing access to protected route');
       return NextResponse.next();
       
     } catch (error) {
@@ -314,7 +319,7 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   // Default: allow the request to proceed
-  console.log('✅ Request allowed through middleware');
+  log('✅ Request allowed through middleware');
   return NextResponse.next();
 });
 
